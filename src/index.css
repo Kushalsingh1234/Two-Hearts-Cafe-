@@ -93,9 +93,146 @@ input, textarea, select {
   scrollbar-width: none;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+/* Marketing & Bistro Utilities */
+.site-container {
+  width: 100%;
+  max-width: 1140px;
+  margin: 0 auto;
+  padding-left: 20px;
+  padding-right: 20px;
+  box-sizing: border-box;
+}
+
+.site-container-narrow {
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  padding-left: 20px;
+  padding-right: 20px;
+  box-sizing: border-box;
+}
+
+/* Black Pill Button (Theme Signature) */
+.btn-pill-black {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: var(--color-ink);
+  color: #FFFFFF !important;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 12px 26px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-ink);
+  box-shadow: 0 2px 6px rgba(28, 25, 23, 0.12);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn-pill-black:hover {
+  background-color: #000000;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(28, 25, 23, 0.22);
+}
+
+.btn-pill-black:active {
+  transform: translateY(0);
+}
+
+/* Outline Pill Button */
+.btn-pill-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: transparent;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 11px 24px;
+  border-radius: var(--radius-pill);
+  border: 1.2px solid var(--border-color);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn-pill-outline:hover {
+  border-color: var(--color-bronze);
+  color: var(--color-bronze);
+  background-color: rgba(244, 236, 227, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Boutique Bistro Card */
+.bistro-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  overflow: hidden;
+}
+
+.bistro-card-hover:hover {
+  transform: translateY(-3px);
+  border-color: #D6C8B8;
+  box-shadow: var(--shadow-md);
+}
+
+/* Subtle decorative hairline separator */
+.hairline-sep {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-color) 20%, var(--border-color) 80%, transparent);
+  border: none;
+  margin: 0;
+}
+
+/* Story Spotlight Auto-Rotation Animations */
+@keyframes storyFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.story-fade-in {
+  animation: storyFadeIn 0.4s ease-out forwards;
+}
+
+@keyframes progressTimer {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.progress-timer-bar {
+  animation: progressTimer 5.5s linear infinite;
+}
+
 /* Print styles */
 @media print {
   .no-print {
     display: none !important;
   }
 }
+

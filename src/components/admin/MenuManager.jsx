@@ -33,8 +33,21 @@ export default function MenuManager({ menuItems }) {
   const availableCategories = useMemo(() => {
     const standard = [
       { id: "pasta", label: "Pasta" },
+      { id: "pizza", label: "Pizza" },
+      { id: "burger", label: "Burger" },
       { id: "sandwiches", label: "Sandwiches" },
+      { id: "momo", label: "Momo" },
+      { id: "roll", label: "Rolls" },
+      { id: "combo", label: "Combos" },
+      { id: "platter", label: "Platter" },
+      { id: "desi", label: "Desi Cuisine" },
+      { id: "breads", label: "Breads" },
       { id: "noodles", label: "Noodles" },
+      { id: "rice", label: "Rice" },
+      { id: "paneer", label: "Paneer" },
+      { id: "snacks", label: "Snacks" },
+      { id: "waffles", label: "Waffles" },
+      { id: "shakes", label: "Shakes & Drinks" },
       { id: "maggie", label: "Maggie" }
     ];
     const map = new Map();

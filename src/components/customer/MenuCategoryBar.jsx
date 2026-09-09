@@ -29,7 +29,7 @@ export default function MenuCategoryBar({
         }} />
         <input
           type="text"
-          placeholder="Search pasta, sandwiches, noodles, maggie..."
+          placeholder="Search pasta, pizza, momos, thalis, parathas..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           style={{

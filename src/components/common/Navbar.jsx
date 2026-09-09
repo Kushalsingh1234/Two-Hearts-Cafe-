@@ -34,7 +34,16 @@ export default function Navbar({
         boxSizing: "border-box"
       }}>
         {/* Brand with Official Cafe Emblem Icon */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <a
+          href="/"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            textDecoration: "none"
+          }}
+          title="Two Hearts Cafe"
+        >
           <CafeLogoIcon size={38} />
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span style={{
@@ -57,13 +66,36 @@ export default function Navbar({
               {currentView === "customer" ? `Table #${tableNumber}` : "Staff / Kitchen Hub"}
             </span>
           </div>
-        </div>
+        </a>
 
         {/* Right Actions */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {/* Customer View Actions */}
           {currentView === "customer" ? (
             <>
+              {/* View Menu Showcase Link */}
+              <a
+                href="/#menu"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "6px 12px",
+                  borderRadius: "var(--radius-pill)",
+                  backgroundColor: "#fff",
+                  border: "1px solid var(--border-color)",
+                  fontSize: 11,
+                  fontFamily: "var(--font-serif)",
+                  fontWeight: 700,
+                  letterSpacing: 0.5,
+                  color: "var(--color-bronze-dark)",
+                  textTransform: "uppercase",
+                  textDecoration: "none"
+                }}
+                title="View Real Menu Showcase"
+              >
+                <span>View Menu</span>
+              </a>
               {/* Active order tracking button */}
               {activeOrderCount > 0 && (
                 <button

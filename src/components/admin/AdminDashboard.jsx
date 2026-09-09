@@ -7,11 +7,13 @@ import {
   UtensilsCrossed,
   QrCode,
   Trash2,
-  LogOut
+  LogOut,
+  KeyRound
 } from "lucide-react";
 import OrderCard from "./OrderCard";
 import MenuManager from "./MenuManager";
 import TableQRGenerator from "./TableQRGenerator";
+import ChangePinModal from "./ChangePinModal";
 import { updateOrderStatus, clearAllOrders } from "../../firebase/services";
 import { soundNotifier } from "../../utils/audio";
 
@@ -20,6 +22,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
   const [orderStatusFilter, setOrderStatusFilter] = useState("active");
   const [tableFilter, setTableFilter] = useState("all");
   const [isMuted, setIsMuted] = useState(false);
+  const [isChangePinOpen, setIsChangePinOpen] = useState(false);
 
   const prevOrdersCountRef = useRef(orders.length);
 
@@ -139,6 +142,28 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
           >
             {isMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
             <span>{isMuted ? "Muted" : "Chime On"}</span>
+          </button>
+
+          <button
+            onClick={() => setIsChangePinOpen(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "7px 14px",
+              borderRadius: "var(--radius-pill)",
+              backgroundColor: "#fff",
+              border: "1.2px solid var(--color-border-frame)",
+              fontFamily: "var(--font-serif)",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "var(--color-ink)",
+              cursor: "pointer"
+            }}
+            title="Change Kitchen & Admin PIN"
+          >
+            <KeyRound size={13} />
+            <span>Change PIN</span>
           </button>
 
           {onLogout && (
@@ -460,6 +485,12 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
 
       {activeTab === "menu" && <MenuManager menuItems={menuItems} />}
       {activeTab === "qr" && <TableQRGenerator />}
+
+      {/* Change PIN Modal */}
+      <ChangePinModal
+        isOpen={isChangePinOpen}
+        onClose={() => setIsChangePinOpen(false)}
+      />
     </div>
   );
 }

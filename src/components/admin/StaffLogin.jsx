@@ -12,13 +12,16 @@ export default function StaffLogin({ onLoginSuccess }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handlePinSubmit = (e) => {
+  const handlePinSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    const res = loginWithPin(pin);
+    setLoading(true);
+    const res = await loginWithPin(pin);
+    setLoading(false);
     if (res.user) {
       onLoginSuccess(res.user);
     } else {
+      setPin("");
       setError(res.error);
     }
   };

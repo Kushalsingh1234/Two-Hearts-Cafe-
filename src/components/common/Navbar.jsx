@@ -1,5 +1,6 @@
 import React from "react";
 import { ShoppingBag, Utensils, ArrowLeft } from "lucide-react";
+import CafeLogoIcon from "./CafeLogoIcon";
 
 export default function Navbar({
   currentView,
@@ -32,27 +33,30 @@ export default function Navbar({
         width: "100%",
         boxSizing: "border-box"
       }}>
-        {/* Brand */}
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <span style={{
-            fontFamily: "var(--font-script)",
-            fontSize: "clamp(22px, 5vw, 26px)",
-            color: "var(--color-bronze)",
-            lineHeight: 1
-          }}>
-            Two Hearts Cafe
-          </span>
-          <span style={{
-            fontSize: 11,
-            fontFamily: "var(--font-serif)",
-            color: "var(--color-ink)",
-            fontWeight: 700,
-            letterSpacing: 0.5,
-            textTransform: "uppercase",
-            marginTop: 2
-          }}>
-            {currentView === "customer" ? `Table #${tableNumber}` : "Staff / Kitchen Hub"}
-          </span>
+        {/* Brand with Official Cafe Emblem Icon */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <CafeLogoIcon size={38} />
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <span style={{
+              fontFamily: "var(--font-script)",
+              fontSize: "clamp(22px, 5vw, 26px)",
+              color: "var(--color-bronze)",
+              lineHeight: 1
+            }}>
+              Two Hearts Cafe
+            </span>
+            <span style={{
+              fontSize: 10,
+              fontFamily: "var(--font-serif)",
+              color: "var(--color-ink)",
+              fontWeight: 700,
+              letterSpacing: 0.5,
+              textTransform: "uppercase",
+              marginTop: 2
+            }}>
+              {currentView === "customer" ? `Table #${tableNumber}` : "Staff / Kitchen Hub"}
+            </span>
+          </div>
         </div>
 
         {/* Right Actions */}

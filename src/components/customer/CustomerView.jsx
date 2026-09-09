@@ -5,6 +5,7 @@ import MenuCategoryBar from "./MenuCategoryBar";
 import MenuItemCard from "./MenuItemCard";
 import CartDrawer from "./CartDrawer";
 import LiveOrderTracker from "./LiveOrderTracker";
+import CafeLogoIcon from "../common/CafeLogoIcon";
 import { CAFE_INFO } from "../../data/seedMenu";
 import { placeOrder } from "../../firebase/services";
 
@@ -178,32 +179,35 @@ export default function CustomerView({
           flexWrap: "wrap",
           gap: 10
         }}>
-          <div>
-            <h1 style={{
-              fontFamily: "var(--font-script)",
-              fontSize: 32,
-              color: "var(--color-bronze)",
-              lineHeight: 1
-            }}>
-              Two Hearts Cafe
-            </h1>
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              marginTop: 4,
-              fontSize: 11,
-              color: "var(--color-ink)",
-              opacity: 0.75
-            }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-                <Clock size={11} />
-                <span>12 PM - 12 PM</span>
-              </span>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-                <MapPin size={11} />
-                <span>Near KIET University</span>
-              </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <CafeLogoIcon size={46} />
+            <div>
+              <h1 style={{
+                fontFamily: "var(--font-script)",
+                fontSize: 32,
+                color: "var(--color-bronze)",
+                lineHeight: 1
+              }}>
+                Two Hearts Cafe
+              </h1>
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                marginTop: 4,
+                fontSize: 11,
+                color: "var(--color-ink)",
+                opacity: 0.75
+              }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                  <Clock size={11} />
+                  <span>12 PM - 12 PM</span>
+                </span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                  <MapPin size={11} />
+                  <span>Near KIET University</span>
+                </span>
+              </div>
             </div>
           </div>
 

@@ -224,6 +224,16 @@ export default function SiteFooter({ setPage }) {
                   Directions & Contact Form
                 </button>
               </li>
+              <li>
+                <a
+                  href="/?admin=true"
+                  style={{ color: "var(--color-ink-soft)", textDecoration: "none", transition: "color 0.2s" }}
+                  onMouseEnter={(e) => (e.target.style.color = "var(--color-bronze)")}
+                  onMouseLeave={(e) => (e.target.style.color = "var(--color-ink-soft)")}
+                >
+                  Staff & Admin Portal
+                </a>
+              </li>
             </ul>
           </div>
         </div>
@@ -246,10 +256,32 @@ export default function SiteFooter({ setPage }) {
             <span>near KIET University.</span>
           </div>
 
-          <div style={{ display: "flex", gap: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
             <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}>
               French Bistro Aesthetics • Authentic Comfort Taste
             </span>
+            <a
+              href="/?admin=true"
+              style={{
+                color: "var(--color-ink-soft)",
+                textDecoration: "none",
+                fontSize: 11,
+                fontFamily: "var(--font-serif)",
+                opacity: 0.75,
+                transition: "all 0.2s ease"
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.opacity = "1";
+                e.target.style.color = "var(--color-bronze)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.opacity = "0.75";
+                e.target.style.color = "var(--color-ink-soft)";
+              }}
+              title="Staff & Admin Portal"
+            >
+              Staff Portal →
+            </a>
           </div>
         </div>
       </div>

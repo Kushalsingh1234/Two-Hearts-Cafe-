@@ -17,7 +17,7 @@ import { INITIAL_MENU_ITEMS } from "../data/seedMenu";
 
 const MENU_COLLECTION = "menu_items";
 const ORDERS_COLLECTION = "orders";
-const LOCAL_STORAGE_MENU_KEY = "twohearts_menu_cache_v2";
+const LOCAL_STORAGE_MENU_KEY = "twohearts_menu_cache_v7";
 const LOCAL_STORAGE_ORDERS_KEY = "twohearts_orders_cache";
 
 // Helper for local storage backup
@@ -55,29 +55,53 @@ export const subscribeMenuItems = (onSuccess, onError) => {
         if (snapshot.empty) {
           // If Firestore is empty, return initial items and optionally seed
           const localMenu = getLocalData(LOCAL_STORAGE_MENU_KEY, INITIAL_MENU_ITEMS);
-          onSuccess(localMenu);
+          // Ensure all seed items exist in localMenu
+          const existingIds = new Set(localMenu.map((i) => i.id));
+          const merged = [...localMenu];
+          for (const s of INITIAL_MENU_ITEMS) {
+            if (!existingIds.has(s.id)) merged.push(s);
+          }
+          setLocalData(LOCAL_STORAGE_MENU_KEY, merged);
+          onSuccess(merged);
         } else {
           const items = snapshot.docs.map((docSnap) => ({
             id: docSnap.id,
             ...docSnap.data()
           }));
-          setLocalData(LOCAL_STORAGE_MENU_KEY, items);
-          onSuccess(items);
+          // Ensure all seed items are present (e.g. newly added categories)
+          const existingIds = new Set(items.map((it) => it.id));
+          const merged = [...items];
+          for (const s of INITIAL_MENU_ITEMS) {
+            if (!existingIds.has(s.id)) merged.push(s);
+          }
+          setLocalData(LOCAL_STORAGE_MENU_KEY, merged);
+          onSuccess(merged);
         }
       },
       (err) => {
         console.warn("Firestore menu subscription fallback to local:", err.message);
         firestorePermissionErrorDetected = true;
         const localMenu = getLocalData(LOCAL_STORAGE_MENU_KEY, INITIAL_MENU_ITEMS);
-        onSuccess(localMenu);
+        const existingIds = new Set(localMenu.map((i) => i.id));
+        const merged = [...localMenu];
+        for (const s of INITIAL_MENU_ITEMS) {
+          if (!existingIds.has(s.id)) merged.push(s);
+        }
+        setLocalData(LOCAL_STORAGE_MENU_KEY, merged);
+        onSuccess(merged);
         if (onError) onError(err);
       }
     );
     return unsubscribe;
   } catch (err) {
     console.warn("Firestore error:", err);
-    firestorePermissionErrorDetected = true;
-    onSuccess(getLocalData(LOCAL_STORAGE_MENU_KEY, INITIAL_MENU_ITEMS));
+    const localMenu = getLocalData(LOCAL_STORAGE_MENU_KEY, INITIAL_MENU_ITEMS);
+    const existingIds = new Set(localMenu.map((i) => i.id));
+    const merged = [...localMenu];
+    for (const s of INITIAL_MENU_ITEMS) {
+      if (!existingIds.has(s.id)) merged.push(s);
+    }
+    onSuccess(merged);
     return () => {};
   }
 };

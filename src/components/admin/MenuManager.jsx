@@ -325,8 +325,21 @@ export default function MenuManager({ menuItems }) {
                     }}
                   >
                     <option value="pasta">Pasta</option>
+                    <option value="pizza">Pizza</option>
+                    <option value="burger">Burger</option>
                     <option value="sandwiches">Sandwiches</option>
+                    <option value="momo">Momo</option>
+                    <option value="roll">Rolls</option>
+                    <option value="combo">Combos</option>
+                    <option value="platter">Platter</option>
+                    <option value="desi">Desi Cuisine</option>
+                    <option value="breads">Breads</option>
                     <option value="noodles">Noodles</option>
+                    <option value="rice">Rice</option>
+                    <option value="paneer">Paneer</option>
+                    <option value="snacks">Snacks</option>
+                    <option value="waffles">Waffles</option>
+                    <option value="shakes">Shakes & Drinks</option>
                     <option value="maggie">Maggie</option>
                   </select>
                 </div>

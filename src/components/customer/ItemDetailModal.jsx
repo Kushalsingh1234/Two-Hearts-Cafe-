@@ -2,8 +2,6 @@ import React, { useState, useEffect } from "react";
 import { X, Plus, Minus, Check, Sparkles } from "lucide-react";
 
 export default function ItemDetailModal({ item, onClose, onAddToCart }) {
-  if (!item) return null;
-
   // Selected options state: { "Milk Preference": { label: "Oat Milk", price: 40 } }
   const [selectedChoices, setSelectedChoices] = useState({});
   const [quantity, setQuantity] = useState(1);
@@ -11,7 +9,7 @@ export default function ItemDetailModal({ item, onClose, onAddToCart }) {
 
   // Initialize default options
   useEffect(() => {
-    if (item.options && item.options.length > 0) {
+    if (item?.options && item.options.length > 0) {
       const defaults = {};
       item.options.forEach((group) => {
         if (group.choices && group.choices.length > 0) {
@@ -21,6 +19,8 @@ export default function ItemDetailModal({ item, onClose, onAddToCart }) {
       setSelectedChoices(defaults);
     }
   }, [item]);
+
+  if (!item) return null;
 
   // Compute unit price
   const addonTotal = Object.values(selectedChoices).reduce(

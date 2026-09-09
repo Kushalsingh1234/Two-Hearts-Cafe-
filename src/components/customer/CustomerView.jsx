@@ -27,8 +27,21 @@ export default function CustomerView({
 
   const categoriesList = [
     { id: "pasta", title: "Pasta" },
+    { id: "pizza", title: "Pizza" },
+    { id: "burger", title: "Burger" },
     { id: "sandwiches", title: "Sandwiches" },
+    { id: "momo", title: "Momo" },
+    { id: "roll", title: "Rolls" },
+    { id: "combo", title: "Combos" },
+    { id: "platter", title: "Platter" },
+    { id: "desi", title: "Desi Cuisine" },
+    { id: "breads", title: "Breads" },
     { id: "noodles", title: "Noodles" },
+    { id: "rice", title: "Rice" },
+    { id: "paneer", title: "Paneer" },
+    { id: "snacks", title: "Snacks" },
+    { id: "waffles", title: "Waffles" },
+    { id: "shakes", title: "Shakes & Drinks" },
     { id: "maggie", title: "Maggie" }
   ];
 

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Printer, ExternalLink } from "lucide-react";
+import { Printer, ExternalLink, Download } from "lucide-react";
 import { BotanicalBranchTopLeft, BotanicalBranchBottomRight } from "../common/BotanicalDecor";
 import { CAFE_INFO } from "../../data/seedMenu";
 
@@ -151,12 +151,39 @@ export default function TableQRGenerator() {
               fontSize: 13,
               fontWeight: 700,
               letterSpacing: 0.5,
-              textTransform: "uppercase"
+              textTransform: "uppercase",
+              cursor: "pointer"
             }}
           >
             <Printer size={15} />
             <span>Print Cards</span>
           </button>
+
+          {/* Download All 10 QRs ZIP Button */}
+          <a
+            href="/Two_Hearts_Table_QRs_1_to_10.zip"
+            download="Two_Hearts_Table_QRs_1_to_10.zip"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "8px 16px",
+              borderRadius: "var(--radius-pill)",
+              backgroundColor: "var(--color-ink)",
+              color: "#FAF7F2",
+              fontFamily: "var(--font-serif)",
+              fontSize: 13,
+              fontWeight: 700,
+              letterSpacing: 0.5,
+              textTransform: "uppercase",
+              textDecoration: "none",
+              cursor: "pointer"
+            }}
+            title="Download all 10 table QR standees and sticker JPGs as a ZIP"
+          >
+            <Download size={15} />
+            <span>Download All 10 QRs (ZIP)</span>
+          </a>
         </div>
       </div>
 

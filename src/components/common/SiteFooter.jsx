@@ -101,7 +101,7 @@ export default function SiteFooter({ setPage }) {
                 <div>
                   <div style={{ fontWeight: 600, color: "var(--color-ink)" }}>Daily Continuous Service</div>
                   <div style={{ color: "var(--color-bronze)", fontFamily: "var(--font-serif)", fontStyle: "italic" }}>
-                    12:00 PM – 12:00 PM (Midnight)
+                    12:00 PM – 12:00 AM (Midnight)
                   </div>
                   <div style={{ fontSize: 11, color: "var(--color-ink-soft)", marginTop: 2 }}>
                     Dine-in, Table QR Ordering & Quick Takeaway

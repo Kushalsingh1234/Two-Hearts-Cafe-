@@ -441,7 +441,7 @@ export default function MenuLandingPage({ menuItems = INITIAL_MENU_ITEMS, active
               color: "var(--color-ink-soft)",
               fontWeight: 700
             }}>
-              Shivam Vihar Colony, Pillar #852 • Open Daily 12 PM – 12 PM
+              Shivam Vihar Colony, Pillar #852 • Open Daily 12 PM – 12 AM
             </span>
           </div>
         </div>

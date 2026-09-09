@@ -85,7 +85,7 @@ export default function SiteNavbar({ currentPage, setPage }) {
               marginTop: 3,
               opacity: 0.8
             }}>
-              Near KIET University • Est. 2024
+              Near KIET University
             </span>
           </div>
         </div>
@@ -223,7 +223,7 @@ export default function SiteNavbar({ currentPage, setPage }) {
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <Clock size={13} />
-                <span>Open Daily: 12:00 PM – 12:00 PM</span>
+                <span>Open Daily: 12:00 PM – 12:00 AM</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <MapPin size={13} />

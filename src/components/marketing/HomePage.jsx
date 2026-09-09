@@ -89,7 +89,7 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
         color: "var(--color-bronze-dark)",
         letterSpacing: "0.04em"
       }}>
-        <span>✨ Welcome to Two Hearts • Open Daily <strong>12:00 PM – 12:00 PM</strong> • Pillar #852, KIET University • Pure Vegetarian Kitchen</span>
+        <span>✨ Welcome to Two Hearts • Open Daily <strong>12:00 PM – 12:00 AM</strong> • Pillar #852, KIET University • Pure Vegetarian Kitchen</span>
       </div>
 
       {/* 2. Bold, Full-Bleed Hero Section */}
@@ -985,7 +985,7 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                     color: "var(--color-ink-soft)",
                     fontStyle: "italic"
                   }}>
-                    Visit us daily 12:00 PM – 12:00 PM midnight at Pillar 852, Muradnagar
+                    Visit us daily 12:00 PM – 12:00 AM midnight at Pillar 852, Muradnagar
                   </span>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

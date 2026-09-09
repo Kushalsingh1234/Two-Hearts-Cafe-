@@ -240,7 +240,7 @@ export default function CustomerView({
               }}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
                   <Clock size={11} />
-                  <span>12 PM - 12 PM</span>
+                  <span>12 PM - 12 AM</span>
                 </span>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
                   <MapPin size={11} />

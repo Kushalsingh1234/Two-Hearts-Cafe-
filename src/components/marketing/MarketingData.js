@@ -358,7 +358,7 @@ export const SIGNATURE_ITEMS = [
 export const TRUST_FEATURES = [
   {
     icon: "Clock",
-    title: "12 PM – 12 PM Daily",
+    title: "12 PM – 12 AM Daily",
     subtitle: "Late lunch through midnight study hunger, our kitchen never sleeps early."
   },
   {
@@ -471,7 +471,7 @@ export const FAQS = [
   },
   {
     q: "What are your operating hours?",
-    a: "We are open daily from 12:00 PM noon to 12:00 PM midnight (12 hours of continuous service)."
+    a: "We are open daily from 12:00 PM noon to 12:00 AM midnight (12 hours of continuous service)."
   },
   {
     q: "How does ordering work when I visit?",

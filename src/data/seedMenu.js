@@ -1,6 +1,6 @@
 export const CAFE_INFO = {
   name: "Two Hearts Cafe",
-  tagline: "Daily open from 12 PM - 12 PM",
+  tagline: "Daily open from 12 PM - 12 AM",
   address: "Shivam Vihar Colony, pillar no 852, KIET university, muradnagar, 201206",
   phone: "9027012158"
 };

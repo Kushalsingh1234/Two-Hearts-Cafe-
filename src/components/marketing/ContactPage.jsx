@@ -163,7 +163,7 @@ export default function ContactPage() {
                       color: "var(--color-bronze-dark)",
                       marginTop: 4
                     }}>
-                      12:00 PM – 12:00 PM
+                      12:00 PM – 12:00 AM
                     </span>
                   </div>
                 </div>

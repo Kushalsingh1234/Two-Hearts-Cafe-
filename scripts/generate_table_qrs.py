@@ -81,7 +81,7 @@ def generate_table_standee(table_num):
 
     # 3. Cafe Name
     current_y = draw_centered_text(draw, "TWO HEARTS CAFE", current_y, font_title, INK_COLOR, width) + 10
-    current_y = draw_centered_text(draw, "Daily 12 PM - 12 PM  *  Near KIET University", current_y, font_subtitle, BRONZE_DARK, width) + 25
+    current_y = draw_centered_text(draw, "Daily 12 PM - 12 AM  *  Near KIET University", current_y, font_subtitle, BRONZE_DARK, width) + 25
 
     # 4. Table Badge (Pill button style)
     badge_text = f"TABLE  # {table_num}"

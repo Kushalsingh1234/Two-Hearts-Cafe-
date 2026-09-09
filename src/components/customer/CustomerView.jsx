@@ -25,12 +25,38 @@ export default function CustomerView({
   const [isPlacing, setIsPlacing] = useState(false);
   const [isTrackerOpen, setIsTrackerOpen] = useState(false);
 
-  const categoriesList = [
-    { id: "pasta", title: "Pasta" },
-    { id: "sandwiches", title: "Sandwiches" },
-    { id: "noodles", title: "Noodles" },
-    { id: "maggie", title: "Maggie" }
-  ];
+  // Dynamic categories computed from menuItems
+  const categoriesList = useMemo(() => {
+    const baseCategories = [
+      { id: "pasta", title: "Pasta" },
+      { id: "sandwiches", title: "Sandwiches" },
+      { id: "noodles", title: "Noodles" },
+      { id: "maggie", title: "Maggie" }
+    ];
+
+    const knownIds = new Set(baseCategories.map((c) => c.id.toLowerCase()));
+    const customCats = [];
+
+    menuItems.forEach((item) => {
+      if (item.category) {
+        const catId = item.category.toLowerCase().trim();
+        if (!knownIds.has(catId)) {
+          knownIds.add(catId);
+          const title = item.categoryTitle || (item.category.charAt(0).toUpperCase() + item.category.slice(1));
+          customCats.push({ id: catId, title });
+        }
+      }
+    });
+
+    return [...baseCategories, ...customCats];
+  }, [menuItems]);
+
+  const categoryBarItems = useMemo(() => {
+    return [
+      { id: "all", name: "Full Menu" },
+      ...categoriesList.map((c) => ({ id: c.id, name: c.title }))
+    ];
+  }, [categoriesList]);
 
   // Filter items
   const filteredItems = useMemo(() => {
@@ -240,6 +266,7 @@ export default function CustomerView({
         onSelectCategory={setSelectedCategory}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        categories={categoryBarItems}
       />
 
       {/* Menu Item Display */}

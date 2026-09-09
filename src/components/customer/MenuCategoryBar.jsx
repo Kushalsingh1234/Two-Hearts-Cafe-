@@ -6,7 +6,8 @@ export default function MenuCategoryBar({
   selectedCategory,
   onSelectCategory,
   searchQuery,
-  onSearchChange
+  onSearchChange,
+  categories = INITIAL_CATEGORIES
 }) {
   return (
     <div style={{
@@ -72,7 +73,7 @@ export default function MenuCategoryBar({
           paddingBottom: 2
         }}
       >
-        {INITIAL_CATEGORIES.map((cat) => {
+        {categories.map((cat) => {
           const isSelected = selectedCategory === cat.id;
 
           return (

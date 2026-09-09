@@ -116,6 +116,23 @@ export const toggleItemAvailability = async (itemId, isAvailable) => {
 };
 
 /**
+ * Quick update menu item price
+ */
+export const updateMenuItemPrice = async (itemId, newPrice) => {
+  const price = Number(newPrice);
+  try {
+    const docRef = doc(db, MENU_COLLECTION, itemId);
+    await updateDoc(docRef, { price, updatedAt: new Date().toISOString() });
+  } catch (err) {
+    console.warn("Firestore update price fallback:", err);
+    const local = getLocalData(LOCAL_STORAGE_MENU_KEY, INITIAL_MENU_ITEMS);
+    const updated = local.map((it) => (it.id === itemId ? { ...it, price } : it));
+    setLocalData(LOCAL_STORAGE_MENU_KEY, updated);
+    window.dispatchEvent(new CustomEvent("twohearts_menu_updated"));
+  }
+};
+
+/**
  * Add or update menu item
  */
 export const saveMenuItem = async (itemData) => {

@@ -6,22 +6,20 @@ import {
   ChefHat,
   UtensilsCrossed,
   QrCode,
-  HelpCircle,
-  Trash2
+  Trash2,
+  LogOut
 } from "lucide-react";
 import OrderCard from "./OrderCard";
 import MenuManager from "./MenuManager";
 import TableQRGenerator from "./TableQRGenerator";
-import FirestoreRulesModal from "./FirestoreRulesModal";
 import { updateOrderStatus, clearAllOrders } from "../../firebase/services";
 import { soundNotifier } from "../../utils/audio";
 
-export default function AdminDashboard({ orders, menuItems }) {
+export default function AdminDashboard({ orders, menuItems, currentUser, onLogout }) {
   const [activeTab, setActiveTab] = useState("orders"); // 'orders' | 'menu' | 'qr'
   const [orderStatusFilter, setOrderStatusFilter] = useState("active");
   const [tableFilter, setTableFilter] = useState("all");
   const [isMuted, setIsMuted] = useState(false);
-  const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
 
   const prevOrdersCountRef = useRef(orders.length);
 
@@ -143,25 +141,28 @@ export default function AdminDashboard({ orders, menuItems }) {
             <span>{isMuted ? "Muted" : "Chime On"}</span>
           </button>
 
-          <button
-            onClick={() => setIsRulesModalOpen(true)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "7px 14px",
-              borderRadius: "var(--radius-pill)",
-              backgroundColor: "#F0E6DA",
-              border: "1.2px solid var(--color-border-frame)",
-              fontFamily: "var(--font-serif)",
-              fontSize: 12,
-              fontWeight: 700,
-              color: "var(--color-bronze-dark)"
-            }}
-          >
-            <HelpCircle size={13} />
-            <span>Firebase Rules</span>
-          </button>
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "7px 14px",
+                borderRadius: "var(--radius-pill)",
+                backgroundColor: "#fff",
+                border: "1.2px solid #dc2626",
+                fontFamily: "var(--font-serif)",
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#dc2626"
+              }}
+              title="Sign Out"
+            >
+              <LogOut size={13} />
+              <span>Sign Out</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -459,11 +460,6 @@ export default function AdminDashboard({ orders, menuItems }) {
 
       {activeTab === "menu" && <MenuManager menuItems={menuItems} />}
       {activeTab === "qr" && <TableQRGenerator />}
-
-      <FirestoreRulesModal
-        isOpen={isRulesModalOpen}
-        onClose={() => setIsRulesModalOpen(false)}
-      />
     </div>
   );
 }

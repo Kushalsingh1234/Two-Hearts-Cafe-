@@ -199,16 +199,6 @@ export default function StaffLogin({ onLoginSuccess }) {
                   }}
                 />
               </div>
-              <div style={{
-                fontSize: 11,
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                color: "var(--color-bronze)",
-                marginTop: 6,
-                textAlign: "center"
-              }}>
-                Default Master PIN: <strong>2012</strong>
-              </div>
             </div>
 
             <button

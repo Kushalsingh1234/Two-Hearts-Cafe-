@@ -42,7 +42,7 @@ export const loginWithPin = (enteredPin) => {
     localStorage.setItem("twohearts_staff_session", JSON.stringify(mockStaffUser));
     return { user: mockStaffUser, error: null };
   }
-  return { user: null, error: "Incorrect Staff PIN. (Default: 2012)" };
+  return { user: null, error: "Incorrect PIN. Please try again." };
 };
 
 /**

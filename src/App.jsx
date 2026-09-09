@@ -2,7 +2,9 @@ import React, { useState, useEffect } from "react";
 import Navbar from "./components/common/Navbar";
 import CustomerView from "./components/customer/CustomerView";
 import AdminDashboard from "./components/admin/AdminDashboard";
+import StaffLogin from "./components/admin/StaffLogin";
 import { subscribeMenuItems, subscribeLiveOrders } from "./firebase/services";
+import { subscribeAuth, logoutUser } from "./firebase/auth";
 import { INITIAL_MENU_ITEMS } from "./data/seedMenu";
 
 export default function App() {
@@ -29,6 +31,22 @@ export default function App() {
   const [orders, setOrders] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isTrackerOpen, setIsTrackerOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Subscribe to Firebase Auth state
+  useEffect(() => {
+    const unsubscribeAuth = subscribeAuth((user) => {
+      setCurrentUser(user);
+    });
+    return () => {
+      if (unsubscribeAuth) unsubscribeAuth();
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    await logoutUser();
+    setCurrentUser(null);
+  };
 
   // Listen to browser navigation & URL parameter changes (e.g., scanning a new table QR)
   useEffect(() => {
@@ -96,10 +114,14 @@ export default function App() {
             isCartOpen={isCartOpen}
             setIsCartOpen={setIsCartOpen}
           />
+        ) : !currentUser ? (
+          <StaffLogin onLoginSuccess={(user) => setCurrentUser(user)} />
         ) : (
           <AdminDashboard
             orders={orders}
             menuItems={menuItems}
+            currentUser={currentUser}
+            onLogout={handleLogout}
           />
         )}
       </main>

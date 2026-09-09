@@ -9,13 +9,20 @@ export default function TableQRGenerator() {
   const [selectedTable, setSelectedTable] = useState(5);
   const [viewMode, setViewMode] = useState("single"); // 'single' | 'grid'
 
-  const baseUrl = window.location.origin;
+  const defaultDomain = window.location.origin.includes("localhost")
+    ? "https://two-hearts-cafe.vercel.app"
+    : window.location.origin;
+
+  const [domainUrl, setDomainUrl] = useState(defaultDomain);
 
   const handlePrint = () => {
     window.print();
   };
 
-  const getTableUrl = (num) => `${baseUrl}/?table=${num}`;
+  const getTableUrl = (num) => {
+    const cleanBase = (domainUrl || "https://two-hearts-cafe.vercel.app").trim().replace(/\/+$/, "");
+    return `${cleanBase}/?table=${num}`;
+  };
 
   return (
     <div>
@@ -47,7 +54,28 @@ export default function TableQRGenerator() {
           </p>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
+          {/* Target Live Domain Input */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700 }}>QR Domain:</span>
+            <input
+              type="text"
+              value={domainUrl}
+              onChange={(e) => setDomainUrl(e.target.value)}
+              placeholder="https://two-hearts-cafe.vercel.app"
+              style={{
+                width: 230,
+                padding: "4px 8px",
+                borderRadius: 2,
+                border: "1px solid var(--color-border-frame)",
+                fontSize: 12,
+                fontFamily: "monospace",
+                outline: "none"
+              }}
+              title="URL embedded into QR code"
+            />
+          </div>
+
           {/* Table Count */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontFamily: "var(--font-serif)", fontSize: 14, fontWeight: 600 }}>Tables:</span>

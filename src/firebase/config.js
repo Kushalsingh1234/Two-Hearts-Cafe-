@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 // Cafe Firebase configuration provided by the user
 export const firebaseConfig = {
@@ -16,3 +17,6 @@ export const app = initializeApp(firebaseConfig);
 
 // Initialize Firestore
 export const db = getFirestore(app);
+
+// Initialize Firebase Authentication
+export const auth = getAuth(app);

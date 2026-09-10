@@ -1,0 +1,7 @@
+# Robots.txt for Two Hearts Cafe
+User-agent: *
+Allow: /
+Disallow: /?admin=true
+Disallow: /admin
+
+Sitemap: https://twoheartscafe.in/sitemap.xml

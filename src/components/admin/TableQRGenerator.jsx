@@ -10,7 +10,7 @@ export default function TableQRGenerator() {
   const [viewMode, setViewMode] = useState("single"); // 'single' | 'grid'
 
   const defaultDomain = window.location.origin.includes("localhost")
-    ? "https://two-hearts-cafe.vercel.app"
+    ? "https://twoheartscafe.in"
     : window.location.origin;
 
   const [domainUrl, setDomainUrl] = useState(defaultDomain);
@@ -20,7 +20,7 @@ export default function TableQRGenerator() {
   };
 
   const getTableUrl = (num) => {
-    const cleanBase = (domainUrl || "https://two-hearts-cafe.vercel.app").trim().replace(/\/+$/, "");
+    const cleanBase = (domainUrl || "https://twoheartscafe.in").trim().replace(/\/+$/, "");
     return `${cleanBase}/?table=${num}`;
   };
 
@@ -62,7 +62,7 @@ export default function TableQRGenerator() {
               type="text"
               value={domainUrl}
               onChange={(e) => setDomainUrl(e.target.value)}
-              placeholder="https://two-hearts-cafe.vercel.app"
+              placeholder="https://twoheartscafe.in"
               style={{
                 width: 230,
                 padding: "4px 8px",

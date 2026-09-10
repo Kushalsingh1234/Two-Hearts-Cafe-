@@ -97,7 +97,7 @@ def generate_table_standee(table_num):
     current_y = by + bh + 35
 
     # 5. QR Code in White Box
-    url = f"https://two-hearts-cafe.vercel.app/?table={table_num}"
+    url = f"https://twoheartscafe.in/?table={table_num}"
     qr_img = create_qr_image(url, box_size=15, border=1)
     qr_w, qr_h = qr_img.size
 
@@ -164,7 +164,7 @@ def generate_pure_qr(table_num):
     current_y += 65
 
     # QR Code
-    url = f"https://two-hearts-cafe.vercel.app/?table={table_num}"
+    url = f"https://twoheartscafe.in/?table={table_num}"
     qr_img = create_qr_image(url, box_size=18, border=1)
     qr_w, qr_h = qr_img.size
 

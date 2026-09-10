@@ -1,5 +1,6 @@
-import React from "react";
-import { Clock, CheckCircle2, ChefHat, AlertCircle } from "lucide-react";
+import React, { useState } from "react";
+import { Clock, CheckCircle2, ChefHat, AlertCircle, Receipt, Smartphone, Building2 } from "lucide-react";
+import DigitalInvoiceModal from "../customer/DigitalInvoiceModal";
 
 function formatTimeAgo(dateString) {
   if (!dateString) return "Just now";
@@ -12,9 +13,16 @@ function formatTimeAgo(dateString) {
 }
 
 export default function OrderCard({ order, onUpdateStatus }) {
+  const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
+
   const isPlaced = order.status === "placed";
   const isPreparing = order.status === "preparing";
   const isServed = order.status === "served";
+  const isSettled = order.status === "settled";
+
+  const isPaidOnline = order.paymentStatus === "paid_online";
+  const isPayAtCounter = order.paymentStatus === "pay_at_counter";
+  const utr = order.paymentDetails?.utr;
 
   return (
     <div style={{
@@ -50,7 +58,7 @@ export default function OrderCard({ order, onUpdateStatus }) {
           </div>
           <div>
             <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, color: "var(--color-ink)" }}>
-              {order.orderNumber || order.id.slice(0, 7)}
+              {order.orderNumber || (order.id ? order.id.slice(0, 7) : "101")}
             </div>
             <div style={{ fontSize: 11, fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--color-bronze)", display: "flex", alignItems: "center", gap: 4 }}>
               <Clock size={11} />
@@ -59,20 +67,59 @@ export default function OrderCard({ order, onUpdateStatus }) {
           </div>
         </div>
 
-        <span style={{
-          fontFamily: "var(--font-serif)",
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: 1,
-          textTransform: "uppercase",
-          padding: "2px 8px",
-          borderRadius: "var(--radius-pill)",
-          border: "1px solid var(--color-border-frame)",
-          backgroundColor: "#fff",
-          color: "var(--color-ink)"
-        }}>
-          {isPlaced ? "● New Order" : order.status}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {/* Payment Status Pill */}
+          {isPaidOnline ? (
+            <span style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 11,
+              fontFamily: "var(--font-serif)",
+              fontWeight: 700,
+              padding: "2px 8px",
+              borderRadius: "var(--radius-pill)",
+              backgroundColor: "#dcfce7",
+              color: "#15803d",
+              border: "1px solid #86efac"
+            }}>
+              <Smartphone size={10} />
+              <span>UPI Paid</span>
+            </span>
+          ) : isPayAtCounter ? (
+            <span style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 11,
+              fontFamily: "var(--font-serif)",
+              fontWeight: 700,
+              padding: "2px 8px",
+              borderRadius: "var(--radius-pill)",
+              backgroundColor: "#fef3c7",
+              color: "#b45309",
+              border: "1px solid #fde68a"
+            }}>
+              <Building2 size={10} />
+              <span>Counter Pay</span>
+            </span>
+          ) : null}
+
+          <span style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            padding: "2px 8px",
+            borderRadius: "var(--radius-pill)",
+            border: "1px solid var(--color-border-frame)",
+            backgroundColor: "#fff",
+            color: "var(--color-ink)"
+          }}>
+            {isPlaced ? "● New Order" : order.status}
+          </span>
+        </div>
       </div>
 
       {/* Special Kitchen Notes */}
@@ -133,7 +180,7 @@ export default function OrderCard({ order, onUpdateStatus }) {
         ))}
       </div>
 
-      {/* Bill Total & Actions */}
+      {/* Bill Total & Payment Details */}
       <div style={{
         padding: "12px 16px",
         borderTop: "1.2px solid var(--color-border-frame)",
@@ -145,12 +192,28 @@ export default function OrderCard({ order, onUpdateStatus }) {
         <div style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "baseline",
-          fontFamily: "var(--font-serif)"
+          alignItems: "center",
+          fontFamily: "var(--font-serif)",
+          flexWrap: "wrap",
+          gap: 6
         }}>
-          <span style={{ fontSize: 12, fontStyle: "italic", color: "var(--color-bronze)" }}>
-            Pay at Counter
-          </span>
+          <div>
+            {isPaidOnline ? (
+              <div style={{ fontSize: 12, color: "#15803d", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+                <CheckCircle2 size={13} />
+                <span>Paid Online (twohearts@ptaxis) {utr ? `[UTR: ${utr}]` : ""}</span>
+              </div>
+            ) : isPayAtCounter ? (
+              <div style={{ fontSize: 12, color: "#b45309", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+                <Building2 size={13} />
+                <span>Customer requested Cash/Counter Bill</span>
+              </div>
+            ) : (
+              <span style={{ fontSize: 12, fontStyle: "italic", color: "var(--color-bronze)" }}>
+                Payment pending at table
+              </span>
+            )}
+          </div>
           <div>
             <span style={{ fontSize: 13, marginRight: 6 }}>Total:</span>
             <strong style={{ fontSize: 18, color: "var(--color-ink)" }}>Rs.{order.total}</strong>
@@ -158,7 +221,7 @@ export default function OrderCard({ order, onUpdateStatus }) {
         </div>
 
         {/* Status Buttons */}
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {isPlaced && (
             <button
               onClick={() => onUpdateStatus(order.id, "preparing")}
@@ -176,7 +239,9 @@ export default function OrderCard({ order, onUpdateStatus }) {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 6
+                gap: 6,
+                border: "none",
+                cursor: "pointer"
               }}
             >
               <ChefHat size={15} />
@@ -201,7 +266,9 @@ export default function OrderCard({ order, onUpdateStatus }) {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 6
+                gap: 6,
+                border: "none",
+                cursor: "pointer"
               }}
             >
               <CheckCircle2 size={15} />
@@ -211,7 +278,9 @@ export default function OrderCard({ order, onUpdateStatus }) {
 
           {isServed && (
             <button
-              onClick={() => onUpdateStatus(order.id, "settled")}
+              onClick={() => onUpdateStatus(order.id, "settled", {
+                paymentStatus: isPaidOnline ? "paid_online" : "paid_counter"
+              })}
               style={{
                 flex: 1,
                 backgroundColor: "var(--color-ink)",
@@ -226,11 +295,40 @@ export default function OrderCard({ order, onUpdateStatus }) {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 6
+                gap: 6,
+                border: "none",
+                cursor: "pointer"
               }}
             >
               <CheckCircle2 size={15} />
               <span>Settle Bill & Close</span>
+            </button>
+          )}
+
+          {isSettled && (
+            <button
+              onClick={() => setIsInvoiceOpen(true)}
+              style={{
+                flex: 1,
+                backgroundColor: "#fff",
+                color: "var(--color-ink)",
+                border: "1.2px solid var(--color-border-frame)",
+                padding: "8px 12px",
+                borderRadius: "var(--radius-pill)",
+                fontFamily: "var(--font-serif)",
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 5,
+                cursor: "pointer"
+              }}
+            >
+              <Receipt size={14} />
+              <span>Digital Invoice</span>
             </button>
           )}
 
@@ -249,7 +347,8 @@ export default function OrderCard({ order, onUpdateStatus }) {
                 borderRadius: "var(--radius-pill)",
                 fontFamily: "var(--font-serif)",
                 fontSize: 12,
-                fontWeight: 700
+                fontWeight: 700,
+                cursor: "pointer"
               }}
             >
               Reject
@@ -257,6 +356,13 @@ export default function OrderCard({ order, onUpdateStatus }) {
           )}
         </div>
       </div>
+
+      {/* Invoice Modal for Admin Inspection */}
+      <DigitalInvoiceModal
+        isOpen={isInvoiceOpen}
+        onClose={() => setIsInvoiceOpen(false)}
+        order={order}
+      />
     </div>
   );
 }

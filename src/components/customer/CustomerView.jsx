@@ -164,6 +164,10 @@ export default function CustomerView({
     (ord) => String(ord.tableNumber) === String(tableNumber) && ord.status !== "settled" && ord.status !== "cancelled"
   );
 
+  const customerSettledOrders = orders.filter(
+    (ord) => String(ord.tableNumber) === String(tableNumber) && ord.status === "settled"
+  );
+
   return (
     <div style={{
       width: "100%",
@@ -173,7 +177,7 @@ export default function CustomerView({
       boxSizing: "border-box"
     }}>
       {/* Live Order Active Banner if table has an active order */}
-      {customerActiveOrders.length > 0 && (
+      {customerActiveOrders.length > 0 ? (
         <div
           onClick={() => setIsTrackerOpen(true)}
           style={{
@@ -192,15 +196,43 @@ export default function CustomerView({
           <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "#a7f3d0" }} />
             <span>
-              <strong>Order Live:</strong> Status: {customerActiveOrders[0].status.toUpperCase()}
+              <strong>Order #{customerActiveOrders[0].orderNumber || customerActiveOrders[0].id.slice(0, 5)}:</strong> Status: {customerActiveOrders[0].status.toUpperCase()}
+              {customerActiveOrders[0].paymentStatus === "paid_online" ? " (UPI Paid)" : ""}
             </span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 2, fontSize: 11, textDecoration: "underline" }}>
-            <span>Track</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, textDecoration: "underline" }}>
+            <span>Track & Pay Bill</span>
             <ChevronRight size={13} />
           </div>
         </div>
-      )}
+      ) : customerSettledOrders.length > 0 ? (
+        <div
+          onClick={() => setIsTrackerOpen(true)}
+          style={{
+            marginBottom: 12,
+            backgroundColor: "#15803d",
+            color: "#fff",
+            borderRadius: "var(--radius-sm)",
+            padding: "8px 12px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            cursor: "pointer",
+            boxShadow: "var(--shadow-sm)"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "#a7f3d0" }} />
+            <span>
+              <strong>Bill Settled:</strong> Download digital invoice (Table #{tableNumber})
+            </span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, textDecoration: "underline" }}>
+            <span>Invoice (PDF)</span>
+            <ChevronRight size={13} />
+          </div>
+        </div>
+      ) : null}
 
       {/* Clean, Modern Cafe Banner (No giant printed page mockups) */}
       <div style={{

@@ -1,0 +1,510 @@
+import React, { useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
+import {
+  X,
+  Smartphone,
+  CheckCircle2,
+  Copy,
+  Check,
+  Building2
+} from "lucide-react";
+import { updateOrderPayment } from "../../firebase/services";
+
+export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess }) {
+  if (!isOpen || !order) return null;
+
+  const [paymentType, setPaymentType] = useState("online"); // 'online' | 'counter'
+  const [utrNumber, setUtrNumber] = useState("");
+  const [isCopied, setIsCopied] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [confirmedMessage, setConfirmedMessage] = useState(null);
+
+  const upiId = "twohearts@ptaxis";
+  const payeeName = "Two Hearts Cafe";
+  const amount = order.total || 0;
+  const transactionNote = `Table ${order.tableNumber} Order ${order.orderNumber || (order.id ? order.id.slice(0, 6) : "101")}`;
+
+  // Standard NPCI UPI URI Scheme (auto-opens GPay, PhonePe, Paytm, CRED on mobile with amount pre-filled)
+  const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+
+  const handleCopyUpi = () => {
+    navigator.clipboard.writeText(upiId);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleConfirmOnlinePayment = async () => {
+    setIsSubmitting(true);
+    try {
+      await updateOrderPayment(order.id, {
+        paymentStatus: "paid_online",
+        paymentMethod: "upi",
+        upiId,
+        utr: utrNumber.trim(),
+        paidAt: new Date().toISOString()
+      });
+      setConfirmedMessage("Online payment submitted! Staff will verify and settle your bill.");
+      if (onPaymentSuccess) onPaymentSuccess();
+      setTimeout(() => {
+        onClose();
+      }, 2000);
+    } catch (err) {
+      console.error("Payment confirmation error:", err);
+      alert("Could not update payment status. Please inform your server.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSelectCounterPayment = async () => {
+    setIsSubmitting(true);
+    try {
+      await updateOrderPayment(order.id, {
+        paymentStatus: "pay_at_counter",
+        paymentMethod: "counter",
+        paidAt: null
+      });
+      setConfirmedMessage("Payment at Counter requested! You can pay cash or card at the counter.");
+      if (onPaymentSuccess) onPaymentSuccess();
+      setTimeout(() => {
+        onClose();
+      }, 2000);
+    } catch (err) {
+      console.error("Counter request error:", err);
+      alert("Could not update payment status.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 85,
+      backgroundColor: "rgba(28, 25, 23, 0.65)",
+      backdropFilter: "blur(4px)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 16
+    }}>
+      <div style={{
+        width: "100%",
+        maxWidth: 440,
+        backgroundColor: "#FAF7F2",
+        borderRadius: 8,
+        border: "2px solid var(--color-border-frame)",
+        boxShadow: "var(--shadow-floating)",
+        display: "flex",
+        flexDirection: "column",
+        maxHeight: "92vh",
+        overflow: "hidden"
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: "16px 20px",
+          borderBottom: "1.5px solid var(--color-border-frame)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          backgroundColor: "#FAF7F2"
+        }}>
+          <div>
+            <div style={{
+              fontFamily: "var(--font-script)",
+              fontSize: 26,
+              color: "var(--color-bronze)",
+              lineHeight: 1
+            }}>
+              Two Hearts Cafe
+            </div>
+            <h3 style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: 18,
+              fontWeight: 700,
+              color: "var(--color-ink)",
+              margin: "3px 0 0 0"
+            }}>
+              Settle Bill • Table #{order.tableNumber}
+            </h3>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              backgroundColor: "#fff",
+              border: "1px solid var(--color-border-frame)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--color-ink)",
+              cursor: "pointer"
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Bill Amount Banner */}
+        <div style={{
+          padding: "14px 20px",
+          backgroundColor: "#fff",
+          borderBottom: "1px dashed var(--color-border-subtle)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline"
+        }}>
+          <div>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: 12, color: "var(--color-bronze)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+              Total Payable Amount
+            </div>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontStyle: "italic", color: "var(--color-ink)" }}>
+              Order #{order.orderNumber || (order.id ? order.id.slice(0, 6) : "101")} ({order.items?.length || 0} items)
+            </div>
+          </div>
+          <div style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: 28,
+            fontWeight: 800,
+            color: "var(--color-ink)"
+          }}>
+            Rs.{amount}
+          </div>
+        </div>
+
+        {/* Success Confirmation Toast */}
+        {confirmedMessage ? (
+          <div style={{ padding: 24, textAlign: "center" }}>
+            <div style={{
+              width: 56,
+              height: 56,
+              borderRadius: "50%",
+              backgroundColor: "#dcfce7",
+              color: "#15803d",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 14px auto"
+            }}>
+              <CheckCircle2 size={32} />
+            </div>
+            <h4 style={{ fontFamily: "var(--font-serif)", fontSize: 19, fontWeight: 700, color: "var(--color-ink)", marginBottom: 6 }}>
+              Thank You!
+            </h4>
+            <p style={{ fontFamily: "var(--font-serif)", fontSize: 14, color: "var(--color-bronze)", margin: 0 }}>
+              {confirmedMessage}
+            </p>
+          </div>
+        ) : (
+          <div style={{ padding: "16px 20px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 14 }}>
+            {/* Toggle: Pay Online vs Pay at Counter */}
+            <div style={{
+              display: "flex",
+              backgroundColor: "var(--bg-subtle)",
+              padding: 3,
+              borderRadius: "var(--radius-pill)",
+              border: "1px solid var(--border-color)"
+            }}>
+              <button
+                type="button"
+                onClick={() => setPaymentType("online")}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  padding: "8px 12px",
+                  borderRadius: "var(--radius-pill)",
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  letterSpacing: 0.5,
+                  textTransform: "uppercase",
+                  backgroundColor: paymentType === "online" ? "var(--color-ink)" : "transparent",
+                  color: paymentType === "online" ? "#FAF7F2" : "var(--color-ink)",
+                  cursor: "pointer",
+                  border: "none",
+                  transition: "all 0.15s"
+                }}
+              >
+                <Smartphone size={14} />
+                <span>Pay Online (UPI)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentType("counter")}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  padding: "8px 12px",
+                  borderRadius: "var(--radius-pill)",
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  letterSpacing: 0.5,
+                  textTransform: "uppercase",
+                  backgroundColor: paymentType === "counter" ? "var(--color-ink)" : "transparent",
+                  color: paymentType === "counter" ? "#FAF7F2" : "var(--color-ink)",
+                  cursor: "pointer",
+                  border: "none",
+                  transition: "all 0.15s"
+                }}
+              >
+                <Building2 size={14} />
+                <span>Pay at Counter</span>
+              </button>
+            </div>
+
+            {/* TAB 1: PAY ONLINE (UPI to twohearts@ptaxis) */}
+            {paymentType === "online" ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {/* 1-Click Launch Button for Mobile */}
+                <a
+                  href={upiUri}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    padding: "13px 18px",
+                    borderRadius: "var(--radius-pill)",
+                    backgroundColor: "var(--color-bronze)",
+                    color: "#ffffff",
+                    fontFamily: "var(--font-serif)",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    letterSpacing: 0.5,
+                    textTransform: "uppercase",
+                    textDecoration: "none",
+                    boxShadow: "var(--shadow-sm)",
+                    textAlign: "center"
+                  }}
+                >
+                  <Smartphone size={16} />
+                  <span>Open GPay / PhonePe / Paytm (Rs.{amount})</span>
+                </a>
+
+                {/* Subtext */}
+                <div style={{ textAlign: "center", fontSize: 11, fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--color-bronze)" }}>
+                  Clicking above will pre-fill Rs.{amount} in your UPI payment app automatically.
+                </div>
+
+                {/* Dynamic QR Code for Desktop or scanning from another device */}
+                <div style={{
+                  backgroundColor: "#fff",
+                  borderRadius: 6,
+                  border: "1.2px solid var(--color-border-frame)",
+                  padding: 16,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 10
+                }}>
+                  <div style={{ fontSize: 12, fontFamily: "var(--font-serif)", fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                    Or Scan QR to Pay Rs.{amount}
+                  </div>
+
+                  <div style={{
+                    padding: 10,
+                    backgroundColor: "#fff",
+                    borderRadius: 4,
+                    border: "1px solid var(--color-border-frame)"
+                  }}>
+                    <QRCodeSVG
+                      value={upiUri}
+                      size={160}
+                      level="H"
+                      includeMargin={false}
+                    />
+                  </div>
+
+                  {/* UPI ID Pill */}
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    backgroundColor: "#FAF7F2",
+                    padding: "4px 10px",
+                    borderRadius: "var(--radius-pill)",
+                    border: "1px solid var(--color-border-frame)",
+                    fontSize: 12,
+                    fontFamily: "monospace"
+                  }}>
+                    <span>UPI ID: <strong>{upiId}</strong></span>
+                    <button
+                      type="button"
+                      onClick={handleCopyUpi}
+                      style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-bronze)", display: "flex", alignItems: "center" }}
+                      title="Copy UPI ID"
+                    >
+                      {isCopied ? <Check size={13} color="#15803d" /> : <Copy size={13} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* UTR Reference input */}
+                <div style={{
+                  backgroundColor: "#fff",
+                  padding: "12px 14px",
+                  borderRadius: 6,
+                  border: "1px dashed var(--color-border-frame)"
+                }}>
+                  <label style={{
+                    display: "block",
+                    fontFamily: "var(--font-serif)",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "var(--color-ink)",
+                    marginBottom: 4
+                  }}>
+                    Done paying? Confirm Payment:
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={16}
+                    placeholder="Enter 12-digit UTR / UPI Ref (optional)"
+                    value={utrNumber}
+                    onChange={(e) => setUtrNumber(e.target.value)}
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      padding: "8px 10px",
+                      borderRadius: 3,
+                      border: "1px solid var(--color-border-frame)",
+                      fontFamily: "monospace",
+                      fontSize: 13,
+                      outline: "none",
+                      marginBottom: 8
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleConfirmOnlinePayment}
+                    disabled={isSubmitting}
+                    style={{
+                      width: "100%",
+                      padding: "10px",
+                      borderRadius: "var(--radius-pill)",
+                      backgroundColor: "var(--color-ink)",
+                      color: "#FAF7F2",
+                      border: "none",
+                      fontFamily: "var(--font-serif)",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      letterSpacing: 0.5,
+                      textTransform: "uppercase",
+                      cursor: isSubmitting ? "not-allowed" : "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6
+                    }}
+                  >
+                    <CheckCircle2 size={15} />
+                    <span>{isSubmitting ? "Submitting..." : `I Have Paid Rs.${amount}`}</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* TAB 2: PAY AT COUNTER */
+              <div style={{
+                backgroundColor: "#fff",
+                borderRadius: 6,
+                border: "1px solid var(--color-border-frame)",
+                padding: 18,
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                gap: 12
+              }}>
+                <div style={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: "50%",
+                  backgroundColor: "#FAF7F2",
+                  border: "1px solid var(--color-border-frame)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto",
+                  color: "var(--color-ink)"
+                }}>
+                  <Building2 size={22} />
+                </div>
+
+                <h4 style={{ fontFamily: "var(--font-serif)", fontSize: 16, fontWeight: 700, color: "var(--color-ink)", margin: 0 }}>
+                  Pay Cash or Card at Counter
+                </h4>
+
+                <p style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 13, color: "var(--color-bronze)", margin: 0, lineHeight: 1.4 }}>
+                  You can walk up to the counter when leaving or hand cash / card to your table server.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={handleSelectCounterPayment}
+                  disabled={isSubmitting}
+                  style={{
+                    width: "100%",
+                    padding: "11px",
+                    borderRadius: "var(--radius-pill)",
+                    backgroundColor: "var(--color-ink)",
+                    color: "#FAF7F2",
+                    border: "none",
+                    fontFamily: "var(--font-serif)",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    letterSpacing: 0.5,
+                    textTransform: "uppercase",
+                    cursor: isSubmitting ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    marginTop: 4
+                  }}
+                >
+                  <CheckCircle2 size={15} />
+                  <span>{isSubmitting ? "Notifying Staff..." : "Request Counter Bill"}</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div style={{
+          padding: 12,
+          borderTop: "1.5px solid var(--color-border-frame)",
+          backgroundColor: "#FAF7F2",
+          display: "flex",
+          justifyContent: "flex-end"
+        }}>
+          <button
+            onClick={onClose}
+            style={{
+              padding: "6px 14px",
+              borderRadius: "var(--radius-pill)",
+              backgroundColor: "#fff",
+              border: "1px solid var(--color-border-frame)",
+              fontFamily: "var(--font-serif)",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer"
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

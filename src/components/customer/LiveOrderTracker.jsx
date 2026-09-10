@@ -1,5 +1,7 @@
-import React from "react";
-import { CheckCircle2, Clock, X, ChefHat } from "lucide-react";
+import React, { useState } from "react";
+import { CheckCircle2, Clock, X, ChefHat, Receipt, Smartphone, Building2 } from "lucide-react";
+import PaymentModal from "./PaymentModal";
+import DigitalInvoiceModal from "./DigitalInvoiceModal";
 
 const STATUS_STEPS = [
   { key: "placed", title: "Order Placed", desc: "Received at kitchen counter" },
@@ -9,6 +11,9 @@ const STATUS_STEPS = [
 ];
 
 export default function LiveOrderTracker({ isOpen, onClose, orders, tableNumber }) {
+  const [activePaymentOrder, setActivePaymentOrder] = useState(null);
+  const [activeInvoiceOrder, setActiveInvoiceOrder] = useState(null);
+
   if (!isOpen) return null;
 
   const tableOrders = (orders || []).filter(
@@ -27,7 +32,7 @@ export default function LiveOrderTracker({ isOpen, onClose, orders, tableNumber 
       justifyContent: "center",
       padding: 16
     }}>
-      <div 
+      <div
         className="animate-fade-in"
         style={{
           width: "100%",
@@ -250,10 +255,132 @@ export default function LiveOrderTracker({ isOpen, onClose, orders, tableNumber 
                       paddingTop: 6,
                       borderTop: "1px dashed var(--color-border-subtle)"
                     }}>
-                      <span>Total</span>
+                      <span>Total Bill</span>
                       <span>Rs.{ord.total}</span>
                     </div>
                   </div>
+
+                  {/* Payment & Invoice Action Area */}
+                  {ord.status === "settled" ? (
+                    <div style={{
+                      backgroundColor: "#F2FAF4",
+                      border: "1.2px solid #86efac",
+                      borderRadius: 4,
+                      padding: "12px 14px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                      alignItems: "center",
+                      textAlign: "center"
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#15803d", fontSize: 13, fontWeight: 700, fontFamily: "var(--font-serif)" }}>
+                        <CheckCircle2 size={16} />
+                        <span>Bill Settled & Closed</span>
+                      </div>
+                      <div style={{ fontSize: 12, fontStyle: "italic", color: "var(--color-bronze)", fontFamily: "var(--font-serif)" }}>
+                        Your paperless digital tax invoice is ready.
+                      </div>
+                      <button
+                        onClick={() => setActiveInvoiceOrder(ord)}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "8px 16px",
+                          borderRadius: "var(--radius-pill)",
+                          backgroundColor: "var(--color-ink)",
+                          color: "#FAF7F2",
+                          border: "none",
+                          fontFamily: "var(--font-serif)",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          letterSpacing: 0.5,
+                          textTransform: "uppercase",
+                          cursor: "pointer",
+                          boxShadow: "var(--shadow-sm)"
+                        }}
+                      >
+                        <Receipt size={14} />
+                        <span>View & Download Invoice (PDF)</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {/* Current Payment Status Banner */}
+                      {ord.paymentStatus === "paid_online" ? (
+                        <div style={{
+                          backgroundColor: "#F2FAF4",
+                          border: "1px solid #86efac",
+                          borderRadius: 4,
+                          padding: "8px 12px",
+                          fontSize: 12,
+                          fontFamily: "var(--font-serif)",
+                          color: "#15803d",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between"
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <CheckCircle2 size={14} />
+                            <span>Paid Online via UPI (twohearts@ptaxis){ord.paymentDetails?.utr ? ` • Ref: ${ord.paymentDetails.utr}` : ""}</span>
+                          </div>
+                          <span style={{ fontSize: 11, fontStyle: "italic", color: "var(--color-bronze)" }}>Verifying</span>
+                        </div>
+                      ) : ord.paymentStatus === "pay_at_counter" ? (
+                        <div style={{
+                          backgroundColor: "#FFFBEB",
+                          border: "1px solid #fde68a",
+                          borderRadius: 4,
+                          padding: "8px 12px",
+                          fontSize: 12,
+                          fontFamily: "var(--font-serif)",
+                          color: "#92400e",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between"
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <Building2 size={14} />
+                            <span>Pay at Counter Requested</span>
+                          </div>
+                          <button
+                            onClick={() => setActivePaymentOrder(ord)}
+                            style={{ background: "transparent", border: "none", color: "var(--color-bronze)", textDecoration: "underline", fontSize: 11, cursor: "pointer", fontFamily: "var(--font-serif)" }}
+                          >
+                            Pay Online instead
+                          </button>
+                        </div>
+                      ) : null}
+
+                      {/* Pay Online / Settle Bill Button */}
+                      {ord.paymentStatus !== "paid_online" && (
+                        <button
+                          onClick={() => setActivePaymentOrder(ord)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 8,
+                            padding: "11px 16px",
+                            borderRadius: "var(--radius-pill)",
+                            backgroundColor: "var(--color-bronze)",
+                            color: "#ffffff",
+                            border: "none",
+                            fontFamily: "var(--font-serif)",
+                            fontSize: 13,
+                            fontWeight: 700,
+                            letterSpacing: 0.5,
+                            textTransform: "uppercase",
+                            cursor: "pointer",
+                            boxShadow: "var(--shadow-sm)"
+                          }}
+                        >
+                          <Smartphone size={15} />
+                          <span>Pay Rs.{ord.total} Online or at Counter</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })
@@ -286,6 +413,20 @@ export default function LiveOrderTracker({ isOpen, onClose, orders, tableNumber 
           </button>
         </div>
       </div>
+
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={Boolean(activePaymentOrder)}
+        order={activePaymentOrder}
+        onClose={() => setActivePaymentOrder(null)}
+      />
+
+      {/* Digital Paperless Invoice Modal */}
+      <DigitalInvoiceModal
+        isOpen={Boolean(activeInvoiceOrder)}
+        order={activeInvoiceOrder}
+        onClose={() => setActiveInvoiceOrder(null)}
+      />
     </div>
   );
 }

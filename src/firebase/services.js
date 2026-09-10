@@ -102,7 +102,7 @@ export const subscribeMenuItems = (onSuccess, onError) => {
       if (!existingIds.has(s.id)) merged.push(s);
     }
     onSuccess(merged);
-    return () => {};
+    return () => { };
   }
 };
 
@@ -202,7 +202,7 @@ export const deleteMenuItem = async (itemId) => {
 export const placeOrder = async (orderPayload) => {
   const orderNumber = `TH-${Math.floor(1000 + Math.random() * 9000)}`;
   const now = new Date();
-  
+
   const order = {
     orderNumber,
     tableNumber: String(orderPayload.tableNumber || "1"),
@@ -301,7 +301,7 @@ export const subscribeLiveOrders = (onSuccess, onError) => {
           id: docSnap.id,
           ...docSnap.data()
         }));
-        
+
         // Sort descending by timestamp/createdAt
         orders.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         setLocalData(LOCAL_STORAGE_ORDERS_KEY, orders);
@@ -334,23 +334,60 @@ export const subscribeLiveOrders = (onSuccess, onError) => {
     console.warn("Live orders setup error:", err);
     const local = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
     onSuccess(local);
-    return () => {};
+    return () => { };
   }
 };
 
 /**
  * Update order status ('placed' -> 'preparing' -> 'served' -> 'settled')
  */
-export const updateOrderStatus = async (orderId, newStatus) => {
+export const updateOrderStatus = async (orderId, newStatus, extraData = {}) => {
   const updatedAt = new Date().toISOString();
+  const updatePayload = {
+    status: newStatus,
+    updatedAt,
+    ...(newStatus === "settled" ? { settledAt: updatedAt } : {}),
+    ...extraData
+  };
+
   try {
     const docRef = doc(db, ORDERS_COLLECTION, orderId);
-    await updateDoc(docRef, { status: newStatus, updatedAt });
+    await updateDoc(docRef, updatePayload);
   } catch (err) {
     console.warn("Firestore updateOrderStatus fallback to local:", err);
     const orders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
     const updated = orders.map((ord) =>
-      ord.id === orderId ? { ...ord, status: newStatus, updatedAt } : ord
+      ord.id === orderId ? { ...ord, ...updatePayload } : ord
+    );
+    setLocalData(LOCAL_STORAGE_ORDERS_KEY, updated);
+    window.dispatchEvent(new CustomEvent("twohearts_new_order"));
+  }
+};
+
+/**
+ * Update order payment details (UPI to twohearts@ptaxis or Pay at Counter)
+ */
+export const updateOrderPayment = async (orderId, paymentData) => {
+  const updatedAt = new Date().toISOString();
+  const updatePayload = {
+    paymentStatus: paymentData.paymentStatus, // 'paid_online' | 'pay_at_counter' | 'unpaid'
+    paymentMethod: paymentData.paymentMethod, // 'upi' | 'counter'
+    paymentDetails: {
+      upiId: paymentData.upiId || "twohearts@ptaxis",
+      utr: paymentData.utr || "",
+      paidAt: paymentData.paidAt || updatedAt
+    },
+    updatedAt
+  };
+
+  try {
+    const docRef = doc(db, ORDERS_COLLECTION, orderId);
+    await updateDoc(docRef, updatePayload);
+  } catch (err) {
+    console.warn("Firestore updateOrderPayment fallback to local:", err);
+    const orders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+    const updated = orders.map((ord) =>
+      ord.id === orderId ? { ...ord, ...updatePayload } : ord
     );
     setLocalData(LOCAL_STORAGE_ORDERS_KEY, updated);
     window.dispatchEvent(new CustomEvent("twohearts_new_order"));
@@ -379,10 +416,10 @@ export const clearAllOrders = async () => {
 export const getCustomerOrders = async (phone) => {
   if (!phone) return [];
   const cleanPhone = String(phone).replace(/\D/g, "").slice(-10);
-  
+
   // 1. First check local storage orders
   const localOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
-  
+
   // 2. Try fetching from Firestore
   let remoteOrders = [];
   try {

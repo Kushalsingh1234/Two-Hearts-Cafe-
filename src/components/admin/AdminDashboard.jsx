@@ -10,18 +10,18 @@ import {
   LogOut,
   KeyRound,
   Star,
-  ShieldCheck,
   Smartphone,
   Sun,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import OrderCard from "./OrderCard";
 import MenuManager from "./MenuManager";
 import TableQRGenerator from "./TableQRGenerator";
 import ReviewsManager from "./ReviewsManager";
 import ChangePinModal from "./ChangePinModal";
-import FirestoreRulesModal from "./FirestoreRulesModal";
 import { updateOrderStatus, clearAllOrders, subscribeReviews } from "../../firebase/services";
 import { soundNotifier } from "../../utils/audio";
 import {
@@ -38,8 +38,8 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
   const [tableFilter, setTableFilter] = useState("all");
   const [isMuted, setIsMuted] = useState(false);
   const [isChangePinOpen, setIsChangePinOpen] = useState(false);
-  const [isFirestoreRulesOpen, setIsFirestoreRulesOpen] = useState(false);
   const [reviews, setReviews] = useState([]);
+  const tabsNavRef = useRef(null);
 
   useEffect(() => {
     const unsub = subscribeReviews((data) => {
@@ -49,6 +49,26 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
       if (typeof unsub === "function") unsub();
     };
   }, []);
+
+  // Smooth scroll tabs horizontally via chevrons or swipe
+  const handleScrollTabs = (direction) => {
+    if (tabsNavRef.current) {
+      tabsNavRef.current.scrollBy({
+        left: direction === "left" ? -160 : 160,
+        behavior: "smooth"
+      });
+    }
+  };
+
+  // Center active tab when clicked or selected
+  useEffect(() => {
+    if (tabsNavRef.current) {
+      const activeBtn = tabsNavRef.current.querySelector('[data-active="true"]');
+      if (activeBtn) {
+        activeBtn.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      }
+    }
+  }, [activeTab]);
 
   // Combine reviews from table_reviews subscription AND real-time orders collection
   const allReviews = useMemo(() => {
@@ -177,7 +197,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
   );
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 16px 80px 16px" }}>
+    <div className="admin-dashboard-container">
       {/* Top Header */}
       <div style={{
         display: "flex",
@@ -271,27 +291,6 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
             <span>Change PIN</span>
           </button>
 
-          <button
-            onClick={() => setIsFirestoreRulesOpen(true)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "7px 14px",
-              borderRadius: "var(--radius-pill)",
-              backgroundColor: "#fff",
-              border: "1.2px solid var(--color-border-frame)",
-              fontFamily: "var(--font-serif)",
-              fontSize: 12,
-              fontWeight: 700,
-              color: "var(--color-ink)",
-              cursor: "pointer"
-            }}
-            title="View & Copy Database Security Rules"
-          >
-            <ShieldCheck size={13} color="var(--color-bronze)" />
-            <span>DB Rules</span>
-          </button>
 
           {onLogout && (
             <button
@@ -388,7 +387,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
             fontStyle: "italic",
             color: "var(--color-bronze)"
           }}>
-            {notifPermission === "granted" 
+            {notifPermission === "granted"
               ? "Ting chime sounds and native banner pops up even when app is minimized or phone is locked."
               : "Allow permission so you never miss an incoming order!"}
           </span>
@@ -470,215 +469,217 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
         </div>
       </div>
 
-      {/* KPI Stats */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-        gap: 12,
-        marginBottom: 24
-      }}>
+      {/* KPI Stats Grid */}
+      <div className="admin-kpi-grid">
         {/* New Orders */}
-        <div style={{
-          backgroundColor: "#fff",
-          padding: "14px 18px",
-          borderRadius: 4,
-          border: newOrdersCount > 0 ? "2px solid var(--color-bronze)" : "1.2px solid var(--color-border-frame)",
-          boxShadow: "var(--shadow-sheet)"
+        <div className="admin-kpi-card" style={{
+          border: newOrdersCount > 0 ? "2px solid var(--color-bronze)" : "1.2px solid var(--color-border-frame)"
         }}>
-          <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, color: "var(--color-bronze)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+          <div className="admin-kpi-title" style={{ color: "var(--color-bronze)" }}>
             New Orders
           </div>
-          <div style={{ fontFamily: "var(--font-serif)", fontSize: 32, fontWeight: 800, color: "var(--color-ink)", lineHeight: 1.1, marginTop: 4 }}>
+          <div className="admin-kpi-num" style={{ color: "var(--color-ink)" }}>
             {newOrdersCount}
           </div>
-          <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 12, color: "var(--color-bronze)" }}>
+          <div className="admin-kpi-desc">
             Needs preparation
           </div>
         </div>
 
         {/* In Kitchen */}
-        <div style={{
-          backgroundColor: "#fff",
-          padding: "14px 18px",
-          borderRadius: 4,
-          border: "1.2px solid var(--color-border-frame)",
-          boxShadow: "var(--shadow-sheet)"
-        }}>
-          <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+        <div className="admin-kpi-card">
+          <div className="admin-kpi-title" style={{ color: "var(--color-ink)" }}>
             In Cooking
           </div>
-          <div style={{ fontFamily: "var(--font-serif)", fontSize: 32, fontWeight: 800, color: "#2563eb", lineHeight: 1.1, marginTop: 4 }}>
+          <div className="admin-kpi-num" style={{ color: "#2563eb" }}>
             {preparingCount}
           </div>
-          <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 12, color: "var(--color-bronze)" }}>
-            Currently on the stove/pan
+          <div className="admin-kpi-desc">
+            Currently cooking
           </div>
         </div>
 
         {/* Served */}
-        <div style={{
-          backgroundColor: "#fff",
-          padding: "14px 18px",
-          borderRadius: 4,
-          border: "1.2px solid var(--color-border-frame)",
-          boxShadow: "var(--shadow-sheet)"
-        }}>
-          <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+        <div className="admin-kpi-card">
+          <div className="admin-kpi-title" style={{ color: "var(--color-ink)" }}>
             Delivered
           </div>
-          <div style={{ fontFamily: "var(--font-serif)", fontSize: 32, fontWeight: 800, color: "#15803d", lineHeight: 1.1, marginTop: 4 }}>
+          <div className="admin-kpi-num" style={{ color: "#15803d" }}>
             {servedCount}
           </div>
-          <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 12, color: "var(--color-bronze)" }}>
+          <div className="admin-kpi-desc">
             Served to table
           </div>
         </div>
 
         {/* Revenue */}
-        <div style={{
-          backgroundColor: "#fff",
-          padding: "14px 18px",
-          borderRadius: 4,
-          border: "1.2px solid var(--color-border-frame)",
-          boxShadow: "var(--shadow-sheet)"
-        }}>
-          <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+        <div className="admin-kpi-card">
+          <div className="admin-kpi-title" style={{ color: "var(--color-ink)" }}>
             Total Tickets Value
           </div>
-          <div style={{ fontFamily: "var(--font-serif)", fontSize: 32, fontWeight: 800, color: "var(--color-ink)", lineHeight: 1.1, marginTop: 4 }}>
+          <div className="admin-kpi-num" style={{ color: "var(--color-ink)" }}>
             Rs.{totalRevenue}
           </div>
-          <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 12, color: "var(--color-bronze)" }}>
-            {orders.length} orders placed today
+          <div className="admin-kpi-desc">
+            {orders.length} orders today
           </div>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div style={{
-        display: "flex",
-        borderBottom: "1.5px solid var(--color-border-frame)",
-        marginBottom: 20,
-        gap: 8
-      }}>
-        <button
-          onClick={() => setActiveTab("orders")}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "10px 18px",
-            borderBottom: activeTab === "orders" ? "3px solid var(--color-ink)" : "none",
-            color: activeTab === "orders" ? "var(--color-ink)" : "var(--color-bronze)",
-            fontFamily: "var(--font-serif)",
-            fontWeight: activeTab === "orders" ? 800 : 600,
-            fontSize: 15,
-            letterSpacing: 0.5,
-            textTransform: "uppercase"
-          }}
-        >
-          <ChefHat size={17} />
-          <span>Live Kitchen Feed</span>
-          {newOrdersCount > 0 && (
-            <span style={{
-              backgroundColor: "var(--color-bronze)",
-              color: "#fff",
-              fontSize: 11,
-              fontWeight: 800,
-              padding: "1px 6px",
-              borderRadius: "var(--radius-pill)"
-            }}>
-              {newOrdersCount}
-            </span>
-          )}
-        </button>
+      {/* Navigation Tabs with Smooth Horizontal Touch Scrolling & Fail-safe Chevrons */}
+      <div style={{ position: "relative", marginBottom: 18 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {/* Scroll Left Button for small screens */}
+          <button
+            onClick={() => handleScrollTabs("left")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              backgroundColor: "#fff",
+              border: "1px solid var(--color-border-frame)",
+              color: "var(--color-bronze)",
+              cursor: "pointer",
+              flexShrink: 0,
+              boxShadow: "var(--shadow-sm)"
+            }}
+            title="Scroll tabs left"
+            aria-label="Scroll tabs left"
+          >
+            <ChevronLeft size={16} />
+          </button>
 
-        <button
-          onClick={() => setActiveTab("menu")}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "10px 18px",
-            borderBottom: activeTab === "menu" ? "3px solid var(--color-ink)" : "none",
-            color: activeTab === "menu" ? "var(--color-ink)" : "var(--color-bronze)",
-            fontFamily: "var(--font-serif)",
-            fontWeight: activeTab === "menu" ? 800 : 600,
-            fontSize: 15,
-            letterSpacing: 0.5,
-            textTransform: "uppercase"
-          }}
-        >
-          <UtensilsCrossed size={17} />
-          <span>Menu & Stock</span>
-        </button>
+          <div
+            ref={tabsNavRef}
+            className="admin-nav-tabs-wrapper no-scrollbar"
+            style={{ flex: 1 }}
+          >
+            <button
+              onClick={() => setActiveTab("orders")}
+              className="admin-nav-tab-btn"
+              data-active={activeTab === "orders"}
+              style={{
+                borderBottom: activeTab === "orders" ? "3px solid var(--color-ink)" : "3px solid transparent",
+                color: activeTab === "orders" ? "var(--color-ink)" : "var(--color-bronze)",
+                fontWeight: activeTab === "orders" ? 800 : 600,
+                marginBottom: -2
+              }}
+            >
+              <ChefHat size={16} />
+              <span>Live Kitchen Feed</span>
+              {newOrdersCount > 0 && (
+                <span style={{
+                  backgroundColor: "var(--color-bronze)",
+                  color: "#fff",
+                  fontSize: 11,
+                  fontWeight: 800,
+                  padding: "1px 6px",
+                  borderRadius: "var(--radius-pill)"
+                }}>
+                  {newOrdersCount}
+                </span>
+              )}
+            </button>
 
-        <button
-          onClick={() => setActiveTab("qr")}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "10px 18px",
-            borderBottom: activeTab === "qr" ? "3px solid var(--color-ink)" : "none",
-            color: activeTab === "qr" ? "var(--color-ink)" : "var(--color-bronze)",
-            fontFamily: "var(--font-serif)",
-            fontWeight: activeTab === "qr" ? 800 : 600,
-            fontSize: 15,
-            letterSpacing: 0.5,
-            textTransform: "uppercase"
-          }}
-        >
-          <QrCode size={17} />
-          <span>Table QR Kit</span>
-        </button>
+            <button
+              onClick={() => setActiveTab("menu")}
+              className="admin-nav-tab-btn"
+              data-active={activeTab === "menu"}
+              style={{
+                borderBottom: activeTab === "menu" ? "3px solid var(--color-ink)" : "3px solid transparent",
+                color: activeTab === "menu" ? "var(--color-ink)" : "var(--color-bronze)",
+                fontWeight: activeTab === "menu" ? 800 : 600,
+                marginBottom: -2
+              }}
+            >
+              <UtensilsCrossed size={16} />
+              <span>Menu & Stock</span>
+            </button>
 
-        <button
-          onClick={() => setActiveTab("reviews")}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "10px 18px",
-            borderBottom: activeTab === "reviews" ? "3px solid var(--color-ink)" : "none",
-            color: activeTab === "reviews" ? "var(--color-ink)" : "var(--color-bronze)",
-            fontFamily: "var(--font-serif)",
-            fontWeight: activeTab === "reviews" ? 800 : 600,
-            fontSize: 15,
-            letterSpacing: 0.5,
-            textTransform: "uppercase"
-          }}
-        >
-          <Star size={17} fill={activeTab === "reviews" ? "#F59E0B" : "transparent"} color={activeTab === "reviews" ? "#F59E0B" : "currentColor"} />
-          <span>Table Reviews</span>
-          {allReviews.length > 0 && (
-            <span style={{
-              backgroundColor: "var(--color-bronze)",
-              color: "#fff",
-              fontSize: 11,
-              fontWeight: 800,
-              padding: "1px 6px",
-              borderRadius: "var(--radius-pill)"
-            }}>
-              {allReviews.length}
-            </span>
-          )}
-        </button>
+            <button
+              onClick={() => setActiveTab("qr")}
+              className="admin-nav-tab-btn"
+              data-active={activeTab === "qr"}
+              style={{
+                borderBottom: activeTab === "qr" ? "3px solid var(--color-ink)" : "3px solid transparent",
+                color: activeTab === "qr" ? "var(--color-ink)" : "var(--color-bronze)",
+                fontWeight: activeTab === "qr" ? 800 : 600,
+                marginBottom: -2
+              }}
+            >
+              <QrCode size={16} />
+              <span>Table QR Kit</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("reviews")}
+              className="admin-nav-tab-btn"
+              data-active={activeTab === "reviews"}
+              style={{
+                borderBottom: activeTab === "reviews" ? "3px solid var(--color-ink)" : "3px solid transparent",
+                color: activeTab === "reviews" ? "var(--color-ink)" : "var(--color-bronze)",
+                fontWeight: activeTab === "reviews" ? 800 : 600,
+                marginBottom: -2
+              }}
+            >
+              <Star size={16} fill={activeTab === "reviews" ? "#F59E0B" : "transparent"} color={activeTab === "reviews" ? "#F59E0B" : "currentColor"} />
+              <span>Table Reviews</span>
+              {allReviews.length > 0 && (
+                <span style={{
+                  backgroundColor: "var(--color-bronze)",
+                  color: "#fff",
+                  fontSize: 11,
+                  fontWeight: 800,
+                  padding: "1px 6px",
+                  borderRadius: "var(--radius-pill)"
+                }}>
+                  {allReviews.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Scroll Right Button for small screens */}
+          <button
+            onClick={() => handleScrollTabs("right")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              backgroundColor: "#fff",
+              border: "1px solid var(--color-border-frame)",
+              color: "var(--color-bronze)",
+              cursor: "pointer",
+              flexShrink: 0,
+              boxShadow: "var(--shadow-sm)"
+            }}
+            title="Scroll tabs right"
+            aria-label="Scroll tabs right"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Tab Content */}
       {activeTab === "orders" && (
         <div>
-          {/* Filters Bar */}
+          {/* Filters Bar with Horizontal Scroll for Mobile */}
           <div style={{
             display: "flex",
             flexWrap: "wrap",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: 12,
+            gap: 10,
             marginBottom: 16
           }}>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <div className="admin-pills-scroll">
               {[
                 { id: "active", label: "Active Orders" },
                 { id: "placed", label: "New (Needs Prep)" },
@@ -698,7 +699,10 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
                     letterSpacing: 0.5,
                     border: "1px solid var(--color-border-frame)",
                     backgroundColor: orderStatusFilter === pill.id ? "var(--color-ink)" : "#fff",
-                    color: orderStatusFilter === pill.id ? "#FAF7F2" : "var(--color-ink)"
+                    color: orderStatusFilter === pill.id ? "#FAF7F2" : "var(--color-ink)",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                    cursor: "pointer"
                   }}
                 >
                   {pill.label}
@@ -706,7 +710,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
               ))}
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               {uniqueTables.length > 0 && (
                 <select
                   value={tableFilter}
@@ -749,7 +753,8 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
                     color: "#dc2626",
                     fontFamily: "var(--font-serif)",
                     fontSize: 12,
-                    fontWeight: 700
+                    fontWeight: 700,
+                    cursor: "pointer"
                   }}
                 >
                   <Trash2 size={12} />
@@ -777,11 +782,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
               </p>
             </div>
           ) : (
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-              gap: 16
-            }}>
+            <div className="admin-orders-grid">
               {filteredOrders.map((order) => (
                 <OrderCard
                   key={order.id}
@@ -804,11 +805,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
         onClose={() => setIsChangePinOpen(false)}
       />
 
-      {/* Firestore Rules Helper Modal */}
-      <FirestoreRulesModal
-        isOpen={isFirestoreRulesOpen}
-        onClose={() => setIsFirestoreRulesOpen(false)}
-      />
+
     </div>
   );
 }

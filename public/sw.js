@@ -1,5 +1,5 @@
 // Two Hearts Cafe - Progressive Web App Service Worker
-const CACHE_NAME = 'two-hearts-v1';
+const CACHE_NAME = 'two-hearts-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

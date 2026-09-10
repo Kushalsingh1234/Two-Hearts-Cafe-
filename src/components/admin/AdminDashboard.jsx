@@ -468,115 +468,62 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
             <Sun size={13} />
             <span>{isScreenAwake ? "Screen Awake: ON" : "Keep Screen Awake"}</span>
           </button>
-
-          {/* PWA Install Button */}
-          {canInstallPwa && (
-            <button
-              onClick={handleInstallApp}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 5,
-                padding: "5px 14px",
-                borderRadius: "var(--radius-pill)",
-                backgroundColor: "var(--color-ink)",
-                color: "#FAF7F2",
-                border: "none",
-                fontFamily: "var(--font-serif)",
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-                boxShadow: "var(--shadow-sm)"
-              }}
-              title="Install Two Hearts Cafe as an app on your device"
-            >
-              <Smartphone size={13} />
-              <span>Install App</span>
-            </button>
-          )}
         </div>
       </div>
 
       {/* KPI Stats - Table Orders (only shown on Table Feed tab, Online Orders tab has its own dedicated KPI grid) */}
       {activeTab === "orders" && (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: 12,
-          marginBottom: 24
-        }}>
+        <div className="admin-kpi-grid">
           {/* New Orders */}
-          <div style={{
-            backgroundColor: "#fff",
-            padding: "14px 18px",
-            borderRadius: 4,
-            border: tableNewOrdersCount > 0 ? "2px solid var(--color-bronze)" : "1.2px solid var(--color-border-frame)",
-            boxShadow: "var(--shadow-sheet)"
+          <div className="admin-kpi-card" style={{
+            border: tableNewOrdersCount > 0 ? "2px solid var(--color-bronze)" : "1.2px solid var(--color-border-frame)"
           }}>
-            <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, color: "var(--color-bronze)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+            <div className="admin-kpi-title" style={{ color: "var(--color-bronze)" }}>
               New Orders
             </div>
-            <div style={{ fontFamily: "var(--font-serif)", fontSize: 32, fontWeight: 800, color: "var(--color-ink)", lineHeight: 1.1, marginTop: 4 }}>
+            <div className="admin-kpi-num" style={{ color: "var(--color-ink)" }}>
               {tableNewOrdersCount}
             </div>
-            <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 12, color: "var(--color-bronze)" }}>
+            <div className="admin-kpi-desc">
               Needs preparation
             </div>
           </div>
 
           {/* In Kitchen */}
-          <div style={{
-            backgroundColor: "#fff",
-            padding: "14px 18px",
-            borderRadius: 4,
-            border: "1.2px solid var(--color-border-frame)",
-            boxShadow: "var(--shadow-sheet)"
-          }}>
-            <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+          <div className="admin-kpi-card">
+            <div className="admin-kpi-title" style={{ color: "var(--color-ink)" }}>
               In Cooking
             </div>
-            <div style={{ fontFamily: "var(--font-serif)", fontSize: 32, fontWeight: 800, color: "#2563eb", lineHeight: 1.1, marginTop: 4 }}>
+            <div className="admin-kpi-num" style={{ color: "#2563eb" }}>
               {tablePreparingCount}
             </div>
-            <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 12, color: "var(--color-bronze)" }}>
-              Currently on the stove/pan
+            <div className="admin-kpi-desc">
+              Currently cooking
             </div>
           </div>
 
           {/* Served */}
-          <div style={{
-            backgroundColor: "#fff",
-            padding: "14px 18px",
-            borderRadius: 4,
-            border: "1.2px solid var(--color-border-frame)",
-            boxShadow: "var(--shadow-sheet)"
-          }}>
-            <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+          <div className="admin-kpi-card">
+            <div className="admin-kpi-title" style={{ color: "var(--color-ink)" }}>
               Delivered
             </div>
-            <div style={{ fontFamily: "var(--font-serif)", fontSize: 32, fontWeight: 800, color: "#15803d", lineHeight: 1.1, marginTop: 4 }}>
+            <div className="admin-kpi-num" style={{ color: "#15803d" }}>
               {tableServedCount}
             </div>
-            <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 12, color: "var(--color-bronze)" }}>
+            <div className="admin-kpi-desc">
               Served to table
             </div>
           </div>
 
           {/* Revenue */}
-          <div style={{
-            backgroundColor: "#fff",
-            padding: "14px 18px",
-            borderRadius: 4,
-            border: "1.2px solid var(--color-border-frame)",
-            boxShadow: "var(--shadow-sheet)"
-          }}>
-            <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+          <div className="admin-kpi-card">
+            <div className="admin-kpi-title" style={{ color: "var(--color-ink)" }}>
               Total Tickets Value
             </div>
-            <div style={{ fontFamily: "var(--font-serif)", fontSize: 32, fontWeight: 800, color: "var(--color-ink)", lineHeight: 1.1, marginTop: 4 }}>
+            <div className="admin-kpi-num" style={{ color: "var(--color-ink)" }}>
               Rs.{tableTotalRevenue}
             </div>
-            <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 12, color: "var(--color-bronze)" }}>
+            <div className="admin-kpi-desc">
               {tableOrders.length} table orders placed today
             </div>
           </div>

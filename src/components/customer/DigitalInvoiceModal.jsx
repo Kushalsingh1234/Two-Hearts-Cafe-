@@ -93,11 +93,12 @@ export default function DigitalInvoiceModal({ isOpen, onClose, order, onOpenRevi
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      padding: 16
+      padding: "clamp(8px, 2.5vw, 16px)",
+      boxSizing: "border-box"
     }}>
       <div style={{
         width: "100%",
-        maxWidth: 480,
+        maxWidth: 460,
         backgroundColor: "#FAF7F2",
         borderRadius: 10,
         border: "2px solid var(--color-border-frame)",
@@ -105,7 +106,8 @@ export default function DigitalInvoiceModal({ isOpen, onClose, order, onOpenRevi
         display: "flex",
         flexDirection: "column",
         maxHeight: "92vh",
-        overflow: "hidden"
+        overflow: "hidden",
+        boxSizing: "border-box"
       }}>
         {/* Top Header Controls (Hidden during print) */}
         <div className="no-print" style={{
@@ -187,18 +189,19 @@ export default function DigitalInvoiceModal({ isOpen, onClose, order, onOpenRevi
         </div>
 
         {/* Printable Invoice Container */}
-        <div style={{ padding: "18px 20px", overflowY: "auto", flex: 1 }}>
+        <div style={{ padding: "12px 14px", overflowY: "auto", flex: 1, boxSizing: "border-box" }}>
           <div
             ref={invoiceRef}
             id="printable-digital-invoice"
             style={{
               backgroundColor: "#ffffff",
-              padding: 24,
+              padding: "clamp(14px, 3.5vw, 20px)",
               borderRadius: 6,
               border: "1.5px solid var(--color-border-frame)",
               boxShadow: "var(--shadow-sm)",
               color: "var(--color-ink)",
-              fontFamily: "var(--font-serif)"
+              fontFamily: "var(--font-serif)",
+              boxSizing: "border-box"
             }}
           >
             {/* Cafe Logo & Header */}
@@ -360,118 +363,60 @@ export default function DigitalInvoiceModal({ isOpen, onClose, order, onOpenRevi
 
         {/* Bottom Modal Actions (Hidden during print) */}
         <div className="no-print" style={{
-          padding: "12px 18px",
+          padding: "12px 16px",
           borderTop: "1.5px solid var(--color-border-frame)",
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          backgroundColor: "#FAF7F2"
+          gap: 10,
+          backgroundColor: "#FAF7F2",
+          boxSizing: "border-box",
+          width: "100%"
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button
-              onClick={onClose}
-              style={{
-                padding: "9px 18px",
-                borderRadius: "var(--radius-pill)",
-                backgroundColor: "transparent",
-                border: "1.5px solid var(--color-border-frame)",
-                color: "var(--color-ink)",
-                fontFamily: "var(--font-serif)",
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer"
-              }}
-            >
-              Close
-            </button>
+          <button
+            onClick={onClose}
+            style={{
+              padding: "10px 18px",
+              borderRadius: "var(--radius-pill)",
+              backgroundColor: "#ffffff",
+              border: "1.5px solid var(--color-border-frame)",
+              color: "var(--color-ink)",
+              fontFamily: "var(--font-serif)",
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: "pointer",
+              whiteSpace: "nowrap"
+            }}
+          >
+            Close
+          </button>
 
-            {onOpenReview && (
-              <button
-                onClick={() => onOpenReview(order)}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                  padding: "9px 16px",
-                  borderRadius: "var(--radius-pill)",
-                  backgroundColor: "#FAF7F2",
-                  border: "1.5px solid var(--color-bronze)",
-                  color: "var(--color-bronze-dark)",
-                  fontFamily: "var(--font-serif)",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer"
-                }}
-              >
-                <Star size={13} fill="#F59E0B" color="#F59E0B" />
-                <span>Rate Meal & Dishes</span>
-              </button>
-            )}
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {onOpenReview && (
             <button
-              onClick={handlePrint}
+              onClick={() => onOpenReview(order)}
               style={{
+                flex: 1,
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 5,
-                padding: "8px 14px",
-                borderRadius: "var(--radius-pill)",
-                backgroundColor: "#fff",
-                color: "var(--color-ink)",
-                border: "1px solid var(--color-border-frame)",
-                fontFamily: "var(--font-serif)",
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer"
-              }}
-              title="Print via browser"
-            >
-              <Printer size={13} />
-              <span>Print</span>
-            </button>
-
-            <button
-              onClick={handleDownloadPdf}
-              disabled={isGenerating}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
+                justifyContent: "center",
                 gap: 6,
-                padding: "9px 20px",
+                padding: "10px 16px",
                 borderRadius: "var(--radius-pill)",
-                backgroundColor: downloadSuccess ? "#15803d" : "var(--color-ink)",
-                color: "#FAF7F2",
+                backgroundColor: "#8A5738",
+                color: "#FFFFFF",
                 border: "none",
                 fontFamily: "var(--font-serif)",
-                fontSize: 13,
+                fontSize: 12.5,
                 fontWeight: 700,
-                letterSpacing: 0.5,
-                cursor: isGenerating ? "not-allowed" : "pointer",
+                letterSpacing: 0.4,
+                cursor: "pointer",
                 boxShadow: "var(--shadow-sm)",
-                transition: "background-color 0.2s ease"
+                whiteSpace: "nowrap"
               }}
             >
-              {isGenerating ? (
-                <>
-                  <Loader2 size={14} className="spin-animation" />
-                  <span>Generating PDF...</span>
-                </>
-              ) : downloadSuccess ? (
-                <>
-                  <Check size={14} />
-                  <span>Downloaded PDF!</span>
-                </>
-              ) : (
-                <>
-                  <Download size={14} />
-                  <span>Download PDF</span>
-                </>
-              )}
+              <Star size={14} fill="#F59E0B" color="#F59E0B" />
+              <span>Rate Meal & Dishes</span>
             </button>
-          </div>
+          )}
         </div>
       </div>
     </div>

@@ -23,15 +23,16 @@ export default function MenuItemCard({
 
   return (
     <div style={{
-      backgroundColor: isOutOfStock ? "#fcfaf9" : "#ffffff",
+      backgroundColor: isOutOfStock ? "#f4f4f5" : "#ffffff",
       borderRadius: "var(--radius-sm)",
-      border: isOutOfStock ? "1px dashed #fca5a5" : "1px solid var(--border-color)",
+      border: isOutOfStock ? "1px solid #e4e4e7" : "1px solid var(--border-color)",
       padding: "12px 14px",
       marginBottom: 10,
-      opacity: isOutOfStock ? 0.65 : 1,
-      boxShadow: "var(--shadow-sm)",
+      opacity: isOutOfStock ? 0.72 : 1,
+      boxShadow: isOutOfStock ? "none" : "var(--shadow-sm)",
       width: "100%",
-      boxSizing: "border-box"
+      boxSizing: "border-box",
+      transition: "background-color 0.2s"
     }}>
       {/* Top Details & Action */}
       <div style={{
@@ -45,19 +46,39 @@ export default function MenuItemCard({
           <div style={{
             display: "flex",
             flexWrap: "wrap",
-            alignItems: "baseline",
+            alignItems: "center",
             gap: 6
           }}>
             <span style={{
               fontFamily: "var(--font-serif)",
               fontSize: 16,
               fontWeight: 700,
-              color: "var(--color-ink)",
+              color: isOutOfStock ? "#71717a" : "var(--color-ink)",
               lineHeight: 1.25
             }}>
               {item.name}
             </span>
-            {item.isSpecial && (
+            {isOutOfStock && (
+              <span style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 10.5,
+                fontFamily: "var(--font-serif)",
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+                color: "#52525b",
+                backgroundColor: "#e4e4e7",
+                border: "1px solid #d4d4d8",
+                padding: "2px 8px",
+                borderRadius: "var(--radius-pill)"
+              }}>
+                <span style={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: "#71717a" }} />
+                Out of Stock
+              </span>
+            )}
+            {item.isSpecial && !isOutOfStock && (
               <span style={{
                 fontSize: 10,
                 fontFamily: "var(--font-serif)",
@@ -78,13 +99,13 @@ export default function MenuItemCard({
                 fontSize: 11,
                 fontFamily: "var(--font-serif)",
                 fontWeight: 700,
-                color: "#b45309",
-                backgroundColor: "#fef3c7",
+                color: isOutOfStock ? "#71717a" : "#b45309",
+                backgroundColor: isOutOfStock ? "#e4e4e7" : "#fef3c7",
                 padding: "1px 6px",
                 borderRadius: "var(--radius-pill)",
-                border: "1px solid #fde68a"
+                border: isOutOfStock ? "1px solid #d4d4d8" : "1px solid #fde68a"
               }}>
-                <Star size={10} fill="#f59e0b" color="#f59e0b" />
+                <Star size={10} fill={isOutOfStock ? "#71717a" : "#f59e0b"} color={isOutOfStock ? "#71717a" : "#f59e0b"} />
                 <span>{item.rating.toFixed(1)}</span>
                 {item.ratingCount ? <span style={{ opacity: 0.75, fontSize: 9.5 }}>({item.ratingCount})</span> : null}
               </span>
@@ -97,7 +118,7 @@ export default function MenuItemCard({
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
               fontSize: 13,
-              color: "var(--color-bronze)",
+              color: isOutOfStock ? "#a1a1aa" : "var(--color-bronze)",
               marginTop: 3,
               lineHeight: 1.35
             }}>
@@ -110,7 +131,7 @@ export default function MenuItemCard({
             fontFamily: "var(--font-serif)",
             fontSize: 15,
             fontWeight: 700,
-            color: "var(--color-ink)",
+            color: isOutOfStock ? "#71717a" : "var(--color-ink)",
             marginTop: 6
           }}>
             Rs.{item.price}
@@ -120,24 +141,32 @@ export default function MenuItemCard({
         {/* Action Button on the right */}
         <div style={{ flexShrink: 0, marginTop: 2 }}>
           {isOutOfStock ? (
-            <span style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              fontSize: 11,
-              fontFamily: "var(--font-serif)",
-              fontWeight: 700,
-              letterSpacing: 0.5,
-              textTransform: "uppercase",
-              color: "#dc2626",
-              backgroundColor: "#fee2e2",
-              border: "1.2px solid #fca5a5",
-              padding: "4px 9px",
-              borderRadius: "var(--radius-pill)"
-            }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#dc2626" }} />
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              title="This dish is currently out of stock and cannot be ordered"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11,
+                fontFamily: "var(--font-serif)",
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+                color: "#71717a",
+                backgroundColor: "#e4e4e7",
+                border: "1px solid #d4d4d8",
+                padding: "5px 10px",
+                borderRadius: "var(--radius-pill)",
+                cursor: "not-allowed",
+                userSelect: "none"
+              }}
+            >
+              <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#71717a" }} />
               Out of Stock
-            </span>
+            </button>
           ) : cartQuantity > 0 ? (
             <div style={{
               display: "flex",

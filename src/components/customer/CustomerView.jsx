@@ -79,7 +79,7 @@ export default function CustomerView({
       }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchesName = item.name.toLowerCase().includes(q);
+        const matchesName = (item.name || "").toLowerCase().includes(q);
         const matchesDesc = (item.description || "").toLowerCase().includes(q);
         if (!matchesName && !matchesDesc) return false;
       }

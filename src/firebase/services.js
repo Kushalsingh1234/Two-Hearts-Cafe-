@@ -48,6 +48,23 @@ export const hasFirestorePermissionError = () => firestorePermissionErrorDetecte
  * Realtime subscription to menu items
  */
 export const subscribeMenuItems = (onSuccess, onError) => {
+  const seedMap = new Map(INITIAL_MENU_ITEMS.map((s) => [s.id, s]));
+
+  const handleLocalUpdate = () => {
+    const localMenu = getLocalData(LOCAL_STORAGE_MENU_KEY, INITIAL_MENU_ITEMS);
+    const existingIds = new Set(localMenu.map((i) => i.id));
+    const merged = localMenu.map((item) => {
+      const seed = seedMap.get(item.id);
+      return seed ? { ...seed, ...item } : item;
+    });
+    for (const s of INITIAL_MENU_ITEMS) {
+      if (!existingIds.has(s.id)) merged.push(s);
+    }
+    onSuccess(merged);
+  };
+
+  window.addEventListener("twohearts_menu_updated", handleLocalUpdate);
+
   try {
     const q = collection(db, MENU_COLLECTION);
     const unsubscribe = onSnapshot(
@@ -57,19 +74,28 @@ export const subscribeMenuItems = (onSuccess, onError) => {
         if (snapshot.empty) {
           // If Firestore is empty, return initial items and optionally seed
           const localMenu = getLocalData(LOCAL_STORAGE_MENU_KEY, INITIAL_MENU_ITEMS);
-          // Ensure all seed items exist in localMenu
           const existingIds = new Set(localMenu.map((i) => i.id));
-          const merged = [...localMenu];
+          const merged = localMenu.map((item) => {
+            const seed = seedMap.get(item.id);
+            return seed ? { ...seed, ...item } : item;
+          });
           for (const s of INITIAL_MENU_ITEMS) {
             if (!existingIds.has(s.id)) merged.push(s);
           }
           setLocalData(LOCAL_STORAGE_MENU_KEY, merged);
           onSuccess(merged);
         } else {
-          const items = snapshot.docs.map((docSnap) => ({
-            id: docSnap.id,
-            ...docSnap.data()
-          }));
+          // Merge each Firestore doc with its seed counterpart to guarantee name, category, price are never lost
+          const items = snapshot.docs.map((docSnap) => {
+            const docData = docSnap.data();
+            const seed = seedMap.get(docSnap.id) || {};
+            return {
+              ...seed,
+              ...docData,
+              id: docSnap.id
+            };
+          });
+
           // Ensure all seed items are present (e.g. newly added categories)
           const existingIds = new Set(items.map((it) => it.id));
           const merged = [...items];
@@ -85,7 +111,10 @@ export const subscribeMenuItems = (onSuccess, onError) => {
         firestorePermissionErrorDetected = true;
         const localMenu = getLocalData(LOCAL_STORAGE_MENU_KEY, INITIAL_MENU_ITEMS);
         const existingIds = new Set(localMenu.map((i) => i.id));
-        const merged = [...localMenu];
+        const merged = localMenu.map((item) => {
+          const seed = seedMap.get(item.id);
+          return seed ? { ...seed, ...item } : item;
+        });
         for (const s of INITIAL_MENU_ITEMS) {
           if (!existingIds.has(s.id)) merged.push(s);
         }
@@ -94,17 +123,26 @@ export const subscribeMenuItems = (onSuccess, onError) => {
         if (onError) onError(err);
       }
     );
-    return unsubscribe;
+
+    return () => {
+      window.removeEventListener("twohearts_menu_updated", handleLocalUpdate);
+      if (typeof unsubscribe === "function") unsubscribe();
+    };
   } catch (err) {
     console.warn("Firestore error:", err);
     const localMenu = getLocalData(LOCAL_STORAGE_MENU_KEY, INITIAL_MENU_ITEMS);
     const existingIds = new Set(localMenu.map((i) => i.id));
-    const merged = [...localMenu];
+    const merged = localMenu.map((item) => {
+      const seed = seedMap.get(item.id);
+      return seed ? { ...seed, ...item } : item;
+    });
     for (const s of INITIAL_MENU_ITEMS) {
       if (!existingIds.has(s.id)) merged.push(s);
     }
     onSuccess(merged);
-    return () => { };
+    return () => {
+      window.removeEventListener("twohearts_menu_updated", handleLocalUpdate);
+    };
   }
 };
 
@@ -128,17 +166,32 @@ export const seedMenuToFirestore = async () => {
 /**
  * Toggle menu item availability (In Stock / Out of Stock)
  */
-export const toggleItemAvailability = async (itemId, isAvailable) => {
-  // 1. Immediately update local storage cache & broadcast for instant response
+export const toggleItemAvailability = async (itemId, isAvailable, fallbackItem = null) => {
+  // 1. Find existing full item
   const local = getLocalData(LOCAL_STORAGE_MENU_KEY, INITIAL_MENU_ITEMS);
-  const updated = local.map((it) => (it.id === itemId ? { ...it, isAvailable } : it));
+  const existingLocal = local.find((it) => it.id === itemId);
+  const seedItem = INITIAL_MENU_ITEMS.find((it) => it.id === itemId);
+  const fullItem = {
+    ...(seedItem || {}),
+    ...(fallbackItem || {}),
+    ...(existingLocal || {}),
+    id: itemId,
+    isAvailable,
+    updatedAt: new Date().toISOString()
+  };
+
+  // 2. Immediately update local storage cache & broadcast for instant response
+  const updated = local.map((it) => (it.id === itemId ? { ...it, ...fullItem, isAvailable } : it));
+  if (!local.some((it) => it.id === itemId)) {
+    updated.push(fullItem);
+  }
   setLocalData(LOCAL_STORAGE_MENU_KEY, updated);
   window.dispatchEvent(new CustomEvent("twohearts_menu_updated"));
 
-  // 2. Persist to Firestore with setDoc merge
+  // 3. Persist full item to Firestore with setDoc merge so no properties are missing
   try {
     const docRef = doc(db, MENU_COLLECTION, itemId);
-    await setDoc(docRef, { isAvailable, updatedAt: new Date().toISOString() }, { merge: true });
+    await setDoc(docRef, fullItem, { merge: true });
   } catch (err) {
     console.warn("Firestore toggleItemAvailability error, preserved in local storage:", err);
   }

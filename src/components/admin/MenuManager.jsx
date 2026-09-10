@@ -126,7 +126,7 @@ export default function MenuManager({ menuItems }) {
 
   const handleToggleStock = async (item) => {
     const nextAvailability = item.isAvailable === false ? true : false;
-    await toggleItemAvailability(item.id, nextAvailability);
+    await toggleItemAvailability(item.id, nextAvailability, item);
   };
 
   const handleDelete = async (itemId) => {
@@ -787,13 +787,14 @@ export default function MenuManager({ menuItems }) {
                       {/* Stock Toggle */}
                       <div>
                         <button
+                          type="button"
                           onClick={() => handleToggleStock(item)}
-                          title={item.isAvailable !== false ? "Click to mark Out of Stock" : "Click to mark In Stock"}
+                          title={item.isAvailable !== false ? "Signal is GREEN (In Stock) — Click to mark Out of Stock" : "Signal is RED (Out of Stock) — Click to restore In Stock"}
                           style={{
                             display: "inline-flex",
                             alignItems: "center",
-                            gap: 6,
-                            padding: "4px 11px",
+                            gap: 7,
+                            padding: "5px 12px",
                             borderRadius: "var(--radius-pill)",
                             fontFamily: "var(--font-serif)",
                             fontSize: 12,
@@ -801,16 +802,19 @@ export default function MenuManager({ menuItems }) {
                             cursor: "pointer",
                             backgroundColor: item.isAvailable !== false ? "#dcfce7" : "#fee2e2",
                             color: item.isAvailable !== false ? "#15803d" : "#dc2626",
-                            border: item.isAvailable !== false ? "1.2px solid #86efac" : "1.2px solid #f87171",
-                            boxShadow: item.isAvailable === false ? "0 0 0 1px #f87171" : "none",
-                            transition: "all 0.15s"
+                            border: item.isAvailable !== false ? "1.5px solid #86efac" : "1.5px solid #f87171",
+                            boxShadow: item.isAvailable !== false ? "0 1px 3px rgba(22, 163, 74, 0.12)" : "0 1px 3px rgba(220, 38, 38, 0.15)",
+                            transition: "all 0.18s ease"
                           }}
                         >
                           <span style={{
-                            width: 7,
-                            height: 7,
+                            width: 8,
+                            height: 8,
                             borderRadius: "50%",
-                            backgroundColor: item.isAvailable !== false ? "#15803d" : "#dc2626"
+                            backgroundColor: item.isAvailable !== false ? "#16a34a" : "#dc2626",
+                            boxShadow: item.isAvailable !== false ? "0 0 6px rgba(22, 163, 74, 0.7)" : "0 0 6px rgba(220, 38, 38, 0.7)",
+                            display: "inline-block",
+                            flexShrink: 0
                           }} />
                           <span>{item.isAvailable !== false ? "In Stock" : "Out of Stock"}</span>
                         </button>

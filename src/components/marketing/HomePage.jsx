@@ -28,7 +28,8 @@ import {
   TRUST_FEATURES,
   TESTIMONIALS,
   CAFE_STORY,
-  DISH_PHOTOS
+  DISH_PHOTOS,
+  getDishPhoto
 } from "./MarketingData";
 import { INITIAL_MENU_ITEMS } from "../../data/seedMenu";
 import CafeLogoIcon from "../common/CafeLogoIcon";
@@ -709,7 +710,7 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
             {popularDishes
               .slice(0, popularLimit)
               .map((item) => {
-                const photoUrl = DISH_PHOTOS[item.id] || "/images/dishes/penne_arabiata.jpg";
+                const photoUrl = getDishPhoto(item);
 
                 return (
                   <div
@@ -930,7 +931,7 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
               className="mobile-dish-swiper"
             >
               {popularDishes.map((item, idx) => {
-                const photoUrl = DISH_PHOTOS[item.id] || "/images/dishes/penne_arabiata.jpg";
+                const photoUrl = getDishPhoto(item);
 
                 return (
                   <div key={item.id} className="mobile-dish-slide">

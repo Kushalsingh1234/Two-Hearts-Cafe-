@@ -15,8 +15,7 @@ import {
   Check
 } from "lucide-react";
 import CafeLogoIcon from "../common/CafeLogoIcon";
-import { INITIAL_MENU_ITEMS } from "../../data/seedMenu";
-import { DISH_PHOTOS, CATEGORY_CARDS } from "./MarketingData";
+import { DISH_PHOTOS, getDishPhoto, CATEGORY_CARDS } from "./MarketingData";
 import { useOnlineOrder } from "../../context/OnlineOrderContext";
 import CartDrawer from "../ordering/CartDrawer";
 
@@ -538,7 +537,7 @@ export default function MenuLandingPage({
               gap: 24
             }}>
               {filteredDishes.map((item) => {
-                const photoUrl = DISH_PHOTOS[item.id] || "/images/dishes/penne_arabiata.jpg";
+                const photoUrl = getDishPhoto(item);
                 const qty = getItemQuantity(item.id);
                 const isBounced = bouncedItemId === item.id;
 
@@ -549,12 +548,12 @@ export default function MenuLandingPage({
                     style={{
                       display: "flex",
                       flexDirection: "column",
-                      backgroundColor: item.isAvailable === false ? "#faf8f6" : "#FFFFFF",
+                      backgroundColor: item.isAvailable === false ? "#f4f4f5" : "#FFFFFF",
                       overflow: "hidden",
                       transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                      border: item.isAvailable === false ? "1px dashed #fca5a5" : qty > 0 ? "1.5px solid var(--color-bronze)" : "1px solid var(--border-color)",
-                      boxShadow: qty > 0 ? "0 4px 18px rgba(138, 87, 56, 0.12)" : "var(--shadow-sm)",
-                      opacity: item.isAvailable === false ? 0.65 : 1
+                      border: item.isAvailable === false ? "1px solid #e4e4e7" : qty > 0 ? "1.5px solid var(--color-bronze)" : "1px solid var(--border-color)",
+                      boxShadow: item.isAvailable === false ? "none" : qty > 0 ? "0 4px 18px rgba(138, 87, 56, 0.12)" : "var(--shadow-sm)",
+                      opacity: item.isAvailable === false ? 0.72 : 1
                     }}
                   >
                     {/* Dish Photography */}
@@ -572,9 +571,10 @@ export default function MenuLandingPage({
                           height: "100%",
                           objectFit: "cover",
                           display: "block",
+                          filter: item.isAvailable === false ? "grayscale(85%) contrast(85%)" : "none",
                           transition: "transform 0.35s ease"
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
+                        onMouseEnter={(e) => (e.currentTarget.style.transform = item.isAvailable === false ? "none" : "scale(1.05)")}
                         onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1.0)")}
                       />
 
@@ -590,21 +590,21 @@ export default function MenuLandingPage({
                           display: "inline-flex",
                           alignItems: "center",
                           gap: 4,
-                          backgroundColor: "rgba(255, 255, 255, 0.96)",
+                          backgroundColor: item.isAvailable === false ? "rgba(244, 244, 245, 0.94)" : "rgba(255, 255, 255, 0.96)",
                           backdropFilter: "blur(6px)",
-                          border: "1px solid rgba(22, 163, 74, 0.3)",
+                          border: item.isAvailable === false ? "1px solid #d4d4d8" : "1px solid rgba(22, 163, 74, 0.3)",
                           borderRadius: "var(--radius-pill)",
                           padding: "2px 8px",
                           fontSize: 10,
                           fontFamily: "var(--font-serif)",
                           fontWeight: 700,
-                          color: "var(--color-ink)"
+                          color: item.isAvailable === false ? "#71717a" : "var(--color-ink)"
                         }}>
-                          <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#16A34A" }} />
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: item.isAvailable === false ? "#71717a" : "#16A34A" }} />
                           Veg
                         </span>
 
-                        {item.isSpecial && (
+                        {item.isSpecial && item.isAvailable !== false && (
                           <span style={{
                             display: "inline-flex",
                             alignItems: "center",
@@ -631,7 +631,7 @@ export default function MenuLandingPage({
                           position: "absolute",
                           top: 10,
                           right: 10,
-                          backgroundColor: "#dc2626",
+                          backgroundColor: "#52525b",
                           color: "#ffffff",
                           fontSize: 10,
                           fontFamily: "var(--font-serif)",
@@ -655,22 +655,44 @@ export default function MenuLandingPage({
                       justifyContent: "space-between"
                     }}>
                       <div>
-                        <h4 style={{
-                          fontFamily: "var(--font-serif)",
-                          fontSize: 17,
-                          fontWeight: 700,
-                          color: "var(--color-ink)",
-                          lineHeight: 1.3,
-                          marginBottom: 4
-                        }}>
-                          {item.name}
-                        </h4>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+                          <h4 style={{
+                            fontFamily: "var(--font-serif)",
+                            fontSize: 17,
+                            fontWeight: 700,
+                            color: item.isAvailable === false ? "#71717a" : "var(--color-ink)",
+                            lineHeight: 1.3,
+                            margin: 0
+                          }}>
+                            {item.name}
+                          </h4>
+                          {item.isAvailable === false && (
+                            <span style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                              fontSize: 10.5,
+                              fontFamily: "var(--font-serif)",
+                              fontWeight: 700,
+                              letterSpacing: 0.5,
+                              textTransform: "uppercase",
+                              color: "#52525b",
+                              backgroundColor: "#e4e4e7",
+                              border: "1px solid #d4d4d8",
+                              padding: "2px 8px",
+                              borderRadius: "var(--radius-pill)"
+                            }}>
+                              <span style={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: "#71717a" }} />
+                              Out of Stock
+                            </span>
+                          )}
+                        </div>
 
                         <p style={{
                           fontFamily: "var(--font-serif)",
                           fontStyle: "italic",
                           fontSize: 13,
-                          color: "var(--color-ink-soft)",
+                          color: item.isAvailable === false ? "#a1a1aa" : "var(--color-ink-soft)",
                           lineHeight: 1.5,
                           marginBottom: 14,
                           minHeight: 38
@@ -685,39 +707,48 @@ export default function MenuLandingPage({
                         alignItems: "center",
                         justifyContent: "space-between",
                         paddingTop: 10,
-                        borderTop: "1px solid var(--border-color)"
+                        borderTop: item.isAvailable === false ? "1px solid #e4e4e7" : "1px solid var(--border-color)"
                       }}>
                         <div style={{ display: "flex", flexDirection: "column" }}>
                           <span style={{
                             fontFamily: "var(--font-serif)",
                             fontSize: 18,
                             fontWeight: 700,
-                            color: "var(--color-ink)"
+                            color: item.isAvailable === false ? "#71717a" : "var(--color-ink)"
                           }}>
                             ₹{item.price}
                           </span>
                         </div>
 
-                        {/* If Out of stock: badge; If 0: Pill "+ ADD" Button, If >= 1: Stepper */}
+                        {/* If Out of stock: disabled unselectable button; If 0: Pill "+ ADD" Button, If >= 1: Stepper */}
                         {item.isAvailable === false ? (
-                          <span style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            padding: "6px 12px",
-                            fontSize: 11,
-                            fontFamily: "var(--font-serif)",
-                            fontWeight: 700,
-                            letterSpacing: 0.5,
-                            textTransform: "uppercase",
-                            color: "#dc2626",
-                            backgroundColor: "#fee2e2",
-                            border: "1.2px solid #fca5a5",
-                            borderRadius: "var(--radius-pill)"
-                          }}>
-                            <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#dc2626" }} />
-                            Out of Stock
-                          </span>
+                          <button
+                            type="button"
+                            disabled
+                            aria-disabled="true"
+                            title="Currently out of stock and cannot be selected"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 5,
+                              padding: "8px 16px",
+                              minHeight: 44,
+                              fontSize: 11.5,
+                              fontFamily: "var(--font-serif)",
+                              fontWeight: 700,
+                              letterSpacing: 0.5,
+                              textTransform: "uppercase",
+                              color: "#71717a",
+                              backgroundColor: "#e4e4e7",
+                              border: "1px solid #d4d4d8",
+                              borderRadius: "var(--radius-pill)",
+                              cursor: "not-allowed",
+                              userSelect: "none"
+                            }}
+                          >
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#71717a" }} />
+                            <span>Out of Stock</span>
+                          </button>
                         ) : qty === 0 ? (
                           <button
                             type="button"

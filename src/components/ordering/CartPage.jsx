@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useOnlineOrder } from "../../context/OnlineOrderContext";
 import { useCustomerAuth } from "../../context/CustomerAuthContext";
-import { DISH_PHOTOS } from "../marketing/MarketingData";
+import { DISH_PHOTOS, getDishPhoto } from "../marketing/MarketingData";
 
 export default function CartPage({ onNavigate }) {
   const { isLoggedIn, openAuthModal } = useCustomerAuth();
@@ -326,7 +326,7 @@ export default function CartPage({ onNavigate }) {
           {/* Left Column: Items List */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {cart.map((item) => {
-              const photoUrl = DISH_PHOTOS[item.id] || "/images/dishes/penne_arabiata.jpg";
+              const photoUrl = getDishPhoto(item);
               const isNoteOpen = activeNoteItemId === item.id;
 
               return (

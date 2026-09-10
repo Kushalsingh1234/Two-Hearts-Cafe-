@@ -10,7 +10,7 @@ export const DISH_PHOTOS = {
   // --- PASTA ---
   th_penne_arabiata: "/images/dishes/penne_arabiata.jpg",
   th_penne_alfredo: "/images/dishes/penne_alfredo.jpg",
-  th_creamy_makhani: "https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?auto=format&fit=crop&w=800&q=80",
+  th_creamy_makhani: "/images/dishes/makhni_sauce_pasta.jpeg",
   th_penne_rosa_love: "/images/dishes/penne_rosa_love.jpg",
 
   // --- BURGER ---
@@ -42,34 +42,34 @@ export const DISH_PHOTOS = {
   th_peri_peri_maggie_veggies: "/images/dishes/masala_maggie.jpg",
 
   // --- PIZZA ---
-  th_simple_veg_pizza: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80",
-  th_margherita_pizza: "https://images.unsplash.com/photo-1604382355076-af4b0eb60143?auto=format&fit=crop&w=800&q=80",
-  th_the_hero_pizza: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=800&q=80",
-  th_paneer_tikka_pizza: "https://images.unsplash.com/photo-1571407970349-bc81e7e96d47?auto=format&fit=crop&w=800&q=80",
+  th_simple_veg_pizza: "/images/dishes/garden_fresh.jpeg",
+  th_margherita_pizza: "/images/dishes/margherita.jpeg",
+  th_the_hero_pizza: "/images/dishes/hero_pizza.jpeg",
+  th_paneer_tikka_pizza: "/images/dishes/paneer_tikka.jpeg",
   th_neapolitan_pizza: "https://images.unsplash.com/photo-1590947132387-155cc02f3212?auto=format&fit=crop&w=800&q=80",
 
   // --- MOMO ---
-  th_steamed_veg_momo: "/images/dishes/steamed_momo.jpg",
-  th_fried_veg_momo: "/images/dishes/fried_momo.jpg",
-  th_kurkure_veg_momo: "/images/dishes/kurkure_momo.jpg",
-  th_crunchy_veg_momo: "/images/dishes/kurkure_momo.jpg",
-  th_steamed_paneer_momo: "/images/dishes/steamed_momo.jpg",
-  th_fried_paneer_momo: "/images/dishes/fried_momo.jpg",
-  th_kurkure_paneer_momo: "/images/dishes/kurkure_momo.jpg",
-  th_crunchy_paneer_momo: "/images/dishes/kurkure_momo.jpg",
-  th_veg_heaven_momo: "/images/dishes/steamed_momo.jpg",
-  th_paneer_heaven_momo: "/images/dishes/steamed_momo.jpg",
-  th_butter_steamed_veg_momo: "/images/dishes/steamed_momo.jpg",
-  th_butter_steamed_paneer_momo: "/images/dishes/steamed_momo.jpg",
-  th_cheese_corn_steamed_momo: "/images/dishes/steamed_momo.jpg",
-  th_cheese_corn_fried_momo: "/images/dishes/fried_momo.jpg",
-  th_cheese_corn_crunchy_momo: "/images/dishes/kurkure_momo.jpg",
-  th_cheese_corn_kurkure_momo: "/images/dishes/kurkure_momo.jpg",
+  th_steamed_veg_momo: "/images/dishes/steam_veg.jpeg",
+  th_fried_veg_momo: "/images/dishes/veg_fried_momo.jpeg",
+  th_kurkure_veg_momo: "/images/dishes/kurkure_momo.jpeg",
+  th_crunchy_veg_momo: "/images/dishes/kurkure_momo.jpeg",
+  th_steamed_paneer_momo: "/images/dishes/steam_paneer_momo.jpeg",
+  th_fried_paneer_momo: "/images/dishes/paneer_fried_momo.jpeg",
+  th_kurkure_paneer_momo: "/images/dishes/kurkure_momo.jpeg",
+  th_crunchy_paneer_momo: "/images/dishes/kurkure_momo.jpeg",
+  th_veg_heaven_momo: "/images/dishes/steam_veg.jpeg",
+  th_paneer_heaven_momo: "/images/dishes/steam_paneer_momo.jpeg",
+  th_butter_steamed_veg_momo: "/images/dishes/steam_veg.jpeg",
+  th_butter_steamed_paneer_momo: "/images/dishes/steam_paneer_momo.jpeg",
+  th_cheese_corn_steamed_momo: "/images/dishes/steam_paneer_momo.jpeg",
+  th_cheese_corn_fried_momo: "/images/dishes/paneer_fried_momo.jpeg",
+  th_cheese_corn_crunchy_momo: "/images/dishes/kurkure_momo.jpeg",
+  th_cheese_corn_kurkure_momo: "/images/dishes/kurkure_momo.jpeg",
 
   // --- RICE ---
-  th_veg_fried_rice: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=800&q=80",
+  th_veg_fried_rice: "/images/dishes/veg_fried_rice.jpeg",
   th_paneer_fried_rice: "/images/dishes/paneer_fried_rice.jpg",
-  th_schezwan_fried_rice: "/images/dishes/paneer_fried_rice.jpg",
+  th_schezwan_fried_rice: "/images/dishes/schezwan_fried_rice.jpeg",
 
   // --- PANEER ---
   th_chilli_paneer: "/images/dishes/chilli_paneer.jpg",
@@ -88,7 +88,7 @@ export const DISH_PHOTOS = {
   // --- ROLL ---
   th_veg_roll: "/images/dishes/veg_roll.jpg",
   th_paneer_roll: "/images/dishes/paneer_roll.jpg",
-  th_spring_roll: "/images/dishes/spring_roll.jpg",
+  th_spring_roll: "/images/dishes/veg_spring_roll.jpeg",
   th_veg_cheese_roll: "/images/dishes/veg_roll.jpg",
   th_paneer_cheese_roll: "/images/dishes/paneer_roll.jpg",
 
@@ -104,9 +104,9 @@ export const DISH_PHOTOS = {
 
   // --- SHAKES ---
   th_cold_coffee: "https://images.unsplash.com/photo-1517256064527-09c73fc73e38?auto=format&fit=crop&w=800&q=80",
-  th_kitkat_shake: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=800&q=80",
+  th_kitkat_shake: "/images/dishes/kitkat_shake.jpeg",
   th_vanilla_shake: "https://images.unsplash.com/photo-1579954115545-a95591f28bfc?auto=format&fit=crop&w=800&q=80",
-  th_oreo_shake: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=800&q=80",
+  th_oreo_shake: "/images/dishes/oreo_shake.jpeg",
   th_butterscotch_shake: "https://images.unsplash.com/photo-1541658016709-82535e94bc69?auto=format&fit=crop&w=800&q=80",
   th_strawberry_shake: "https://images.unsplash.com/photo-1553787499-6f9133860278?auto=format&fit=crop&w=800&q=80",
   th_chocolate_shake: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=800&q=80",
@@ -140,6 +140,62 @@ export const DISH_PHOTOS = {
   th_students_special_tawa_thali: "/images/dishes/indian_thali.jpg",
   th_delux_tawa_thali: "/images/dishes/deluxe_thali.jpg",
   th_tandoori_thali: "/images/dishes/deluxe_thali.jpg"
+};
+
+// Fallback & dynamic photo lookup by dish title or name
+export const DISH_PHOTOS_BY_NAME = {
+  "creamy makhani sauce pasta": "/images/dishes/makhni_sauce_pasta.jpeg",
+  "makhni sauce pasta": "/images/dishes/makhni_sauce_pasta.jpeg",
+  "makhani sauce pasta": "/images/dishes/makhni_sauce_pasta.jpeg",
+  "the hero pizza": "/images/dishes/hero_pizza.jpeg",
+  "hero pizza": "/images/dishes/hero_pizza.jpeg",
+  "margherita pizza": "/images/dishes/margherita.jpeg",
+  "margherita": "/images/dishes/margherita.jpeg",
+  "paneer tikka pizza": "/images/dishes/paneer_tikka.jpeg",
+  "paneer tikka": "/images/dishes/paneer_tikka.jpeg",
+  "simple veg pizza": "/images/dishes/garden_fresh.jpeg",
+  "garden fresh pizza": "/images/dishes/garden_fresh.jpeg",
+  "garden fresh": "/images/dishes/garden_fresh.jpeg",
+  "steamed veg momo": "/images/dishes/steam_veg.jpeg",
+  "steam veg": "/images/dishes/steam_veg.jpeg",
+  "steam veg momo": "/images/dishes/steam_veg.jpeg",
+  "fried veg momo": "/images/dishes/veg_fried_momo.jpeg",
+  "veg fried momo": "/images/dishes/veg_fried_momo.jpeg",
+  "kurkure veg momo": "/images/dishes/kurkure_momo.jpeg",
+  "kurkure momo": "/images/dishes/kurkure_momo.jpeg",
+  "crunchy veg momo": "/images/dishes/kurkure_momo.jpeg",
+  "steamed paneer momo": "/images/dishes/steam_paneer_momo.jpeg",
+  "steam paneer momo": "/images/dishes/steam_paneer_momo.jpeg",
+  "steam paneer": "/images/dishes/steam_paneer_momo.jpeg",
+  "fried paneer momo": "/images/dishes/paneer_fried_momo.jpeg",
+  "paneer fried momo": "/images/dishes/paneer_fried_momo.jpeg",
+  "kurkure paneer momo": "/images/dishes/kurkure_momo.jpeg",
+  "crunchy paneer momo": "/images/dishes/kurkure_momo.jpeg",
+  "veg fried rice": "/images/dishes/veg_fried_rice.jpeg",
+  "schezwan fried rice": "/images/dishes/schezwan_fried_rice.jpeg",
+  "spring roll": "/images/dishes/veg_spring_roll.jpeg",
+  "veg spring roll": "/images/dishes/veg_spring_roll.jpeg",
+  "kitkat shake": "/images/dishes/kitkat_shake.jpeg",
+  "oreo shake": "/images/dishes/oreo_shake.jpeg"
+};
+
+/**
+ * Universal dish photo resolver that guarantees newly added or custom-named dishes
+ * resolve to their custom photography.
+ */
+export const getDishPhoto = (dish) => {
+  if (!dish) return "/images/dishes/penne_arabiata.jpg";
+  if (dish.image) return dish.image;
+  if (dish.id && DISH_PHOTOS[dish.id]) return DISH_PHOTOS[dish.id];
+
+  const nameKey = (dish.name || "").toLowerCase().trim();
+  if (DISH_PHOTOS_BY_NAME[nameKey]) return DISH_PHOTOS_BY_NAME[nameKey];
+
+  for (const [key, path] of Object.entries(DISH_PHOTOS_BY_NAME)) {
+    if (nameKey.includes(key) || key.includes(nameKey)) return path;
+  }
+
+  return "/images/dishes/penne_arabiata.jpg";
 };
 
 // Curated high-resolution photography with warm, natural, bistro-aesthetic styling

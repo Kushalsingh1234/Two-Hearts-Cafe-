@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useOnlineOrder } from "../../context/OnlineOrderContext";
 import { useCustomerAuth } from "../../context/CustomerAuthContext";
-import { DISH_PHOTOS } from "../marketing/MarketingData";
+import { DISH_PHOTOS, getDishPhoto } from "../marketing/MarketingData";
 
 export default function CartDrawer({ isOpen, onClose, onNavigate }) {
   const { isLoggedIn, openAuthModal } = useCustomerAuth();
@@ -240,7 +240,7 @@ export default function CartDrawer({ isOpen, onClose, onNavigate }) {
             </div>
           ) : (
             cart.map((item) => {
-              const photoUrl = DISH_PHOTOS[item.id] || "/images/dishes/penne_arabiata.jpg";
+              const photoUrl = getDishPhoto(item);
 
               return (
                 <div

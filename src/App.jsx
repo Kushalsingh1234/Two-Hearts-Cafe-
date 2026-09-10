@@ -6,11 +6,20 @@ import HomePage from "./components/marketing/HomePage";
 import AboutPage from "./components/marketing/AboutPage";
 import MenuLandingPage from "./components/marketing/MenuLandingPage";
 import ContactPage from "./components/marketing/ContactPage";
+import CartPage from "./components/ordering/CartPage";
+import CheckoutPage from "./components/ordering/CheckoutPage";
+import OrderConfirmationPage from "./components/ordering/OrderConfirmationPage";
+import OrderStatusPage from "./components/ordering/OrderStatusPage";
 import CustomerView from "./components/customer/CustomerView";
 import AdminDashboard from "./components/admin/AdminDashboard";
 import StaffLogin from "./components/admin/StaffLogin";
+import { OnlineOrderProvider } from "./context/OnlineOrderContext";
+import { CustomerAuthProvider } from "./context/CustomerAuthContext";
+import CustomerAuthModal from "./components/auth/CustomerAuthModal";
+import SignInPage from "./components/auth/SignInPage";
+import UserProfilePage from "./components/profile/UserProfilePage";
 import { subscribeMenuItems, subscribeLiveOrders } from "./firebase/services";
-import { subscribeAuth, logoutUser } from "./firebase/auth";
+import { subscribeAuth } from "./firebase/auth";
 import { INITIAL_MENU_ITEMS } from "./data/seedMenu";
 
 export default function App() {
@@ -46,14 +55,31 @@ export default function App() {
 
     if (params.get("page")) return params.get("page");
     if (params.get("menu") === "true") return "menu";
-    if (["home", "about", "menu", "contact"].includes(pathname)) return pathname;
-    if (["home", "about", "menu", "contact"].includes(hash)) return hash;
+    const validPages = ["home", "about", "menu", "contact", "cart", "checkout", "order-confirmation", "order-status", "sign-in", "profile"];
+    if (validPages.includes(pathname)) return pathname;
+    if (validPages.includes(hash)) return hash;
     return "home";
+  };
+
+  const getInitialProfileTab = () => {
+    try {
+      const rawHash = window.location.hash.replace("#", "");
+      if (rawHash.includes("?")) {
+        const parts = rawHash.split("?");
+        const tab = new URLSearchParams(parts[1]).get("tab");
+        if (tab) return tab;
+      }
+      const params = new URLSearchParams(window.location.search);
+      return params.get("tab") || "orders";
+    } catch {
+      return "orders";
+    }
   };
 
   const [tableNumber, setTableNumber] = useState(getInitialTable);
   const [currentView, setCurrentView] = useState(getInitialView);
   const [marketingPage, setMarketingPage] = useState(getInitialMarketingPage);
+  const [profileTab, setProfileTab] = useState(getInitialProfileTab);
   const [menuItems, setMenuItems] = useState(INITIAL_MENU_ITEMS);
   const [orders, setOrders] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -70,16 +96,18 @@ export default function App() {
     };
   }, []);
 
-  const handleLogout = async () => {
-    await logoutUser();
-    setCurrentUser(null);
-  };
-
   // Listen to browser navigation
   useEffect(() => {
     const handleUrlChange = () => {
       const params = new URLSearchParams(window.location.search);
-      const hash = window.location.hash.replace("#", "");
+      const rawHash = window.location.hash.replace("#", "");
+      let hash = rawHash;
+      if (rawHash.includes("?")) {
+        const parts = rawHash.split("?");
+        hash = parts[0];
+        const tab = new URLSearchParams(parts[1]).get("tab");
+        if (tab) setProfileTab(tab);
+      }
       const pathname = window.location.pathname.replace("/", "").toLowerCase();
       const newTable = params.get("table");
 
@@ -93,9 +121,10 @@ export default function App() {
         setCurrentView("customer");
       } else {
         setCurrentView("marketing");
-        if (["home", "about", "menu", "contact"].includes(pathname)) {
+        const validPages = ["home", "about", "menu", "contact", "cart", "checkout", "order-confirmation", "order-status", "sign-in", "profile"];
+        if (validPages.includes(pathname)) {
           setMarketingPage(pathname);
-        } else if (["home", "about", "menu", "contact"].includes(hash)) {
+        } else if (validPages.includes(hash)) {
           setMarketingPage(hash);
         } else {
           setMarketingPage("home");
@@ -132,49 +161,90 @@ export default function App() {
     (ord) => String(ord.tableNumber) === String(tableNumber) && ord.status !== "settled" && ord.status !== "cancelled"
   );
 
-  const handleSetMarketingPage = (pageId) => {
+  const handleSetMarketingPage = (pageId, tabId) => {
     setMarketingPage(pageId);
-    window.location.hash = pageId;
+    if (pageId === "profile") {
+      const targetTab = tabId || profileTab || "orders";
+      if (tabId) setProfileTab(tabId);
+      window.location.hash = `profile?tab=${targetTab}`;
+    } else {
+      window.location.hash = pageId;
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      {/* 1. MARKETING WEBSITE VIEW (Home, About, View-Only Menu, Contact) */}
+      {/* 1. MARKETING WEBSITE & ONLINE FOOD DELIVERY VIEW */}
       {currentView === "marketing" && (
-        <>
-          <SiteNavbar
-            currentPage={marketingPage}
-            setPage={handleSetMarketingPage}
-          />
+        <CustomerAuthProvider>
+          <OnlineOrderProvider>
+            <CustomerAuthModal />
 
-          <main style={{ flex: 1 }}>
-            {marketingPage === "home" && (
-              <HomePage
-                setPage={handleSetMarketingPage}
-                menuItems={menuItems}
-              />
-            )}
-            {marketingPage === "about" && (
-              <AboutPage
-                setPage={handleSetMarketingPage}
-              />
-            )}
-            {marketingPage === "menu" && (
-              <MenuLandingPage
-                menuItems={menuItems}
-                onSelectCategory={() => {}}
-              />
-            )}
-            {marketingPage === "contact" && (
-              <ContactPage />
-            )}
-          </main>
+            <SiteNavbar
+              currentPage={marketingPage}
+              setPage={handleSetMarketingPage}
+            />
 
-          <SiteFooter
-            setPage={handleSetMarketingPage}
-          />
-        </>
+            <main style={{ flex: 1 }}>
+              {marketingPage === "home" && (
+                <HomePage
+                  setPage={handleSetMarketingPage}
+                  menuItems={menuItems}
+                />
+              )}
+              {marketingPage === "about" && (
+                <AboutPage
+                  setPage={handleSetMarketingPage}
+                />
+              )}
+              {marketingPage === "menu" && (
+                <MenuLandingPage
+                  menuItems={menuItems}
+                  onNavigate={handleSetMarketingPage}
+                />
+              )}
+              {marketingPage === "cart" && (
+                <CartPage
+                  onNavigate={handleSetMarketingPage}
+                />
+              )}
+              {marketingPage === "checkout" && (
+                <CheckoutPage
+                  onNavigate={handleSetMarketingPage}
+                />
+              )}
+              {marketingPage === "order-confirmation" && (
+                <OrderConfirmationPage
+                  onNavigate={handleSetMarketingPage}
+                />
+              )}
+              {marketingPage === "order-status" && (
+                <OrderStatusPage
+                  onNavigate={handleSetMarketingPage}
+                />
+              )}
+              {marketingPage === "sign-in" && (
+                <SignInPage
+                  setPage={handleSetMarketingPage}
+                />
+              )}
+              {marketingPage === "profile" && (
+                <UserProfilePage
+                  setPage={handleSetMarketingPage}
+                  initialTab={profileTab}
+                />
+              )}
+              {marketingPage === "contact" && (
+                <ContactPage />
+              )}
+            </main>
+
+            <SiteFooter
+              setPage={handleSetMarketingPage}
+            />
+          </OnlineOrderProvider>
+        </CustomerAuthProvider>
       )}
 
       {/* 2. QR-ONLY CLOSED TABLE ORDERING VIEW (Only reachable via physical QR code ?table=...) */}

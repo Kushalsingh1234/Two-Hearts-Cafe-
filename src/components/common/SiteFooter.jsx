@@ -140,7 +140,7 @@ export default function SiteFooter({ setPage }) {
                 <MapPin size={16} style={{ color: "var(--color-bronze)", marginTop: 2, flexShrink: 0 }} />
                 <div style={{ lineHeight: 1.45 }}>
                   <span style={{ fontWeight: 600 }}>Shivam Vihar Colony, Pillar No. 852</span><br />
-                  <span>Near KIET University Campus Gate</span><br />
+                  <span>Delhi-Meerut Road</span><br />
                   <span>Muradnagar, Uttar Pradesh — 201206</span>
                 </div>
               </div>
@@ -161,81 +161,6 @@ export default function SiteFooter({ setPage }) {
             </div>
           </div>
 
-          {/* Column 4: Quick Navigation */}
-          <div>
-            <h4 style={{
-              fontFamily: "var(--font-serif)",
-              fontSize: 14,
-              fontWeight: 700,
-              letterSpacing: 1.5,
-              textTransform: "uppercase",
-              color: "var(--color-ink)",
-              marginBottom: 16
-            }}>
-              Explore
-            </h4>
-            <ul style={{
-              listStyle: "none",
-              padding: 0,
-              margin: 0,
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-              fontSize: 14,
-              fontFamily: "var(--font-serif)"
-            }}>
-              <li>
-                <button
-                  onClick={() => handleNav("home")}
-                  style={{ color: "var(--color-ink-soft)", transition: "color 0.2s" }}
-                  onMouseEnter={(e) => (e.target.style.color = "var(--color-bronze)")}
-                  onMouseLeave={(e) => (e.target.style.color = "var(--color-ink-soft)")}
-                >
-                  Home
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleNav("about")}
-                  style={{ color: "var(--color-ink-soft)", transition: "color 0.2s" }}
-                  onMouseEnter={(e) => (e.target.style.color = "var(--color-bronze)")}
-                  onMouseLeave={(e) => (e.target.style.color = "var(--color-ink-soft)")}
-                >
-                  Our Story & Ambience
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleNav("menu")}
-                  style={{ color: "var(--color-ink-soft)", transition: "color 0.2s" }}
-                  onMouseEnter={(e) => (e.target.style.color = "var(--color-bronze)")}
-                  onMouseLeave={(e) => (e.target.style.color = "var(--color-ink-soft)")}
-                >
-                  Browse Menu (Pasta, Sandwiches, Noodles, Maggie)
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleNav("contact")}
-                  style={{ color: "var(--color-ink-soft)", transition: "color 0.2s" }}
-                  onMouseEnter={(e) => (e.target.style.color = "var(--color-bronze)")}
-                  onMouseLeave={(e) => (e.target.style.color = "var(--color-ink-soft)")}
-                >
-                  Directions & Contact Form
-                </button>
-              </li>
-              <li>
-                <a
-                  href="/?admin=true"
-                  style={{ color: "var(--color-ink-soft)", textDecoration: "none", transition: "color 0.2s" }}
-                  onMouseEnter={(e) => (e.target.style.color = "var(--color-bronze)")}
-                  onMouseLeave={(e) => (e.target.style.color = "var(--color-ink-soft)")}
-                >
-                  Staff & Admin Portal
-                </a>
-              </li>
-            </ul>
-          </div>
         </div>
 
         {/* Bottom Bar */}
@@ -253,7 +178,7 @@ export default function SiteFooter({ setPage }) {
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span>© {new Date().getFullYear()} Two Hearts Cafe. Crafted with</span>
             <Heart size={12} fill="#8A5738" color="#8A5738" />
-            <span>near KIET University.</span>
+            <span>in Muradnagar.</span>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>

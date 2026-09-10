@@ -26,7 +26,7 @@ export default function AboutPage({ setPage }) {
   return (
     <div style={{ width: "100%", overflowX: "hidden", backgroundColor: "var(--bg-app)" }}>
       {/* Header Banner */}
-      <section style={{
+      <section className="mobile-section-banner" style={{
         paddingTop: "clamp(48px, 7vw, 76px)",
         paddingBottom: "clamp(48px, 7vw, 76px)",
         borderBottom: "1px solid var(--border-color)",
@@ -68,13 +68,13 @@ export default function AboutPage({ setPage }) {
             maxWidth: 600,
             margin: "0 auto"
           }}>
-            How a humble dream of bringing French bistro intimacy and genuine Indian comfort to KIET University students became a cherished reality.
+            How a humble dream of bringing French bistro intimacy and genuine Indian comfort to Muradnagar became a cherished reality.
           </p>
         </div>
       </section>
 
       {/* Origin Story Section */}
-      <section style={{
+      <section className="mobile-section-tight" style={{
         paddingTop: "clamp(56px, 8vw, 84px)",
         paddingBottom: "clamp(56px, 8vw, 84px)"
       }}>
@@ -97,7 +97,7 @@ export default function AboutPage({ setPage }) {
                 display: "block",
                 marginBottom: 8
               }}>
-                The Campus Sanctuary
+                Our Warm Sanctuary
               </span>
               <h2 style={{
                 fontFamily: "var(--font-serif)",
@@ -116,7 +116,7 @@ export default function AboutPage({ setPage }) {
                 lineHeight: 1.7,
                 marginBottom: 16
               }}>
-                Life as a student at KIET University can be relentlessly demanding — deadlines, lab vivas, group projects, and endless hustle. We recognized that students didn't just need fast sustenance; they longed for a warm sanctuary where time slows down.
+                Everyday life can be relentlessly demanding — deadlines, work, studies, and endless hustle. We recognized that people didn't just need fast sustenance; they longed for a warm sanctuary where time slows down.
               </p>
 
               <p style={{
@@ -156,7 +156,7 @@ export default function AboutPage({ setPage }) {
               <img
                 src={CAFE_STORY.imageAmbience1}
                 alt="Two Hearts Cafe Warm Interior"
-                style={{ width: "100%", height: "clamp(320px, 40vw, 420px)", objectFit: "cover", display: "block" }}
+                style={{ width: "100%", height: "clamp(220px, 40vw, 420px)", objectFit: "cover", display: "block" }}
               />
             </div>
           </div>
@@ -164,7 +164,7 @@ export default function AboutPage({ setPage }) {
       </section>
 
       {/* Values Grid */}
-      <section style={{
+      <section className="mobile-section-tight" style={{
         paddingTop: "clamp(56px, 8vw, 84px)",
         paddingBottom: "clamp(56px, 8vw, 84px)",
         backgroundColor: "#FFFFFF",
@@ -204,7 +204,7 @@ export default function AboutPage({ setPage }) {
             {VALUES_LIST.map((val, idx) => (
               <div
                 key={idx}
-                className="bistro-card"
+                className="bistro-card mobile-card-compact"
                 style={{
                   padding: "32px 26px",
                   display: "flex",
@@ -252,7 +252,7 @@ export default function AboutPage({ setPage }) {
       </section>
 
       {/* Gallery Section */}
-      <section style={{
+      <section className="mobile-section-tight" style={{
         paddingTop: "clamp(56px, 8vw, 84px)",
         paddingBottom: "clamp(56px, 8vw, 84px)"
       }}>
@@ -281,7 +281,7 @@ export default function AboutPage({ setPage }) {
             </h2>
           </div>
 
-          <div style={{
+          <div className="mobile-2col-grid" style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
             gap: 20
@@ -315,7 +315,7 @@ export default function AboutPage({ setPage }) {
                 if (setPage) setPage("menu");
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              className="btn-pill-black"
+              className="btn-pill-black touch-target-44"
               style={{ padding: "14px 32px", fontSize: 13 }}
             >
               <BookOpen size={15} />

@@ -81,7 +81,7 @@ def generate_table_standee(table_num):
 
     # 3. Cafe Name
     current_y = draw_centered_text(draw, "TWO HEARTS CAFE", current_y, font_title, INK_COLOR, width) + 10
-    current_y = draw_centered_text(draw, "Daily 12 PM - 12 AM  *  Near KIET University", current_y, font_subtitle, BRONZE_DARK, width) + 25
+    current_y = draw_centered_text(draw, "Daily 12 PM - 12 AM  *  Pillar #852, Muradnagar", current_y, font_subtitle, BRONZE_DARK, width) + 25
 
     # 4. Table Badge (Pill button style)
     badge_text = f"TABLE  # {table_num}"
@@ -139,7 +139,7 @@ def generate_table_standee(table_num):
     current_y += 24
 
     # 8. Footer Info
-    draw_centered_text(draw, "Shivam Vihar Colony, Pillar No. 852, Muradnagar (Near KIET)", current_y, font_footer1, (100, 80, 65), width)
+    draw_centered_text(draw, "Shivam Vihar Colony, Pillar No. 852, Muradnagar", current_y, font_footer1, (100, 80, 65), width)
     draw_centered_text(draw, "Helpline / Table Assistance: +91 90270 12158", current_y + 28, font_footer2, INK_COLOR, width)
 
     # Save high-res JPG (95% quality)

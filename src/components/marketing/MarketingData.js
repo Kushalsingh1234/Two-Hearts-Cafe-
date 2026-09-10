@@ -3,7 +3,7 @@ import { CAFE_INFO } from "../../data/seedMenu";
 export { CAFE_INFO };
 
 export const BRAND_TAGLINE = "Where Every Flavor Tells a Story of Two Hearts";
-export const BRAND_SUBTITLE = "An intimate bistro sanctuary next to KIET University. Savor handcrafted pastas, buttery grilled sandwiches, wok-tossed noodles, and hot comfort maggie amidst warm amber light and mellow tunes.";
+export const BRAND_SUBTITLE = "An intimate bistro sanctuary in Muradnagar. Savor handcrafted pastas, buttery grilled sandwiches, wok-tossed noodles, and hot comfort maggie amidst warm amber light and mellow tunes.";
 
 // Curated high-resolution photography for every dish on the view-only menu
 export const DISH_PHOTOS = {
@@ -363,8 +363,8 @@ export const TRUST_FEATURES = [
   },
   {
     icon: "MapPin",
-    title: "Pillar #852, Near KIET",
-    subtitle: "Just a 2-minute stroll from campus gate. Your peaceful haven away from hostels."
+    title: "Pillar #852, Muradnagar",
+    subtitle: "Located right on Delhi-Meerut Road. Your peaceful haven for great food and warmth."
   },
   {
     icon: "QrCode",
@@ -396,7 +396,7 @@ export const CAFE_STORIES = [
     image: "/images/cafe_story_private_corner.jpg",
     alt: "A private corner for special ones at Two Hearts Cafe",
     badgeText: "Table for Two • Intimate Nook",
-    locationNote: "Muradnagar • Near KIET Pillar 852"
+    locationNote: "Muradnagar • Near Pillar 852"
   },
   {
     id: "heart-lounge",
@@ -423,7 +423,7 @@ export const CAFE_STORY = {
   headline: "Born out of Friendship, Built for Togetherness",
   subheadline: "Where college conversations turn into lifelong memories over warm, comforting bowls.",
   bodyP1: "Two Hearts Cafe was dreamed up with a singular philosophy: every college town deserves an intimate, boutique corner where quality isn't compromised, where prices respect student pockets, and where nobody rushes you to give up your table.",
-  bodyP2: "Located conveniently right by Pillar 852 near KIET University in Muradnagar, we blend the refined warmth of a French neighborhood bistro with the vibrant, comforting palate of authentic Indian street-cafes. From our slow-simmered Makhani pasta to our crisp Bombay sandwiches, every recipe is dialed in with heart.",
+  bodyP2: "Located conveniently right by Pillar 852 in Muradnagar, we blend the refined warmth of a French neighborhood bistro with the vibrant, comforting palate of authentic Indian street-cafes. From our slow-simmered Makhani pasta to our crisp Bombay sandwiches, every recipe is dialed in with heart.",
   imageAmbience1: "/images/cafe_story_private_corner.jpg",
   imageAmbience2: "/images/cafe_story_heart_lounge.jpg"
 };
@@ -432,7 +432,7 @@ export const TESTIMONIALS = [
   {
     quote: "The Penne Rosa Love Pasta is unlike anything in Muradnagar. Silky, perfectly seasoned, and the cozy ambiance feels like a boutique cafe in Delhi. Hands down my favorite place after college lectures.",
     author: "Aarav Sharma",
-    role: "KIET B.Tech 3rd Year",
+    role: "B.Tech Student & Regular",
     rating: 5
   },
   {
@@ -444,7 +444,7 @@ export const TESTIMONIALS = [
   {
     quote: "Clean, elegant, and warm ivory vibes. You can actually have a peaceful conversation here without blaring noise. Best cold-evening hangout spot near campus.",
     author: "Devansh Tyagi",
-    role: "KIET Campus Resident",
+    role: "Local Food Enthusiast",
     rating: 5
   }
 ];
@@ -466,8 +466,8 @@ export const VALUES_LIST = [
 
 export const FAQS = [
   {
-    q: "Where exactly are you located near KIET?",
-    a: "We are located at Shivam Vihar Colony, right at Pillar No. 852, just steps outside KIET University on the main Muradnagar stretch."
+    q: "Where exactly are you located?",
+    a: "We are located at Shivam Vihar Colony, right at Pillar No. 852 on the main Delhi-Meerut stretch in Muradnagar."
   },
   {
     q: "What are your operating hours?",

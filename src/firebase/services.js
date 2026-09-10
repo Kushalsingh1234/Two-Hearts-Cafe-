@@ -233,6 +233,59 @@ export const placeOrder = async (orderPayload) => {
 };
 
 /**
+ * Place a new online food delivery / takeaway order
+ */
+export const placeOnlineDeliveryOrder = async (payload) => {
+  const orderNumber = `THD-${Math.floor(1000 + Math.random() * 9000)}`;
+  const now = new Date();
+
+  const order = {
+    orderNumber,
+    userId: payload.userId || null,
+    orderType: payload.orderType || "delivery", // 'delivery' | 'pickup'
+    tableNumber: payload.orderType === "pickup" ? "Takeaway" : "Delivery",
+    status: "placed", // 'placed' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled'
+    items: payload.items || [],
+    subtotal: payload.subtotal || 0,
+    deliveryFee: payload.deliveryFee || 0,
+    tax: payload.tax || 0,
+    total: payload.total || 0,
+    customerName: payload.customerName || "Customer",
+    customerPhone: payload.customerPhone || "",
+    deliveryAddress: payload.deliveryAddress || "",
+    landmark: payload.landmark || "",
+    customerNotes: payload.customerNotes || "",
+    paymentStatus: "paid",
+    paymentMethod: payload.paymentMethod || "online_gateway",
+    paymentId: payload.paymentId || "",
+    etaMinutes: payload.etaMinutes || 35,
+    rating: null,
+    feedback: null,
+    feedbackSubmittedAt: null,
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+    timestamp: Date.now()
+  };
+
+  try {
+    const docRef = await addDoc(collection(db, ORDERS_COLLECTION), order);
+    const created = { id: docRef.id, ...order };
+    const currentOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+    setLocalData(LOCAL_STORAGE_ORDERS_KEY, [created, ...currentOrders.filter((o) => o.id !== docRef.id)]);
+    window.dispatchEvent(new CustomEvent("twohearts_new_order", { detail: created }));
+    return created;
+  } catch (err) {
+    console.warn("Firestore placeOnlineDeliveryOrder fallback to local storage:", err);
+    const localId = `local_deliv_${Date.now()}`;
+    const savedOrder = { id: localId, ...order };
+    const currentOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+    setLocalData(LOCAL_STORAGE_ORDERS_KEY, [savedOrder, ...currentOrders]);
+    window.dispatchEvent(new CustomEvent("twohearts_new_order", { detail: savedOrder }));
+    return savedOrder;
+  }
+};
+
+/**
  * Subscribe to live orders (for Kitchen / Owner Live Dashboard)
  */
 export const subscribeLiveOrders = (onSuccess, onError) => {
@@ -318,4 +371,79 @@ export const clearAllOrders = async () => {
   }
   setLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
   window.dispatchEvent(new CustomEvent("twohearts_new_order"));
+};
+
+/**
+ * Retrieve past orders for a specific customer (by mobile phone or customer ID)
+ */
+export const getCustomerOrders = async (phone) => {
+  if (!phone) return [];
+  const cleanPhone = String(phone).replace(/\D/g, "").slice(-10);
+  
+  // 1. First check local storage orders
+  const localOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+  
+  // 2. Try fetching from Firestore
+  let remoteOrders = [];
+  try {
+    const snap = await getDocs(collection(db, ORDERS_COLLECTION));
+    remoteOrders = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch (e) {
+    // offline/rules fallback
+  }
+
+  // Combine and deduplicate
+  const map = new Map();
+  [...remoteOrders, ...localOrders].forEach((ord) => {
+    if (ord && ord.id) {
+      map.set(ord.id, ord);
+    }
+  });
+
+  const allOrders = Array.from(map.values());
+
+  // Filter for orders matching this phone or userId
+  const customerOrders = allOrders.filter((ord) => {
+    const ordPhone = String(ord.customerPhone || "").replace(/\D/g, "").slice(-10);
+    const ordUserId = String(ord.userId || "");
+    return (ordPhone && ordPhone === cleanPhone) || ordUserId === cleanPhone;
+  });
+
+  // Sort newest first
+  customerOrders.sort((a, b) => {
+    const timeA = a.timestamp || (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+    const timeB = b.timestamp || (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+    return timeB - timeA;
+  });
+
+  return customerOrders;
+};
+
+/**
+ * Submit star rating (1-5) and written feedback for an order
+ */
+export const submitOrderFeedback = async (orderId, { rating, feedback }) => {
+  const feedbackSubmittedAt = new Date().toISOString();
+  const updatePayload = {
+    rating: Number(rating) || 5,
+    feedback: (feedback || "").trim(),
+    feedbackSubmittedAt
+  };
+
+  try {
+    const docRef = doc(db, ORDERS_COLLECTION, orderId);
+    await updateDoc(docRef, updatePayload);
+  } catch (err) {
+    console.warn("Firestore submitOrderFeedback fallback to local:", err);
+  }
+
+  // Always update local cache
+  const localOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+  const updated = localOrders.map((ord) =>
+    ord.id === orderId ? { ...ord, ...updatePayload } : ord
+  );
+  setLocalData(LOCAL_STORAGE_ORDERS_KEY, updated);
+  window.dispatchEvent(new CustomEvent("twohearts_order_updated", { detail: { orderId, ...updatePayload } }));
+
+  return { success: true, ...updatePayload };
 };

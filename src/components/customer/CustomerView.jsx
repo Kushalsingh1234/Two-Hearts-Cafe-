@@ -244,7 +244,7 @@ export default function CustomerView({
                 </span>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
                   <MapPin size={11} />
-                  <span>Near KIET University</span>
+                  <span>Pillar #852, Muradnagar</span>
                 </span>
               </div>
             </div>

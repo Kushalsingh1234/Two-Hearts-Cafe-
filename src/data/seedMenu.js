@@ -1,7 +1,7 @@
 export const CAFE_INFO = {
   name: "Two Hearts Cafe",
   tagline: "Daily open from 12 PM - 12 AM",
-  address: "Shivam Vihar Colony, pillar no 852, KIET university, muradnagar, 201206",
+  address: "Shivam Vihar Colony, Pillar No. 852, Muradnagar, 201206",
   phone: "9027012158"
 };
 
@@ -39,12 +39,13 @@ export const INITIAL_MENU_ITEMS = [
   },
   {
     id: "th_penne_alfredo",
-    name: "Penne Alfredo Primavera",
+    name: "White Sauce Pasta",
     category: "pasta",
     price: 149,
-    description: "Penne tossed in cheese cream sauce with vegetables",
+    description: "Penne tossed in a rich, cheesy Alfredo cream sauce with tender garden vegetables.",
     isVeg: true,
-    isAvailable: true
+    isAvailable: true,
+    isSpecial: true
   },
   {
     id: "th_creamy_makhani",

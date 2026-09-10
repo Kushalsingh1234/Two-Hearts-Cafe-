@@ -22,7 +22,7 @@ export default function ContactPage() {
   return (
     <div style={{ width: "100%", overflowX: "hidden", backgroundColor: "var(--bg-app)" }}>
       {/* Header Banner */}
-      <section style={{
+      <section className="mobile-section-banner" style={{
         paddingTop: "clamp(48px, 7vw, 76px)",
         paddingBottom: "clamp(40px, 6vw, 60px)",
         backgroundColor: "#FFFFFF",
@@ -64,13 +64,13 @@ export default function ContactPage() {
             maxWidth: 580,
             margin: "0 auto"
           }}>
-            Situated right along the KIET University stretch at Pillar #852. We welcome table drop-ins, study sessions, and takeaway pickups daily.
+            Situated right along Delhi-Meerut Road at Pillar #852, Muradnagar. We welcome table drop-ins, study sessions, and takeaway pickups daily.
           </p>
         </div>
       </section>
 
       {/* Main Details & Form Grid */}
-      <section style={{
+      <section className="mobile-section-tight" style={{
         paddingTop: 56,
         paddingBottom: 72
       }}>
@@ -83,7 +83,7 @@ export default function ContactPage() {
             {/* Left Column: Location, Hours, Directions */}
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               {/* Location Card */}
-              <div className="bistro-card" style={{ padding: 28 }}>
+              <div className="bistro-card mobile-card-compact" style={{ padding: 28 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 20 }}>
                   <div style={{
                     width: 44,
@@ -119,7 +119,7 @@ export default function ContactPage() {
                       Shivam Vihar Colony, Pillar #852
                     </h3>
                     <p style={{ fontSize: 14, color: "var(--color-ink-soft)", lineHeight: 1.5 }}>
-                      Right next to KIET University gate, Muradnagar, Ghaziabad, Uttar Pradesh — 201206.
+                      Shivam Vihar Colony, Pillar #852, Muradnagar, Ghaziabad, Uttar Pradesh — 201206.
                     </p>
                   </div>
                 </div>
@@ -226,11 +226,11 @@ export default function ContactPage() {
                     marginTop: 4,
                     zIndex: 1
                   }}>
-                    Two minutes walking distance from KIET University main gate
+                    Conveniently located at Pillar #852 on Delhi-Meerut Road
                   </p>
 
                   <a
-                    href="https://maps.google.com/?q=KIET+University+Muradnagar+Pillar+852"
+                    href="https://maps.google.com/?q=Two+Hearts+Cafe+Muradnagar+Pillar+852"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn-pill-black"
@@ -243,7 +243,7 @@ export default function ContactPage() {
             </div>
 
             {/* Right Column: Table Inquiry & Reservation Form */}
-            <div className="bistro-card" style={{ padding: "32px 28px" }}>
+            <div className="bistro-card mobile-card-compact" style={{ padding: "32px 28px" }}>
               <span style={{
                 fontSize: 11,
                 fontFamily: "var(--font-serif)",
@@ -452,8 +452,8 @@ export default function ContactPage() {
 
                   <button
                     type="submit"
-                    className="btn-pill-black"
-                    style={{ width: "100%", padding: "13px", marginTop: 8 }}
+                    className="btn-pill-black touch-target-44"
+                    style={{ width: "100%", padding: "13px", minHeight: 44, marginTop: 8 }}
                   >
                     <Send size={13} />
                     <span>Send Inquiry to Kitchen</span>
@@ -466,7 +466,7 @@ export default function ContactPage() {
       </section>
 
       {/* Frequently Asked Questions */}
-      <section style={{
+      <section className="mobile-section-tight" style={{
         paddingTop: 48,
         paddingBottom: 80,
         backgroundColor: "#FFFFFF",
@@ -511,9 +511,11 @@ export default function ContactPage() {
                 >
                   <button
                     onClick={() => setOpenFaq(isOpen ? -1 : idx)}
+                    className="touch-target-44"
                     style={{
                       width: "100%",
-                      padding: "18px 22px",
+                      padding: "16px 20px",
+                      minHeight: 48,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",

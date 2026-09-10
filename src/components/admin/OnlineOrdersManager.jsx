@@ -675,10 +675,10 @@ export default function OnlineOrdersManager({ orders = [], onRefresh }) {
               .slice(0, 2)
               .join(", ") + ((ord.items || []).length > 2 ? "..." : "");
 
-            const hasAddress = isDelivery && ord.deliveryAddress;
-            const mapsDirectionsUrl = hasAddress
+            const deliveryAddr = (ord.deliveryAddress || ord.address || ord.fullAddress || "").trim();
+            const mapsDirectionsUrl = isDelivery
               ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-                  `${ord.deliveryAddress}${ord.landmark ? `, ${ord.landmark}` : ""}, Muradnagar, UP`
+                  `${deliveryAddr || "Muradnagar"}${ord.landmark ? `, Near ${ord.landmark}` : ""}, Muradnagar, Uttar Pradesh`
                 )}`
               : null;
 
@@ -793,7 +793,7 @@ export default function OnlineOrdersManager({ orders = [], onRefresh }) {
                   </div>
 
                   {/* Delivery Address Preview (if Delivery) */}
-                  {isDelivery && ord.deliveryAddress && (
+                  {isDelivery && (
                     <div
                       style={{
                         padding: "8px 10px",
@@ -811,7 +811,7 @@ export default function OnlineOrdersManager({ orders = [], onRefresh }) {
                       <MapPin size={13} style={{ color: "var(--color-bronze)", flexShrink: 0, marginTop: 2 }} />
                       <div style={{ overflow: "hidden" }}>
                         <div style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 500 }}>
-                          {ord.deliveryAddress}
+                          {deliveryAddr || "Muradnagar, Uttar Pradesh"}
                         </div>
                         {ord.landmark && (
                           <div style={{ fontSize: 10.5, color: "var(--color-bronze-dark)" }}>
@@ -980,10 +980,10 @@ export default function OnlineOrdersManager({ orders = [], onRefresh }) {
                   const isDelivery = ord.orderType === "delivery";
                   const statusStyle = STATUS_CONFIG[ord.status] || STATUS_CONFIG.placed;
                   const itemsCount = (ord.items || []).reduce((acc, i) => acc + (i.quantity || 1), 0);
-                  const hasAddress = isDelivery && ord.deliveryAddress;
-                  const mapsDirectionsUrl = hasAddress
+                  const deliveryAddr = (ord.deliveryAddress || ord.address || ord.fullAddress || "").trim();
+                  const mapsDirectionsUrl = isDelivery
                     ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-                        `${ord.deliveryAddress}${ord.landmark ? `, ${ord.landmark}` : ""}, Muradnagar, UP`
+                        `${deliveryAddr || "Muradnagar"}${ord.landmark ? `, Near ${ord.landmark}` : ""}, Muradnagar, Uttar Pradesh`
                       )}`
                     : null;
 

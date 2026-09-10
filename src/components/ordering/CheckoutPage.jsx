@@ -207,11 +207,20 @@ export default function CheckoutPage({ onNavigate }) {
 
     setTimeout(async () => {
       try {
-        await submitOnlineOrder({
-          method: paymentTab === "upi" ? `UPI (${upiMethod.toUpperCase()})` : paymentTab === "card" ? "Credit/Debit Card" : "Net Banking",
-          transactionId: `TXN_${Date.now().toString().slice(-8)}`,
-          userId: customerUser?.phone || formData.phone.trim()
-        });
+        await submitOnlineOrder(
+          {
+            method: paymentTab === "upi" ? `UPI (${upiMethod.toUpperCase()})` : paymentTab === "card" ? "Credit/Debit Card" : "Net Banking",
+            transactionId: `TXN_${Date.now().toString().slice(-8)}`,
+            userId: customerUser?.phone || formData.phone.trim(),
+            customerName: formData.name.trim(),
+            customerPhone: formData.phone.trim(),
+            deliveryAddress: formData.address.trim(),
+            address: formData.address.trim(),
+            landmark: formData.landmark?.trim() || "",
+            customerNotes: formData.notes?.trim() || ""
+          },
+          formData
+        );
         setIsProcessingPayment(false);
         onNavigate("order-confirmation");
       } catch (err) {

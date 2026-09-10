@@ -103,7 +103,10 @@ export default function OnlineOrderDetailModal({ order, onClose, onOrderUpdated 
 
   // Google Maps directions URL
   const getGoogleMapsDirectionsUrl = () => {
-    const destination = `${order.deliveryAddress || ""}${order.landmark ? `, Near ${order.landmark}` : ""}, Muradnagar, Uttar Pradesh`;
+    const rawDest = (order.deliveryAddress || order.address || order.fullAddress || "").trim();
+    const destination = rawDest
+      ? `${rawDest}${order.landmark ? `, Near ${order.landmark}` : ""}, Muradnagar, Uttar Pradesh`
+      : `${order.landmark ? `Near ${order.landmark}, ` : ""}Muradnagar, Uttar Pradesh`;
     return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
   };
 
@@ -622,25 +625,60 @@ export default function OnlineOrderDetailModal({ order, onClose, onOrderUpdated 
               <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12.5 }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span style={{ color: "var(--color-ink-soft)" }}>Name:</span>
-                  <strong style={{ color: "var(--color-ink)" }}>{order.customerName || "Customer"}</strong>
+                  <strong style={{ color: "var(--color-ink)" }}>
+                    {order.customerName || order.name || order.userName || "Customer"}
+                  </strong>
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ color: "var(--color-ink-soft)" }}>Phone:</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <strong style={{ color: "var(--color-ink)" }}>{order.customerPhone || "N/A"}</strong>
-                    {order.customerPhone && (
-                      <a
-                        href={`tel:${order.customerPhone}`}
-                        style={{
-                          color: "var(--color-bronze)",
-                          padding: 2,
-                          display: "inline-flex"
-                        }}
-                        title="Call Customer"
-                      >
-                        <Phone size={13} />
-                      </a>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <strong style={{ color: "var(--color-ink)" }}>
+                      {order.customerPhone || order.phone || order.userPhone || "N/A"}
+                    </strong>
+                    {(order.customerPhone || order.phone || order.userPhone) && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <a
+                          href={`tel:${order.customerPhone || order.phone || order.userPhone}`}
+                          style={{
+                            color: "var(--color-bronze)",
+                            padding: "3px 6px",
+                            borderRadius: 4,
+                            backgroundColor: "#FFFFFF",
+                            border: "1px solid var(--border-color)",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 3,
+                            fontSize: 11,
+                            textDecoration: "none"
+                          }}
+                          title="Call Customer"
+                        >
+                          <Phone size={12} />
+                          <span>Call</span>
+                        </a>
+                        <a
+                          href={`https://wa.me/91${String(order.customerPhone || order.phone || order.userPhone).replace(/\D/g, "").slice(-10)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            color: "#15803D",
+                            padding: "3px 6px",
+                            borderRadius: 4,
+                            backgroundColor: "#ECFDF5",
+                            border: "1px solid #A7F3D0",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 3,
+                            fontSize: 11,
+                            textDecoration: "none"
+                          }}
+                          title="WhatsApp Customer"
+                        >
+                          <MessageSquare size={12} />
+                          <span>WhatsApp</span>
+                        </a>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -688,8 +726,8 @@ export default function OnlineOrderDetailModal({ order, onClose, onOrderUpdated 
                   </span>
                 </div>
 
-                {/* NEW CAPABILITY 3: Google Maps Directions Button */}
-                {isDelivery && order.deliveryAddress && (
+                {/* Google Maps Directions Button - ALWAYS visible for delivery orders */}
+                {isDelivery && (
                   <a
                     href={getGoogleMapsDirectionsUrl()}
                     target="_blank"
@@ -698,14 +736,15 @@ export default function OnlineOrderDetailModal({ order, onClose, onOrderUpdated 
                       display: "inline-flex",
                       alignItems: "center",
                       gap: 4,
-                      padding: "4px 10px",
+                      padding: "5px 12px",
                       borderRadius: "var(--radius-pill)",
                       backgroundColor: "var(--color-ink)",
                       color: "#FFFFFF",
                       fontSize: 11,
                       fontFamily: "var(--font-serif)",
                       fontWeight: 700,
-                      textDecoration: "none"
+                      textDecoration: "none",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.12)"
                     }}
                     title="Open Google Maps Navigation"
                   >
@@ -719,20 +758,32 @@ export default function OnlineOrderDetailModal({ order, onClose, onOrderUpdated 
               {isDelivery ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {/* Full Formatted Address */}
-                  <div
-                    style={{
-                      padding: "10px 12px",
-                      backgroundColor: "#FFFFFF",
-                      borderRadius: 8,
-                      border: "1px solid var(--border-color)",
-                      fontSize: 12.5,
-                      lineHeight: 1.5,
-                      color: "var(--color-ink)",
-                      fontWeight: 500
-                    }}
-                  >
-                    {order.deliveryAddress || "Address details not specified"}
-                  </div>
+                  {(() => {
+                    const resolvedDeliveryAddr = (order.deliveryAddress || order.address || order.fullAddress || "").trim();
+                    return (
+                      <div
+                        style={{
+                          padding: "10px 12px",
+                          backgroundColor: "#FFFFFF",
+                          borderRadius: 8,
+                          border: "1px solid var(--border-color)",
+                          fontSize: 12.5,
+                          lineHeight: 1.5,
+                          color: "var(--color-ink)",
+                          fontWeight: 500
+                        }}
+                      >
+                        {resolvedDeliveryAddr || (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                            <span style={{ color: "#92400E", fontWeight: 600 }}>📍 Muradnagar, Uttar Pradesh</span>
+                            <span style={{ fontSize: 11, color: "var(--color-ink-soft)" }}>
+                              Click "Get Directions" above to navigate via Google Maps
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {order.landmark && (
                     <div style={{ fontSize: 11.5, color: "var(--color-bronze-dark)" }}>

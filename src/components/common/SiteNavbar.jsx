@@ -69,7 +69,7 @@ export default function SiteNavbar({ currentPage, setPage }) {
   }, [profileMenuOpen]);
 
   const profileMenuItems = [
-    { id: "orders", label: "Order History", icon: Clock, desc: "Past meals & receipts" },
+    { id: "orders", label: "My Orders", icon: Clock, desc: "Live orders, status & receipts" },
     { id: "addresses", label: "Your Addresses", icon: MapPin, desc: "Saved delivery locations" },
     { id: "profile", label: "My Profile", icon: User, desc: "Name, email & phone" },
     { id: "settings", label: "Settings", icon: Settings, desc: "Notifications & payment" },

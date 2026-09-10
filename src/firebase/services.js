@@ -468,11 +468,11 @@ export const clearAllOrders = async () => {
  * Retrieve past orders for a specific customer (by mobile phone or customer ID)
  */
 export const getCustomerOrders = async (phone) => {
-  if (!phone) return [];
-  const cleanPhone = String(phone).replace(/\D/g, "").slice(-10);
+  const cleanPhone = phone ? String(phone).replace(/\D/g, "").slice(-10) : "";
   
   // 1. First check local storage orders
   const localOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+  const activeOrder = getLocalData("twohearts_active_online_order_v1", null);
   
   // 2. Try fetching from Firestore
   let remoteOrders = [];
@@ -485,19 +485,27 @@ export const getCustomerOrders = async (phone) => {
 
   // Combine and deduplicate
   const map = new Map();
-  [...remoteOrders, ...localOrders].forEach((ord) => {
+  [...remoteOrders, ...localOrders, ...(activeOrder ? [activeOrder] : [])].forEach((ord) => {
     if (ord && ord.id) {
-      map.set(ord.id, ord);
+      const existing = map.get(ord.id);
+      map.set(ord.id, existing ? { ...existing, ...ord } : ord);
     }
   });
 
   const allOrders = Array.from(map.values());
 
-  // Filter for orders matching this phone or userId
+  // Filter for orders matching this phone or userId, or show active browser order
   const customerOrders = allOrders.filter((ord) => {
+    if (!cleanPhone) return true;
     const ordPhone = String(ord.customerPhone || "").replace(/\D/g, "").slice(-10);
-    const ordUserId = String(ord.userId || "");
-    return (ordPhone && ordPhone === cleanPhone) || ordUserId === cleanPhone;
+    const ordUserId = String(ord.userId || "").replace(/\D/g, "").slice(-10);
+    const ordRawUserId = String(ord.userId || "");
+    return (
+      (ordPhone && ordPhone === cleanPhone) ||
+      (ordUserId && ordUserId === cleanPhone) ||
+      ordRawUserId === phone ||
+      (activeOrder && activeOrder.id === ord.id)
+    );
   });
 
   // Sort newest first

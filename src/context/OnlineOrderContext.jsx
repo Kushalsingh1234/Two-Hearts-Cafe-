@@ -223,25 +223,51 @@ export function OnlineOrderProvider({ children }) {
   }, [subtotal, deliveryFee, taxes, cart.length]);
 
   // Place delivery order
-  const submitOnlineOrder = async (paymentDetails = {}) => {
+  const submitOnlineOrder = async (paymentDetails = {}, customCustomerData = null) => {
+    const cust = customCustomerData || {};
+    const resolvedName = (cust.name || paymentDetails.customerName || paymentDetails.name || customerInfo.name || "").trim();
+    const resolvedPhone = (cust.phone || paymentDetails.customerPhone || paymentDetails.phone || customerInfo.phone || "").trim();
+    const resolvedAddress = (cust.address || paymentDetails.deliveryAddress || paymentDetails.address || customerInfo.address || "").trim();
+    const resolvedLandmark = (cust.landmark || paymentDetails.landmark || customerInfo.landmark || "").trim();
+    const resolvedNotes = (cust.notes || paymentDetails.customerNotes || paymentDetails.notes || customerInfo.notes || "").trim();
+    const resolvedType = paymentDetails.orderType || deliveryType;
+
     const orderPayload = {
-      orderType: deliveryType,
-      userId: paymentDetails.userId || customerInfo.phone.trim() || null,
+      orderType: resolvedType,
+      userId: paymentDetails.userId || resolvedPhone || null,
       items: cart,
       subtotal,
       deliveryFee,
       tax: taxes,
       total,
-      customerName: customerInfo.name.trim() || "Guest Customer",
-      customerPhone: customerInfo.phone.trim(),
-      deliveryAddress: deliveryType === "delivery" ? customerInfo.address.trim() : "Pick up at Cafe Counter",
-      landmark: customerInfo.landmark.trim(),
-      customerNotes: customerInfo.notes.trim(),
+      customerName: resolvedName || "Customer",
+      customerPhone: resolvedPhone || "N/A",
+      deliveryAddress: resolvedType === "delivery" ? (resolvedAddress || "Muradnagar, Uttar Pradesh") : "Pick up at Cafe Counter",
+      address: resolvedType === "delivery" ? (resolvedAddress || "Muradnagar, Uttar Pradesh") : "Pick up at Cafe Counter",
+      landmark: resolvedLandmark,
+      customerNotes: resolvedNotes,
       paymentStatus: "paid",
       paymentMethod: paymentDetails.method || "online_upi",
       paymentId: paymentDetails.transactionId || `PAY-${Math.floor(100000 + Math.random() * 900000)}`,
-      etaMinutes: deliveryType === "delivery" ? 35 : 20
+      etaMinutes: resolvedType === "delivery" ? 35 : 20,
+      estimatedTime: resolvedType === "delivery" ? "35 mins" : "20 mins",
+      status: "placed"
     };
+
+    // Keep customerInfo in sync
+    if (resolvedName || resolvedPhone || resolvedAddress) {
+      const mergedInfo = {
+        name: resolvedName || customerInfo.name,
+        phone: resolvedPhone || customerInfo.phone,
+        address: resolvedAddress || customerInfo.address,
+        landmark: resolvedLandmark || customerInfo.landmark,
+        notes: resolvedNotes || customerInfo.notes
+      };
+      setCustomerInfo(mergedInfo);
+      try {
+        localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(mergedInfo));
+      } catch {}
+    }
 
     const createdOrder = await placeOnlineDeliveryOrder(orderPayload);
     setActiveOrder(createdOrder);

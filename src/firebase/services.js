@@ -509,19 +509,19 @@ export const submitTableReview = async ({
     : 5;
 
   const reviewRecord = {
-    orderId,
+    orderId: orderId || null,
     orderNumber: orderNumber || "TH-1001",
     tableNumber: String(tableNumber || "1"),
     parameters: {
-      orderQuality: Number(parameters.orderQuality) || 5,
-      foodTaste: Number(parameters.foodTaste) || 5,
-      service: Number(parameters.service) || 5,
-      cafeAesthetic: Number(parameters.cafeAesthetic) || 5
+      orderQuality: Number(parameters?.orderQuality) || 5,
+      foodTaste: Number(parameters?.foodTaste) || 5,
+      service: Number(parameters?.service) || 5,
+      cafeAesthetic: Number(parameters?.cafeAesthetic) || 5
     },
-    overallRating,
+    overallRating: Number(overallRating) || 5,
     dishRatings: (dishRatings || []).map((d) => ({
-      dishId: d.dishId || d.id,
-      dishName: d.dishName || d.name,
+      dishId: String(d.dishId || d.id || ""),
+      dishName: String(d.dishName || d.name || ""),
       rating: Number(d.rating) || 5
     })),
     comments: (comments || "").trim(),
@@ -529,30 +529,35 @@ export const submitTableReview = async ({
     timestamp: Date.now()
   };
 
-  // 1. Save review to REVIEWS_COLLECTION
+  // 1. Save review to REVIEWS_COLLECTION (table_reviews)
   let savedReviewId = `rev_${Date.now()}`;
   try {
     const docRef = await addDoc(collection(db, REVIEWS_COLLECTION), reviewRecord);
     savedReviewId = docRef.id;
   } catch (err) {
-    console.warn("Firestore submitTableReview fallback to local storage:", err);
+    console.warn("Firestore submitTableReview fallback (table_reviews collection):", err);
   }
 
   const savedReview = { id: savedReviewId, ...reviewRecord };
   const currentReviews = getLocalData(LOCAL_STORAGE_REVIEWS_KEY, []);
-  setLocalData(LOCAL_STORAGE_REVIEWS_KEY, [savedReview, ...currentReviews]);
+  const updatedReviews = [savedReview, ...currentReviews.filter((r) => r.id !== savedReviewId)];
+  setLocalData(LOCAL_STORAGE_REVIEWS_KEY, updatedReviews);
   window.dispatchEvent(new CustomEvent("twohearts_new_review", { detail: savedReview }));
 
-  // 2. Mark order as reviewed in orders collection
+  // 2. Mark order as reviewed in orders collection (Guaranteed write via allowed orders collection)
   if (orderId) {
     try {
       const orderRef = doc(db, ORDERS_COLLECTION, orderId);
-      await updateDoc(orderRef, {
-        hasReview: true,
-        review: savedReview
-      });
+      await setDoc(
+        orderRef,
+        {
+          hasReview: true,
+          review: savedReview
+        },
+        { merge: true }
+      );
     } catch (err) {
-      console.warn("Firestore order review status fallback:", err);
+      console.warn("Firestore order review status merge fallback:", err);
     }
 
     const localOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
@@ -591,7 +596,7 @@ export const submitTableReview = async ({
       // Try Firestore update
       try {
         const dishRef = doc(db, MENU_COLLECTION, localDish?.id || dishId);
-        await updateDoc(dishRef, dishUpdates);
+        await setDoc(dishRef, dishUpdates, { merge: true });
       } catch (err) {
         console.warn(`Firestore dish rating update fallback for ${dishId}:`, err);
       }
@@ -615,50 +620,74 @@ export const submitTableReview = async ({
 
 /**
  * Realtime subscription to customer reviews (for Admin reviews hub)
+ * Resiliently combines table_reviews collection with any reviews attached to orders.
  */
 export const subscribeReviews = (onSuccess, onError) => {
+  const getMergedReviews = (firestoreReviews = []) => {
+    const local = getLocalData(LOCAL_STORAGE_REVIEWS_KEY, []);
+    const localOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+    const orderReviews = localOrders
+      .filter((o) => o && o.review)
+      .map((o) => ({
+        ...o.review,
+        orderNumber: o.review?.orderNumber || o.orderNumber,
+        tableNumber: String(o.review?.tableNumber || o.tableNumber || "1")
+      }));
+
+    const map = new Map();
+    [...firestoreReviews, ...local, ...orderReviews].forEach((rev) => {
+      if (!rev) return;
+      const key = rev.id || rev.orderId || `rev_${rev.timestamp}_${rev.tableNumber}`;
+      map.set(key, rev);
+    });
+
+    const merged = Array.from(map.values());
+    merged.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    return merged;
+  };
+
   try {
     const q = collection(db, REVIEWS_COLLECTION);
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
         firestorePermissionErrorDetected = false;
-        const reviews = snapshot.docs.map((docSnap) => ({
+        const firestoreReviews = snapshot.docs.map((docSnap) => ({
           id: docSnap.id,
           ...docSnap.data()
         }));
 
-        reviews.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-        setLocalData(LOCAL_STORAGE_REVIEWS_KEY, reviews);
-        onSuccess(reviews);
+        const merged = getMergedReviews(firestoreReviews);
+        setLocalData(LOCAL_STORAGE_REVIEWS_KEY, merged);
+        onSuccess(merged);
       },
       (err) => {
-        console.warn("Firestore reviews subscription fallback to local:", err.message);
-        firestorePermissionErrorDetected = true;
-        const local = getLocalData(LOCAL_STORAGE_REVIEWS_KEY, []);
-        local.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-        onSuccess(local);
+        console.warn("Firestore reviews subscription fallback to orders/local:", err.message);
+        const merged = getMergedReviews([]);
+        onSuccess(merged);
         if (onError) onError(err);
       }
     );
 
     const handleLocalSync = () => {
-      const local = getLocalData(LOCAL_STORAGE_REVIEWS_KEY, []);
-      local.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-      onSuccess(local);
+      const merged = getMergedReviews([]);
+      onSuccess(merged);
     };
+
     window.addEventListener("storage", handleLocalSync);
     window.addEventListener("twohearts_new_review", handleLocalSync);
+    window.addEventListener("twohearts_new_order", handleLocalSync);
 
     return () => {
       unsubscribe();
       window.removeEventListener("storage", handleLocalSync);
       window.removeEventListener("twohearts_new_review", handleLocalSync);
+      window.removeEventListener("twohearts_new_order", handleLocalSync);
     };
   } catch (err) {
     console.warn("Reviews subscription setup error:", err);
-    const local = getLocalData(LOCAL_STORAGE_REVIEWS_KEY, []);
-    onSuccess(local);
-    return () => { };
+    const merged = getMergedReviews([]);
+    onSuccess(merged);
+    return () => {};
   }
 };

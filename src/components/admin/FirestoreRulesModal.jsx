@@ -18,6 +18,10 @@ service cloud.firestore {
     match /orders/{order} {
       allow read, write: if true;
     }
+    // Table reviews & ratings: readable and writeable by customers & staff
+    match /table_reviews/{review} {
+      allow read, write: if true;
+    }
   }
 }`;
 

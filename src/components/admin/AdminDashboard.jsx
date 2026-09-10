@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Bell,
   Volume2,
@@ -9,13 +9,15 @@ import {
   Trash2,
   LogOut,
   KeyRound,
-  Star
+  Star,
+  ShieldCheck
 } from "lucide-react";
 import OrderCard from "./OrderCard";
 import MenuManager from "./MenuManager";
 import TableQRGenerator from "./TableQRGenerator";
 import ReviewsManager from "./ReviewsManager";
 import ChangePinModal from "./ChangePinModal";
+import FirestoreRulesModal from "./FirestoreRulesModal";
 import { updateOrderStatus, clearAllOrders, subscribeReviews } from "../../firebase/services";
 import { soundNotifier } from "../../utils/audio";
 
@@ -25,6 +27,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
   const [tableFilter, setTableFilter] = useState("all");
   const [isMuted, setIsMuted] = useState(false);
   const [isChangePinOpen, setIsChangePinOpen] = useState(false);
+  const [isFirestoreRulesOpen, setIsFirestoreRulesOpen] = useState(false);
   const [reviews, setReviews] = useState([]);
 
   useEffect(() => {
@@ -35,6 +38,38 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
       if (typeof unsub === "function") unsub();
     };
   }, []);
+
+  // Combine reviews from table_reviews subscription AND real-time orders collection
+  const allReviews = useMemo(() => {
+    const map = new Map();
+
+    // 1. From table_reviews collection subscription (or local cache)
+    (reviews || []).forEach((rev) => {
+      if (!rev) return;
+      const key = rev.id || rev.orderId || `rev_${rev.timestamp}_${rev.tableNumber}`;
+      map.set(key, rev);
+    });
+
+    // 2. Extract reviews attached directly to orders (synced across devices via orders collection)
+    (orders || []).forEach((ord) => {
+      if (ord && ord.review) {
+        const rev = ord.review;
+        const key = rev.id || ord.id || `rev_${rev.timestamp || ord.timestamp}_${ord.tableNumber}`;
+        if (!map.has(key)) {
+          map.set(key, {
+            ...rev,
+            orderId: ord.id,
+            orderNumber: rev.orderNumber || ord.orderNumber || "TH-1001",
+            tableNumber: String(rev.tableNumber || ord.tableNumber || "1")
+          });
+        }
+      }
+    });
+
+    const list = Array.from(map.values());
+    list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    return list;
+  }, [reviews, orders]);
 
   const prevOrdersCountRef = useRef(orders.length);
 
@@ -176,6 +211,28 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
           >
             <KeyRound size={13} />
             <span>Change PIN</span>
+          </button>
+
+          <button
+            onClick={() => setIsFirestoreRulesOpen(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "7px 14px",
+              borderRadius: "var(--radius-pill)",
+              backgroundColor: "#fff",
+              border: "1.2px solid var(--color-border-frame)",
+              fontFamily: "var(--font-serif)",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "var(--color-ink)",
+              cursor: "pointer"
+            }}
+            title="View & Copy Database Security Rules"
+          >
+            <ShieldCheck size={13} color="var(--color-bronze)" />
+            <span>DB Rules</span>
           </button>
 
           {onLogout && (
@@ -384,7 +441,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
         >
           <Star size={17} fill={activeTab === "reviews" ? "#F59E0B" : "transparent"} color={activeTab === "reviews" ? "#F59E0B" : "currentColor"} />
           <span>Table Reviews</span>
-          {reviews.length > 0 && (
+          {allReviews.length > 0 && (
             <span style={{
               backgroundColor: "var(--color-bronze)",
               color: "#fff",
@@ -393,7 +450,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
               padding: "1px 6px",
               borderRadius: "var(--radius-pill)"
             }}>
-              {reviews.length}
+              {allReviews.length}
             </span>
           )}
         </button>
@@ -529,12 +586,18 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
 
       {activeTab === "menu" && <MenuManager menuItems={menuItems} />}
       {activeTab === "qr" && <TableQRGenerator />}
-      {activeTab === "reviews" && <ReviewsManager reviews={reviews} />}
+      {activeTab === "reviews" && <ReviewsManager reviews={allReviews} />}
 
       {/* Change PIN Modal */}
       <ChangePinModal
         isOpen={isChangePinOpen}
         onClose={() => setIsChangePinOpen(false)}
+      />
+
+      {/* Firestore Rules Helper Modal */}
+      <FirestoreRulesModal
+        isOpen={isFirestoreRulesOpen}
+        onClose={() => setIsFirestoreRulesOpen(false)}
       />
     </div>
   );

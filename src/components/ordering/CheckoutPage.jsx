@@ -16,9 +16,18 @@ import {
 } from "lucide-react";
 import { useOnlineOrder } from "../../context/OnlineOrderContext";
 import { useCustomerAuth } from "../../context/CustomerAuthContext";
+import CheckoutAddressSection from "./CheckoutAddressSection";
 
 export default function CheckoutPage({ onNavigate }) {
-  const { customerUser, isLoggedIn, openAuthModal, savedAddresses = [], defaultAddress } = useCustomerAuth();
+  const {
+    customerUser,
+    isLoggedIn,
+    openAuthModal,
+    savedAddresses = [],
+    defaultAddress,
+    addAddress,
+    updateAddress
+  } = useCustomerAuth();
   const {
     cart,
     subtotal,
@@ -43,6 +52,44 @@ export default function CheckoutPage({ onNavigate }) {
     notes: customerInfo.notes || ""
   });
 
+  const [formErrors, setFormErrors] = useState({});
+
+  // Address selection handler
+  const handleSelectAddress = (addr) => {
+    if (!addr) return;
+    setSelectedAddressId(addr.id);
+    setFormData((prev) => ({
+      ...prev,
+      address: addr.fullAddress || addr.address || "",
+      landmark: addr.landmark || prev.landmark || "",
+      name: prev.name || addr.recipientName || customerUser?.name || "",
+      phone: prev.phone || addr.phone || customerUser?.phone || ""
+    }));
+    if (formErrors.address) {
+      setFormErrors((prev) => ({ ...prev, address: null }));
+    }
+  };
+
+  // Add new address handler - saves to address book and pre-selects
+  const handleAddNewAddress = (newAddr) => {
+    if (addAddress) {
+      const saved = addAddress(newAddr);
+      handleSelectAddress(saved || newAddr);
+    } else {
+      handleSelectAddress(newAddr);
+    }
+  };
+
+  // Update existing address handler
+  const handleUpdateAddress = (id, updatedFields) => {
+    if (updateAddress) {
+      updateAddress(id, updatedFields);
+    }
+    if (selectedAddressId === id) {
+      handleSelectAddress({ id, ...updatedFields });
+    }
+  };
+
   // Sync if customerUser or default address is loaded / changes
   useEffect(() => {
     if (customerUser) {
@@ -56,13 +103,24 @@ export default function CheckoutPage({ onNavigate }) {
           landmark: prev.landmark || (defaultAddress ? (defaultAddress.landmark || "") : "")
         };
       });
-      if (defaultAddress) {
-        setSelectedAddressId((prev) => prev || defaultAddress.id);
+      if (defaultAddress && !selectedAddressId) {
+        setSelectedAddressId(defaultAddress.id);
       }
     }
   }, [customerUser, defaultAddress]);
 
-  const [formErrors, setFormErrors] = useState({});
+  // Pre-select default address if none selected in delivery mode
+  useEffect(() => {
+    if (deliveryType === "delivery" && savedAddresses.length > 0) {
+      const exists = savedAddresses.find((a) => a.id === selectedAddressId);
+      if (!exists) {
+        const toSelect = defaultAddress || savedAddresses[0];
+        if (toSelect) {
+          handleSelectAddress(toSelect);
+        }
+      }
+    }
+  }, [savedAddresses, defaultAddress, deliveryType]);
 
   // Payment Method: 'upi' | 'card' | 'netbanking'
   const [paymentTab, setPaymentTab] = useState("upi");
@@ -219,14 +277,14 @@ export default function CheckoutPage({ onNavigate }) {
         {/* 2-Column Grid */}
         <div style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))",
           gap: 28,
           alignItems: "flex-start"
         }}>
           {/* Left Column: Delivery Details + Payment Gateway */}
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             {/* 1. Contact & Address Details */}
-            <div className="bistro-card mobile-card-compact" style={{ padding: 24, backgroundColor: "#FFFFFF" }}>
+            <div className="bistro-card mobile-card-compact" style={{ padding: "clamp(14px, 3vw, 24px)", backgroundColor: "#FFFFFF" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
                 <div style={{
                   width: 32,
@@ -258,248 +316,116 @@ export default function CheckoutPage({ onNavigate }) {
                 </div>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                {/* Full Name & Phone Number */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: 12, fontWeight: 700, fontFamily: "var(--font-serif)", marginBottom: 6 }}>
-                      Full Name *
-                    </label>
-                    <div style={{ position: "relative" }}>
-                      <input
-                        type="text"
-                        placeholder="e.g. Aarav Sharma"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        style={{
-                          width: "100%",
-                          padding: "10px 12px 10px 34px",
-                          fontSize: 13,
-                          borderRadius: "var(--radius-sm)",
-                          border: `1px solid ${formErrors.name ? "#DC2626" : "var(--border-color)"}`,
-                          backgroundColor: "var(--bg-app)",
-                          outline: "none"
-                        }}
-                      />
-                      <User size={15} style={{ position: "absolute", left: 10, top: 12, color: "var(--color-bronze)" }} />
-                    </div>
-                    {formErrors.name && (
-                      <span style={{ color: "#DC2626", fontSize: 11, marginTop: 3, display: "block" }}>
-                        {formErrors.name}
-                      </span>
-                    )}
-                  </div>
-
-                  <div>
-                    <label style={{ display: "block", fontSize: 12, fontWeight: 700, fontFamily: "var(--font-serif)", marginBottom: 6 }}>
-                      10-Digit Mobile Number *
-                    </label>
-                    <div style={{ position: "relative" }}>
-                      <input
-                        type="tel"
-                        maxLength={10}
-                        placeholder="9876543210"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, "") })}
-                        style={{
-                          width: "100%",
-                          padding: "10px 12px 10px 34px",
-                          fontSize: 13,
-                          borderRadius: "var(--radius-sm)",
-                          border: `1px solid ${formErrors.phone ? "#DC2626" : "var(--border-color)"}`,
-                          backgroundColor: "var(--bg-app)",
-                          outline: "none"
-                        }}
-                      />
-                      <Phone size={15} style={{ position: "absolute", left: 10, top: 12, color: "var(--color-bronze)" }} />
-                    </div>
-                    {formErrors.phone && (
-                      <span style={{ color: "#DC2626", fontSize: 11, marginTop: 3, display: "block" }}>
-                        {formErrors.phone}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Delivery Address (only if delivery) */}
-                {deliveryType === "delivery" && (
-                  <>
-                    {/* Saved Addresses Quick Selector */}
-                    {savedAddresses && savedAddresses.length > 0 && (
-                      <div style={{
-                        padding: "12px 14px",
-                        backgroundColor: "rgba(138, 87, 56, 0.04)",
-                        borderRadius: "var(--radius-sm)",
-                        border: "1px dashed rgba(138, 87, 56, 0.25)",
-                        marginBottom: 4
-                      }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "var(--font-serif)", color: "var(--color-bronze-dark)", textTransform: "uppercase", letterSpacing: 0.5, display: "flex", alignItems: "center", gap: 5 }}>
-                            <MapPin size={13} style={{ color: "var(--color-bronze)" }} />
-                            Deliver to Saved Location:
-                          </span>
-                          {onNavigate && (
-                            <button
-                              type="button"
-                              onClick={() => onNavigate("profile", "addresses")}
-                              style={{
-                                fontSize: 11,
-                                fontWeight: 600,
-                                color: "var(--color-bronze)",
-                                backgroundColor: "transparent",
-                                border: "none",
-                                cursor: "pointer",
-                                textDecoration: "underline"
-                              }}
-                            >
-                              Manage
-                            </button>
-                          )}
-                        </div>
-
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                          {savedAddresses.map((addr) => {
-                            const isSelected = selectedAddressId === addr.id || formData.address === addr.fullAddress;
-                            const tagIcon = addr.tag === "Hostel" ? "🏢" : addr.tag === "Home" ? "🏠" : addr.tag === "Office" ? "💼" : "📍";
-
-                            return (
-                              <button
-                                key={addr.id}
-                                type="button"
-                                onClick={() => {
-                                  setSelectedAddressId(addr.id);
-                                  setFormData((prev) => ({
-                                    ...prev,
-                                    address: addr.fullAddress,
-                                    landmark: addr.landmark || prev.landmark || ""
-                                  }));
-                                  if (formErrors.address) {
-                                    setFormErrors((prev) => ({ ...prev, address: null }));
-                                  }
-                                }}
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 6,
-                                  padding: "6px 12px",
-                                  borderRadius: "var(--radius-pill)",
-                                  border: `1.5px solid ${isSelected ? "var(--color-bronze)" : "var(--border-color)"}`,
-                                  backgroundColor: isSelected ? "var(--color-bronze-light)" : "#FFFFFF",
-                                  color: isSelected ? "var(--color-bronze-dark)" : "var(--color-ink)",
-                                  fontSize: 12,
-                                  fontFamily: "var(--font-serif)",
-                                  fontWeight: 600,
-                                  cursor: "pointer",
-                                  transition: "all 0.15s ease"
-                                }}
-                              >
-                                <span>{tagIcon}</span>
-                                <span>{addr.label || addr.tag}</span>
-                                {addr.isDefault && (
-                                  <span style={{
-                                    fontSize: 9,
-                                    backgroundColor: "var(--color-bronze)",
-                                    color: "#FFFFFF",
-                                    padding: "1px 5px",
-                                    borderRadius: 4,
-                                    textTransform: "uppercase",
-                                    fontWeight: 700
-                                  }}>
-                                    Default
-                                  </span>
-                                )}
-                                {isSelected && <Check size={12} style={{ color: "var(--color-bronze-dark)" }} />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
+              {deliveryType === "delivery" ? (
+                <CheckoutAddressSection
+                  savedAddresses={savedAddresses}
+                  selectedAddressId={selectedAddressId}
+                  onSelectAddress={handleSelectAddress}
+                  onAddNewAddress={handleAddNewAddress}
+                  onUpdateAddress={handleUpdateAddress}
+                  formData={formData}
+                  setFormData={setFormData}
+                  formErrors={formErrors}
+                  setFormErrors={setFormErrors}
+                  customerUser={customerUser}
+                  onNavigate={onNavigate}
+                />
+              ) : (
+                /* Takeaway Form */
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }}>
                     <div>
                       <label style={{ display: "block", fontSize: 12, fontWeight: 700, fontFamily: "var(--font-serif)", marginBottom: 6 }}>
-                        Complete Delivery Address / Hostel / PG *
+                        Full Name *
                       </label>
                       <div style={{ position: "relative" }}>
-                        <textarea
-                          rows={2}
-                          placeholder="e.g. Room 304, Hostel OR House #14, Shivam Vihar, Muradnagar..."
-                          value={formData.address}
+                        <input
+                          type="text"
+                          placeholder="e.g. Aarav Sharma"
+                          value={formData.name}
                           onChange={(e) => {
-                            const val = e.target.value;
-                            setFormData({ ...formData, address: val });
-                            const match = savedAddresses.find((a) => a.fullAddress === val);
-                            setSelectedAddressId(match ? match.id : null);
+                            setFormData({ ...formData, name: e.target.value });
+                            if (formErrors.name) setFormErrors((p) => ({ ...p, name: null }));
                           }}
                           style={{
                             width: "100%",
                             padding: "10px 12px 10px 34px",
                             fontSize: 13,
                             borderRadius: "var(--radius-sm)",
-                            border: `1px solid ${formErrors.address ? "#DC2626" : "var(--border-color)"}`,
+                            border: `1px solid ${formErrors.name ? "#DC2626" : "var(--border-color)"}`,
                             backgroundColor: "var(--bg-app)",
-                            outline: "none",
-                            resize: "vertical"
+                            outline: "none"
                           }}
                         />
-                        <MapPin size={15} style={{ position: "absolute", left: 10, top: 12, color: "var(--color-bronze)" }} />
+                        <User size={15} style={{ position: "absolute", left: 10, top: 12, color: "var(--color-bronze)" }} />
                       </div>
-                      {formErrors.address && (
+                      {formErrors.name && (
                         <span style={{ color: "#DC2626", fontSize: 11, marginTop: 3, display: "block" }}>
-                          {formErrors.address}
+                          {formErrors.name}
                         </span>
                       )}
                     </div>
 
                     <div>
                       <label style={{ display: "block", fontSize: 12, fontWeight: 700, fontFamily: "var(--font-serif)", marginBottom: 6 }}>
-                        Landmark / Nearest Pillar (Optional)
+                        10-Digit Mobile Number *
                       </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Near Pillar #852, Gate No. 2, Behind Main Canteen"
-                        value={formData.landmark}
-                        onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
-                        style={{
-                          width: "100%",
-                          padding: "10px 12px",
-                          fontSize: 13,
-                          borderRadius: "var(--radius-sm)",
-                          border: "1px solid var(--border-color)",
-                          backgroundColor: "var(--bg-app)",
-                          outline: "none"
-                        }}
-                      />
+                      <div style={{ position: "relative" }}>
+                        <input
+                          type="tel"
+                          maxLength={10}
+                          placeholder="9876543210"
+                          value={formData.phone}
+                          onChange={(e) => {
+                            setFormData({ ...formData, phone: e.target.value.replace(/\D/g, "") });
+                            if (formErrors.phone) setFormErrors((p) => ({ ...p, phone: null }));
+                          }}
+                          style={{
+                            width: "100%",
+                            padding: "10px 12px 10px 34px",
+                            fontSize: 13,
+                            borderRadius: "var(--radius-sm)",
+                            border: `1px solid ${formErrors.phone ? "#DC2626" : "var(--border-color)"}`,
+                            backgroundColor: "var(--bg-app)",
+                            outline: "none"
+                          }}
+                        />
+                        <Phone size={15} style={{ position: "absolute", left: 10, top: 12, color: "var(--color-bronze)" }} />
+                      </div>
+                      {formErrors.phone && (
+                        <span style={{ color: "#DC2626", fontSize: 11, marginTop: 3, display: "block" }}>
+                          {formErrors.phone}
+                        </span>
+                      )}
                     </div>
-                  </>
-                )}
+                  </div>
 
-                {/* Rider delivery notes */}
-                <div>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 700, fontFamily: "var(--font-serif)", marginBottom: 6 }}>
-                    Delivery Notes / Instructions for Rider (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Please ring bell twice / Leave at security gate"
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      fontSize: 13,
-                      borderRadius: "var(--radius-sm)",
-                      border: "1px solid var(--border-color)",
-                      backgroundColor: "var(--bg-app)",
-                      outline: "none"
-                    }}
-                  />
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 700, fontFamily: "var(--font-serif)", marginBottom: 6 }}>
+                      Special Pickup Notes (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Preparing for arrival in 15 mins..."
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        fontSize: 13,
+                        borderRadius: "var(--radius-sm)",
+                        border: "1px solid var(--border-color)",
+                        backgroundColor: "var(--bg-app)",
+                        outline: "none"
+                      }}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* 2. Online Payment Gateway Interface (ONLY online payments!) */}
-            <div className="bistro-card mobile-card-compact" style={{ padding: 24, backgroundColor: "#FFFFFF" }}>
+            <div className="bistro-card mobile-card-compact" style={{ padding: "clamp(14px, 3vw, 24px)", backgroundColor: "#FFFFFF" }}>
               <div style={{
                 display: "flex",
                 alignItems: "center",

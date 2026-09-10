@@ -19,7 +19,7 @@ import CustomerAuthModal from "./components/auth/CustomerAuthModal";
 import SignInPage from "./components/auth/SignInPage";
 import UserProfilePage from "./components/profile/UserProfilePage";
 import { subscribeMenuItems, subscribeLiveOrders } from "./firebase/services";
-import { subscribeAuth } from "./firebase/auth";
+import { subscribeAuth, logoutUser } from "./firebase/auth";
 import { INITIAL_MENU_ITEMS } from "./data/seedMenu";
 
 export default function App() {
@@ -95,6 +95,11 @@ export default function App() {
       if (unsubscribeAuth) unsubscribeAuth();
     };
   }, []);
+
+  const handleLogout = async () => {
+    await logoutUser();
+    setCurrentUser(null);
+  };
 
   // Listen to browser navigation
   useEffect(() => {

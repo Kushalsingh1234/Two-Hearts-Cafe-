@@ -8,21 +8,33 @@ import {
   QrCode,
   Trash2,
   LogOut,
-  KeyRound
+  KeyRound,
+  Star
 } from "lucide-react";
 import OrderCard from "./OrderCard";
 import MenuManager from "./MenuManager";
 import TableQRGenerator from "./TableQRGenerator";
+import ReviewsManager from "./ReviewsManager";
 import ChangePinModal from "./ChangePinModal";
-import { updateOrderStatus, clearAllOrders } from "../../firebase/services";
+import { updateOrderStatus, clearAllOrders, subscribeReviews } from "../../firebase/services";
 import { soundNotifier } from "../../utils/audio";
 
 export default function AdminDashboard({ orders, menuItems, currentUser, onLogout }) {
-  const [activeTab, setActiveTab] = useState("orders"); // 'orders' | 'menu' | 'qr'
+  const [activeTab, setActiveTab] = useState("orders"); // 'orders' | 'menu' | 'qr' | 'reviews'
   const [orderStatusFilter, setOrderStatusFilter] = useState("active");
   const [tableFilter, setTableFilter] = useState("all");
   const [isMuted, setIsMuted] = useState(false);
   const [isChangePinOpen, setIsChangePinOpen] = useState(false);
+  const [reviews, setReviews] = useState([]);
+
+  useEffect(() => {
+    const unsub = subscribeReviews((data) => {
+      setReviews(data || []);
+    });
+    return () => {
+      if (typeof unsub === "function") unsub();
+    };
+  }, []);
 
   const prevOrdersCountRef = useRef(orders.length);
 
@@ -353,6 +365,38 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
           <QrCode size={17} />
           <span>Table QR Kit</span>
         </button>
+
+        <button
+          onClick={() => setActiveTab("reviews")}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "10px 18px",
+            borderBottom: activeTab === "reviews" ? "3px solid var(--color-ink)" : "none",
+            color: activeTab === "reviews" ? "var(--color-ink)" : "var(--color-bronze)",
+            fontFamily: "var(--font-serif)",
+            fontWeight: activeTab === "reviews" ? 800 : 600,
+            fontSize: 15,
+            letterSpacing: 0.5,
+            textTransform: "uppercase"
+          }}
+        >
+          <Star size={17} fill={activeTab === "reviews" ? "#F59E0B" : "transparent"} color={activeTab === "reviews" ? "#F59E0B" : "currentColor"} />
+          <span>Table Reviews</span>
+          {reviews.length > 0 && (
+            <span style={{
+              backgroundColor: "var(--color-bronze)",
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 800,
+              padding: "1px 6px",
+              borderRadius: "var(--radius-pill)"
+            }}>
+              {reviews.length}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Tab Content */}
@@ -485,6 +529,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
 
       {activeTab === "menu" && <MenuManager menuItems={menuItems} />}
       {activeTab === "qr" && <TableQRGenerator />}
+      {activeTab === "reviews" && <ReviewsManager reviews={reviews} />}
 
       {/* Change PIN Modal */}
       <ChangePinModal

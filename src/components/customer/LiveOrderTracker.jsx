@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { CheckCircle2, Clock, X, ChefHat, Receipt, Smartphone, Building2 } from "lucide-react";
+import { CheckCircle2, Clock, X, ChefHat, Receipt, Smartphone, Building2, Star } from "lucide-react";
 import PaymentModal from "./PaymentModal";
 import DigitalInvoiceModal from "./DigitalInvoiceModal";
+import TableReviewModal from "./TableReviewModal";
 
 const STATUS_STEPS = [
   { key: "placed", title: "Order Placed", desc: "Received at kitchen counter" },
@@ -13,6 +14,7 @@ const STATUS_STEPS = [
 export default function LiveOrderTracker({ isOpen, onClose, orders, tableNumber }) {
   const [activePaymentOrder, setActivePaymentOrder] = useState(null);
   const [activeInvoiceOrder, setActiveInvoiceOrder] = useState(null);
+  const [activeReviewOrder, setActiveReviewOrder] = useState(null);
 
   if (!isOpen) return null;
 
@@ -280,29 +282,55 @@ export default function LiveOrderTracker({ isOpen, onClose, orders, tableNumber 
                       <div style={{ fontSize: 12, fontStyle: "italic", color: "var(--color-bronze)", fontFamily: "var(--font-serif)" }}>
                         Your paperless digital tax invoice is ready.
                       </div>
-                      <button
-                        onClick={() => setActiveInvoiceOrder(ord)}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 6,
-                          padding: "8px 16px",
-                          borderRadius: "var(--radius-pill)",
-                          backgroundColor: "var(--color-ink)",
-                          color: "#FAF7F2",
-                          border: "none",
-                          fontFamily: "var(--font-serif)",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          letterSpacing: 0.5,
-                          textTransform: "uppercase",
-                          cursor: "pointer",
-                          boxShadow: "var(--shadow-sm)"
-                        }}
-                      >
-                        <Receipt size={14} />
-                        <span>View & Download Invoice (PDF)</span>
-                      </button>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", width: "100%" }}>
+                        <button
+                          onClick={() => setActiveInvoiceOrder(ord)}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "8px 16px",
+                            borderRadius: "var(--radius-pill)",
+                            backgroundColor: "var(--color-ink)",
+                            color: "#FAF7F2",
+                            border: "none",
+                            fontFamily: "var(--font-serif)",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            letterSpacing: 0.5,
+                            textTransform: "uppercase",
+                            cursor: "pointer",
+                            boxShadow: "var(--shadow-sm)"
+                          }}
+                        >
+                          <Receipt size={14} />
+                          <span>View Invoice</span>
+                        </button>
+
+                        <button
+                          onClick={() => setActiveReviewOrder(ord)}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "8px 16px",
+                            borderRadius: "var(--radius-pill)",
+                            backgroundColor: ord.hasReview || ord.review ? "#FAF7F2" : "#8A5738",
+                            color: ord.hasReview || ord.review ? "var(--color-ink)" : "#FFFFFF",
+                            border: "1.5px solid var(--color-bronze)",
+                            fontFamily: "var(--font-serif)",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            letterSpacing: 0.5,
+                            textTransform: "uppercase",
+                            cursor: "pointer",
+                            boxShadow: "var(--shadow-sm)"
+                          }}
+                        >
+                          <Star size={14} fill={ord.hasReview || ord.review ? "#F59E0B" : "#FFFFFF"} color={ord.hasReview || ord.review ? "#F59E0B" : "#FFFFFF"} />
+                          <span>{ord.hasReview || ord.review ? `Rated (${ord.review?.overallRating || 5}★)` : "Rate Meal & Dishes"}</span>
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -426,6 +454,17 @@ export default function LiveOrderTracker({ isOpen, onClose, orders, tableNumber 
         isOpen={Boolean(activeInvoiceOrder)}
         order={activeInvoiceOrder}
         onClose={() => setActiveInvoiceOrder(null)}
+        onOpenReview={(ord) => {
+          setActiveInvoiceOrder(null);
+          setActiveReviewOrder(ord);
+        }}
+      />
+
+      {/* Table & Dish Review Modal */}
+      <TableReviewModal
+        isOpen={Boolean(activeReviewOrder)}
+        order={activeReviewOrder}
+        onClose={() => setActiveReviewOrder(null)}
       />
     </div>
   );

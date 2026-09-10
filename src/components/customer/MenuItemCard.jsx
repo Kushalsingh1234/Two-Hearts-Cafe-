@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Plus, Minus, MessageSquare } from "lucide-react";
+import { Plus, Minus, MessageSquare, Star } from "lucide-react";
 
 export default function MenuItemCard({
   item,
@@ -67,6 +67,25 @@ export default function MenuItemCard({
                 borderRadius: 2
               }}>
                 Special
+              </span>
+            )}
+            {item.rating && (
+              <span style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 2.5,
+                fontSize: 11,
+                fontFamily: "var(--font-serif)",
+                fontWeight: 700,
+                color: "#b45309",
+                backgroundColor: "#fef3c7",
+                padding: "1px 6px",
+                borderRadius: "var(--radius-pill)",
+                border: "1px solid #fde68a"
+              }}>
+                <Star size={10} fill="#f59e0b" color="#f59e0b" />
+                <span>{item.rating.toFixed(1)}</span>
+                {item.ratingCount ? <span style={{ opacity: 0.75, fontSize: 9.5 }}>({item.ratingCount})</span> : null}
               </span>
             )}
           </div>

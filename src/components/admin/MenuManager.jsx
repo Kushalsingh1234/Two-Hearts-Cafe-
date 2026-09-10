@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Plus, Trash2, RefreshCw, X, Edit3, Check, Search, Tag } from "lucide-react";
+import { Plus, Trash2, RefreshCw, X, Edit3, Check, Search, Tag, Star } from "lucide-react";
 import {
   saveMenuItem,
   deleteMenuItem,
@@ -538,15 +538,46 @@ export default function MenuManager({ menuItems }) {
                         transition: "background-color 0.15s"
                       }}
                     >
-                      {/* Name & Desc */}
+                      {/* Name, Rating & Desc */}
                       <div style={{ paddingRight: 12 }}>
-                        <div style={{
-                          fontFamily: "var(--font-serif)",
-                          fontSize: 16,
-                          fontWeight: 700,
-                          color: "var(--color-ink)"
-                        }}>
-                          {item.name}
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <span style={{
+                            fontFamily: "var(--font-serif)",
+                            fontSize: 16,
+                            fontWeight: 700,
+                            color: "var(--color-ink)"
+                          }}>
+                            {item.name}
+                          </span>
+                          {item.rating ? (
+                            <span style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 3,
+                              fontSize: 11,
+                              fontFamily: "var(--font-serif)",
+                              fontWeight: 800,
+                              color: "#b45309",
+                              backgroundColor: "#fef3c7",
+                              padding: "1px 7px",
+                              borderRadius: "var(--radius-pill)",
+                              border: "1px solid #fde68a"
+                            }}>
+                              <Star size={11} fill="#f59e0b" color="#f59e0b" />
+                              <span>{Number(item.rating).toFixed(1)}★</span>
+                              <span style={{ fontSize: 9.5, opacity: 0.8 }}>({item.ratingCount || 1})</span>
+                            </span>
+                          ) : (
+                            <span style={{
+                              fontSize: 10,
+                              fontFamily: "var(--font-serif)",
+                              fontStyle: "italic",
+                              color: "var(--color-bronze)",
+                              opacity: 0.75
+                            }}>
+                              No ratings yet
+                            </span>
+                          )}
                         </div>
                         {item.description && (
                           <div style={{

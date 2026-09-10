@@ -17,8 +17,10 @@ import { INITIAL_MENU_ITEMS } from "../data/seedMenu";
 
 const MENU_COLLECTION = "menu_items";
 const ORDERS_COLLECTION = "orders";
+const REVIEWS_COLLECTION = "table_reviews";
 const LOCAL_STORAGE_MENU_KEY = "twohearts_menu_cache_v7";
 const LOCAL_STORAGE_ORDERS_KEY = "twohearts_orders_cache";
+const LOCAL_STORAGE_REVIEWS_KEY = "twohearts_reviews_cache";
 
 // Helper for local storage backup
 const getLocalData = (key, fallback) => {
@@ -483,4 +485,180 @@ export const submitOrderFeedback = async (orderId, { rating, feedback }) => {
   window.dispatchEvent(new CustomEvent("twohearts_order_updated", { detail: { orderId, ...updatePayload } }));
 
   return { success: true, ...updatePayload };
+};
+
+/**
+ * Submit Table Experience & Individual Dish Reviews
+ * Aggregates dish ratings into menu_items in the database
+ */
+export const submitTableReview = async ({
+  orderId,
+  orderNumber,
+  tableNumber,
+  parameters = {},
+  dishRatings = [],
+  comments = ""
+}) => {
+  const now = new Date();
+  const createdAt = now.toISOString();
+
+  // Calculate overall rating from the 4 parameters
+  const paramValues = Object.values(parameters).map(Number).filter((v) => !isNaN(v) && v > 0);
+  const overallRating = paramValues.length > 0
+    ? Math.round((paramValues.reduce((a, b) => a + b, 0) / paramValues.length) * 10) / 10
+    : 5;
+
+  const reviewRecord = {
+    orderId,
+    orderNumber: orderNumber || "TH-1001",
+    tableNumber: String(tableNumber || "1"),
+    parameters: {
+      orderQuality: Number(parameters.orderQuality) || 5,
+      foodTaste: Number(parameters.foodTaste) || 5,
+      service: Number(parameters.service) || 5,
+      cafeAesthetic: Number(parameters.cafeAesthetic) || 5
+    },
+    overallRating,
+    dishRatings: (dishRatings || []).map((d) => ({
+      dishId: d.dishId || d.id,
+      dishName: d.dishName || d.name,
+      rating: Number(d.rating) || 5
+    })),
+    comments: (comments || "").trim(),
+    createdAt,
+    timestamp: Date.now()
+  };
+
+  // 1. Save review to REVIEWS_COLLECTION
+  let savedReviewId = `rev_${Date.now()}`;
+  try {
+    const docRef = await addDoc(collection(db, REVIEWS_COLLECTION), reviewRecord);
+    savedReviewId = docRef.id;
+  } catch (err) {
+    console.warn("Firestore submitTableReview fallback to local storage:", err);
+  }
+
+  const savedReview = { id: savedReviewId, ...reviewRecord };
+  const currentReviews = getLocalData(LOCAL_STORAGE_REVIEWS_KEY, []);
+  setLocalData(LOCAL_STORAGE_REVIEWS_KEY, [savedReview, ...currentReviews]);
+  window.dispatchEvent(new CustomEvent("twohearts_new_review", { detail: savedReview }));
+
+  // 2. Mark order as reviewed in orders collection
+  if (orderId) {
+    try {
+      const orderRef = doc(db, ORDERS_COLLECTION, orderId);
+      await updateDoc(orderRef, {
+        hasReview: true,
+        review: savedReview
+      });
+    } catch (err) {
+      console.warn("Firestore order review status fallback:", err);
+    }
+
+    const localOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+    const updatedOrders = localOrders.map((ord) =>
+      ord.id === orderId ? { ...ord, hasReview: true, review: savedReview } : ord
+    );
+    setLocalData(LOCAL_STORAGE_ORDERS_KEY, updatedOrders);
+    window.dispatchEvent(new CustomEvent("twohearts_new_order"));
+  }
+
+  // 3. Update each rated dish in menu_items with running average rating
+  if (Array.isArray(dishRatings) && dishRatings.length > 0) {
+    const localMenu = getLocalData(LOCAL_STORAGE_MENU_KEY, INITIAL_MENU_ITEMS);
+
+    for (const d of dishRatings) {
+      const dishId = d.dishId || d.id;
+      const ratingGiven = Number(d.rating);
+      if (!dishId || isNaN(ratingGiven) || ratingGiven <= 0) continue;
+
+      // Find in local menu
+      const localDish = localMenu.find((it) => it.id === dishId || it.name?.toLowerCase() === d.dishName?.toLowerCase());
+      const currentCount = Number(localDish?.ratingCount || 0);
+      const currentTotalScore = Number(localDish?.totalRatingScore || (localDish?.rating ? localDish.rating * currentCount : 0));
+
+      const newCount = currentCount + 1;
+      const newTotalScore = currentTotalScore + ratingGiven;
+      const newAverageRating = Math.round((newTotalScore / newCount) * 10) / 10;
+
+      const dishUpdates = {
+        rating: newAverageRating,
+        ratingCount: newCount,
+        totalRatingScore: newTotalScore,
+        lastRatedAt: createdAt
+      };
+
+      // Try Firestore update
+      try {
+        const dishRef = doc(db, MENU_COLLECTION, localDish?.id || dishId);
+        await updateDoc(dishRef, dishUpdates);
+      } catch (err) {
+        console.warn(`Firestore dish rating update fallback for ${dishId}:`, err);
+      }
+
+      // Update in localMenu
+      const matchIdx = localMenu.findIndex((it) => it.id === (localDish?.id || dishId));
+      if (matchIdx >= 0) {
+        localMenu[matchIdx] = {
+          ...localMenu[matchIdx],
+          ...dishUpdates
+        };
+      }
+    }
+
+    setLocalData(LOCAL_STORAGE_MENU_KEY, localMenu);
+    window.dispatchEvent(new CustomEvent("twohearts_menu_updated"));
+  }
+
+  return savedReview;
+};
+
+/**
+ * Realtime subscription to customer reviews (for Admin reviews hub)
+ */
+export const subscribeReviews = (onSuccess, onError) => {
+  try {
+    const q = collection(db, REVIEWS_COLLECTION);
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        firestorePermissionErrorDetected = false;
+        const reviews = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data()
+        }));
+
+        reviews.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        setLocalData(LOCAL_STORAGE_REVIEWS_KEY, reviews);
+        onSuccess(reviews);
+      },
+      (err) => {
+        console.warn("Firestore reviews subscription fallback to local:", err.message);
+        firestorePermissionErrorDetected = true;
+        const local = getLocalData(LOCAL_STORAGE_REVIEWS_KEY, []);
+        local.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        onSuccess(local);
+        if (onError) onError(err);
+      }
+    );
+
+    const handleLocalSync = () => {
+      const local = getLocalData(LOCAL_STORAGE_REVIEWS_KEY, []);
+      local.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      onSuccess(local);
+    };
+    window.addEventListener("storage", handleLocalSync);
+    window.addEventListener("twohearts_new_review", handleLocalSync);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener("storage", handleLocalSync);
+      window.removeEventListener("twohearts_new_review", handleLocalSync);
+    };
+  } catch (err) {
+    console.warn("Reviews subscription setup error:", err);
+    const local = getLocalData(LOCAL_STORAGE_REVIEWS_KEY, []);
+    onSuccess(local);
+    return () => { };
+  }
 };

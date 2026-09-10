@@ -1,10 +1,10 @@
 import React, { useRef, useState } from "react";
-import { Download, Printer, X, Receipt, Loader2, Check } from "lucide-react";
+import { Download, Printer, X, Receipt, Loader2, Check, Star } from "lucide-react";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import CafeLogoIcon from "../common/CafeLogoIcon";
 
-export default function DigitalInvoiceModal({ isOpen, onClose, order }) {
+export default function DigitalInvoiceModal({ isOpen, onClose, order, onOpenReview }) {
   const invoiceRef = useRef(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
@@ -368,22 +368,47 @@ export default function DigitalInvoiceModal({ isOpen, onClose, order }) {
           gap: 12,
           backgroundColor: "#FAF7F2"
         }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: "9px 18px",
-              borderRadius: "var(--radius-pill)",
-              backgroundColor: "transparent",
-              border: "1.5px solid var(--color-border-frame)",
-              color: "var(--color-ink)",
-              fontFamily: "var(--font-serif)",
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: "pointer"
-            }}
-          >
-            Close
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              onClick={onClose}
+              style={{
+                padding: "9px 18px",
+                borderRadius: "var(--radius-pill)",
+                backgroundColor: "transparent",
+                border: "1.5px solid var(--color-border-frame)",
+                color: "var(--color-ink)",
+                fontFamily: "var(--font-serif)",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer"
+              }}
+            >
+              Close
+            </button>
+
+            {onOpenReview && (
+              <button
+                onClick={() => onOpenReview(order)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  padding: "9px 16px",
+                  borderRadius: "var(--radius-pill)",
+                  backgroundColor: "#FAF7F2",
+                  border: "1.5px solid var(--color-bronze)",
+                  color: "var(--color-bronze-dark)",
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer"
+                }}
+              >
+                <Star size={13} fill="#F59E0B" color="#F59E0B" />
+                <span>Rate Meal & Dishes</span>
+              </button>
+            )}
+          </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button

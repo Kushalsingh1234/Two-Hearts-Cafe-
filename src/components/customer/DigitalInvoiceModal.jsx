@@ -1,9 +1,13 @@
-import React, { useRef } from "react";
-import { Printer, X, Receipt } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { Download, Printer, X, Receipt, Loader2, Check } from "lucide-react";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 import CafeLogoIcon from "../common/CafeLogoIcon";
 
 export default function DigitalInvoiceModal({ isOpen, onClose, order }) {
   const invoiceRef = useRef(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
 
   if (!isOpen || !order) return null;
 
@@ -22,6 +26,59 @@ export default function DigitalInvoiceModal({ isOpen, onClose, order }) {
   const isOnlinePayment = order.paymentMethod === "upi" || order.paymentStatus === "paid_online";
   const utr = order.paymentDetails?.utr;
 
+  const handleDownloadPdf = async () => {
+    if (isGenerating) return;
+    const invoiceElement = invoiceRef.current;
+    if (!invoiceElement) return;
+
+    setIsGenerating(true);
+    setDownloadSuccess(false);
+
+    try {
+      // High-resolution canvas snapshot of the digital receipt
+      const canvas = await html2canvas(invoiceElement, {
+        scale: 2.5,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        logging: false
+      });
+
+      const imgData = canvas.toDataURL("image/jpeg", 0.98);
+
+      // Create PDF in A4 portrait format (595.28 x 841.89 pt)
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: "a4"
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      // Neat margins
+      const margin = 32;
+      const printWidth = pageWidth - (margin * 2);
+      const printHeight = (canvas.height * printWidth) / canvas.width;
+
+      // Center vertically if it fits, else top margin
+      const yOffset = printHeight < (pageHeight - 60) ? Math.max(24, (pageHeight - printHeight) / 2) : 24;
+
+      pdf.addImage(imgData, "JPEG", margin, yOffset, printWidth, printHeight);
+
+      const fileName = `Two_Hearts_Invoice_${invoiceNumber}.pdf`;
+      pdf.save(fileName);
+
+      setDownloadSuccess(true);
+      setTimeout(() => setDownloadSuccess(false), 4000);
+    } catch (error) {
+      console.error("Failed to generate PDF invoice:", error);
+      alert("Error creating PDF. Please try again or take a screenshot.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -31,7 +88,7 @@ export default function DigitalInvoiceModal({ isOpen, onClose, order }) {
       position: "fixed",
       inset: 0,
       zIndex: 90,
-      backgroundColor: "rgba(28, 25, 23, 0.7)",
+      backgroundColor: "rgba(28, 25, 23, 0.75)",
       backdropFilter: "blur(4px)",
       display: "flex",
       alignItems: "center",
@@ -42,7 +99,7 @@ export default function DigitalInvoiceModal({ isOpen, onClose, order }) {
         width: "100%",
         maxWidth: 480,
         backgroundColor: "#FAF7F2",
-        borderRadius: 8,
+        borderRadius: 10,
         border: "2px solid var(--color-border-frame)",
         boxShadow: "var(--shadow-floating)",
         display: "flex",
@@ -68,14 +125,15 @@ export default function DigitalInvoiceModal({ isOpen, onClose, order }) {
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button
-              onClick={handlePrint}
+              onClick={handleDownloadPdf}
+              disabled={isGenerating}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 5,
-                padding: "6px 14px",
+                gap: 6,
+                padding: "7px 16px",
                 borderRadius: "var(--radius-pill)",
-                backgroundColor: "var(--color-ink)",
+                backgroundColor: downloadSuccess ? "#15803d" : "var(--color-ink)",
                 color: "#FAF7F2",
                 border: "none",
                 fontFamily: "var(--font-serif)",
@@ -83,19 +141,35 @@ export default function DigitalInvoiceModal({ isOpen, onClose, order }) {
                 fontWeight: 700,
                 letterSpacing: 0.5,
                 textTransform: "uppercase",
-                cursor: "pointer"
+                cursor: isGenerating ? "not-allowed" : "pointer",
+                opacity: isGenerating ? 0.7 : 1,
+                transition: "background-color 0.2s ease"
               }}
-              title="Print or Save Invoice as PDF"
+              title="Download Invoice as PDF file"
             >
-              <Printer size={13} />
-              <span>Download PDF</span>
+              {isGenerating ? (
+                <>
+                  <Loader2 size={13} className="spin-animation" />
+                  <span>Generating...</span>
+                </>
+              ) : downloadSuccess ? (
+                <>
+                  <Check size={13} />
+                  <span>Downloaded!</span>
+                </>
+              ) : (
+                <>
+                  <Download size={13} />
+                  <span>Download PDF</span>
+                </>
+              )}
             </button>
 
             <button
               onClick={onClose}
               style={{
-                width: 30,
-                height: 30,
+                width: 32,
+                height: 32,
                 borderRadius: "50%",
                 backgroundColor: "#fff",
                 border: "1px solid var(--color-border-frame)",
@@ -105,14 +179,15 @@ export default function DigitalInvoiceModal({ isOpen, onClose, order }) {
                 color: "var(--color-ink)",
                 cursor: "pointer"
               }}
+              title="Close"
             >
-              <X size={15} />
+              <X size={16} />
             </button>
           </div>
         </div>
 
         {/* Printable Invoice Container */}
-        <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1 }}>
+        <div style={{ padding: "18px 20px", overflowY: "auto", flex: 1 }}>
           <div
             ref={invoiceRef}
             id="printable-digital-invoice"
@@ -280,6 +355,97 @@ export default function DigitalInvoiceModal({ isOpen, onClose, order }) {
                 This is a digitally generated paperless receipt. Save or screenshot for your records.
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Bottom Modal Actions (Hidden during print) */}
+        <div className="no-print" style={{
+          padding: "12px 18px",
+          borderTop: "1.5px solid var(--color-border-frame)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          backgroundColor: "#FAF7F2"
+        }}>
+          <button
+            onClick={onClose}
+            style={{
+              padding: "9px 18px",
+              borderRadius: "var(--radius-pill)",
+              backgroundColor: "transparent",
+              border: "1.5px solid var(--color-border-frame)",
+              color: "var(--color-ink)",
+              fontFamily: "var(--font-serif)",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer"
+            }}
+          >
+            Close
+          </button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              onClick={handlePrint}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "8px 14px",
+                borderRadius: "var(--radius-pill)",
+                backgroundColor: "#fff",
+                color: "var(--color-ink)",
+                border: "1px solid var(--color-border-frame)",
+                fontFamily: "var(--font-serif)",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer"
+              }}
+              title="Print via browser"
+            >
+              <Printer size={13} />
+              <span>Print</span>
+            </button>
+
+            <button
+              onClick={handleDownloadPdf}
+              disabled={isGenerating}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "9px 20px",
+                borderRadius: "var(--radius-pill)",
+                backgroundColor: downloadSuccess ? "#15803d" : "var(--color-ink)",
+                color: "#FAF7F2",
+                border: "none",
+                fontFamily: "var(--font-serif)",
+                fontSize: 13,
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                cursor: isGenerating ? "not-allowed" : "pointer",
+                boxShadow: "var(--shadow-sm)",
+                transition: "background-color 0.2s ease"
+              }}
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 size={14} className="spin-animation" />
+                  <span>Generating PDF...</span>
+                </>
+              ) : downloadSuccess ? (
+                <>
+                  <Check size={14} />
+                  <span>Downloaded PDF!</span>
+                </>
+              ) : (
+                <>
+                  <Download size={14} />
+                  <span>Download PDF</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>

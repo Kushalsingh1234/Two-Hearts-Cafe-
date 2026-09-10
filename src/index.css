@@ -230,8 +230,38 @@ html {
   animation: progressTimer 5.5s linear infinite;
 }
 
-/* Print styles */
+/* Print styles: strictly isolate digital invoice on a single clean page */
 @media print {
+  @page {
+    margin: 10mm;
+    size: portrait;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  #printable-digital-invoice,
+  #printable-digital-invoice * {
+    visibility: visible !important;
+  }
+
+  #printable-digital-invoice {
+    position: fixed !important;
+    left: 50% !important;
+    top: 20px !important;
+    transform: translateX(-50%) !important;
+    width: 100% !important;
+    max-width: 440px !important;
+    margin: 0 auto !important;
+    padding: 16px !important;
+    border: 1.5px solid #8A5738 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
   .no-print {
     display: none !important;
   }

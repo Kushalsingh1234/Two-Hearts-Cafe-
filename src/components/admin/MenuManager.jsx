@@ -11,6 +11,7 @@ import {
 export default function MenuManager({ menuItems }) {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [stockFilter, setStockFilter] = useState("all"); // 'all' | 'in_stock' | 'out_of_stock'
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add"); // 'add' | 'edit'
@@ -29,7 +30,8 @@ export default function MenuManager({ menuItems }) {
     newCategoryName: "",
     price: "",
     description: "",
-    isSpecial: false
+    isSpecial: false,
+    isAvailable: true
   });
 
   // Dynamically extract all categories from menuItems plus standard ones
@@ -87,7 +89,21 @@ export default function MenuManager({ menuItems }) {
     return Array.from(map.values());
   }, [availableCategories, menuItems]);
 
-  // Filtered category groups based on selected category & search query
+  // Stock status counts
+  const stockCounts = useMemo(() => {
+    let inStock = 0;
+    let outOfStock = 0;
+    menuItems.forEach((item) => {
+      if (item.isAvailable === false) {
+        outOfStock++;
+      } else {
+        inStock++;
+      }
+    });
+    return { all: menuItems.length, inStock, outOfStock };
+  }, [menuItems]);
+
+  // Filtered category groups based on selected category, stock status & search query
   const filteredGroups = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
 
@@ -95,16 +111,22 @@ export default function MenuManager({ menuItems }) {
       .filter((group) => selectedCategory === "all" || group.id === selectedCategory)
       .map((group) => {
         const matchingItems = group.items.filter((item) => {
+          // Stock filter
+          if (stockFilter === "in_stock" && item.isAvailable === false) return false;
+          if (stockFilter === "out_of_stock" && item.isAvailable !== false) return false;
+
+          // Search query
           if (!q) return true;
           return item.name.toLowerCase().includes(q) || (item.description || "").toLowerCase().includes(q);
         });
         return { ...group, items: matchingItems };
       })
       .filter((group) => group.items.length > 0);
-  }, [categoryGroups, selectedCategory, searchQuery]);
+  }, [categoryGroups, selectedCategory, stockFilter, searchQuery]);
 
   const handleToggleStock = async (item) => {
-    await toggleItemAvailability(item.id, !item.isAvailable);
+    const nextAvailability = item.isAvailable === false ? true : false;
+    await toggleItemAvailability(item.id, nextAvailability);
   };
 
   const handleDelete = async (itemId) => {
@@ -124,7 +146,8 @@ export default function MenuManager({ menuItems }) {
       newCategoryName: "",
       price: "",
       description: "",
-      isSpecial: false
+      isSpecial: false,
+      isAvailable: true
     });
     setIsModalOpen(true);
   };
@@ -138,7 +161,8 @@ export default function MenuManager({ menuItems }) {
       newCategoryName: "",
       price: item.price ? String(item.price) : "",
       description: item.description || "",
-      isSpecial: Boolean(item.isSpecial)
+      isSpecial: Boolean(item.isSpecial),
+      isAvailable: item.isAvailable !== false
     });
     setIsModalOpen(true);
   };
@@ -173,7 +197,7 @@ export default function MenuManager({ menuItems }) {
       price: Number(formData.price),
       description: formData.description.trim(),
       isSpecial: Boolean(formData.isSpecial),
-      isAvailable: true
+      isAvailable: formData.isAvailable !== false
     };
 
     await saveMenuItem(payload);
@@ -340,6 +364,78 @@ export default function MenuManager({ menuItems }) {
               ✕
             </button>
           )}
+        </div>
+
+        {/* Stock Status Bar */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 8,
+          marginBottom: 12,
+          paddingBottom: 10,
+          borderBottom: "1px dashed var(--color-border-subtle)"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11, fontFamily: "var(--font-serif)", fontWeight: 700, color: "var(--color-bronze)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+              Filter By Stock:
+            </span>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button
+                onClick={() => setStockFilter("all")}
+                style={{
+                  padding: "4px 12px",
+                  borderRadius: "var(--radius-pill)",
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  backgroundColor: stockFilter === "all" ? "var(--color-ink)" : "#FAF7F2",
+                  color: stockFilter === "all" ? "#FAF7F2" : "var(--color-ink)",
+                  border: stockFilter === "all" ? "1px solid var(--color-ink)" : "1px solid var(--color-border-frame)"
+                }}
+              >
+                All Dishes ({stockCounts.all})
+              </button>
+              <button
+                onClick={() => setStockFilter("in_stock")}
+                style={{
+                  padding: "4px 12px",
+                  borderRadius: "var(--radius-pill)",
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  backgroundColor: stockFilter === "in_stock" ? "#15803d" : "#FAF7F2",
+                  color: stockFilter === "in_stock" ? "#ffffff" : "#15803d",
+                  border: "1px solid #86efac"
+                }}
+              >
+                ● In Stock ({stockCounts.inStock})
+              </button>
+              <button
+                onClick={() => setStockFilter("out_of_stock")}
+                style={{
+                  padding: "4px 12px",
+                  borderRadius: "var(--radius-pill)",
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  backgroundColor: stockFilter === "out_of_stock" ? "#dc2626" : "#FAF7F2",
+                  color: stockFilter === "out_of_stock" ? "#ffffff" : "#dc2626",
+                  border: "1px solid #fca5a5"
+                }}
+              >
+                ✕ Out of Stock ({stockCounts.outOfStock})
+              </button>
+            </div>
+          </div>
+
+          <div style={{ fontSize: 11.5, fontStyle: "italic", fontFamily: "var(--font-serif)", color: "var(--color-bronze)" }}>
+            Tap the button on any dish below to instantly mark it In or Out of Stock.
+          </div>
         </div>
 
         {/* Category Filter Pills */}
@@ -692,11 +788,12 @@ export default function MenuManager({ menuItems }) {
                       <div>
                         <button
                           onClick={() => handleToggleStock(item)}
+                          title={item.isAvailable !== false ? "Click to mark Out of Stock" : "Click to mark In Stock"}
                           style={{
                             display: "inline-flex",
                             alignItems: "center",
                             gap: 6,
-                            padding: "4px 10px",
+                            padding: "4px 11px",
                             borderRadius: "var(--radius-pill)",
                             fontFamily: "var(--font-serif)",
                             fontSize: 12,
@@ -704,16 +801,18 @@ export default function MenuManager({ menuItems }) {
                             cursor: "pointer",
                             backgroundColor: item.isAvailable !== false ? "#dcfce7" : "#fee2e2",
                             color: item.isAvailable !== false ? "#15803d" : "#dc2626",
-                            border: item.isAvailable !== false ? "1px solid #86efac" : "1px solid #fca5a5"
+                            border: item.isAvailable !== false ? "1.2px solid #86efac" : "1.2px solid #f87171",
+                            boxShadow: item.isAvailable === false ? "0 0 0 1px #f87171" : "none",
+                            transition: "all 0.15s"
                           }}
                         >
                           <span style={{
-                            width: 6,
-                            height: 6,
+                            width: 7,
+                            height: 7,
                             borderRadius: "50%",
                             backgroundColor: item.isAvailable !== false ? "#15803d" : "#dc2626"
                           }} />
-                          <span>{item.isAvailable !== false ? "In Stock" : "Sold Out"}</span>
+                          <span>{item.isAvailable !== false ? "In Stock" : "Out of Stock"}</span>
                         </button>
                       </div>
 
@@ -954,6 +1053,45 @@ export default function MenuManager({ menuItems }) {
                     resize: "none"
                   }}
                 />
+              </div>
+
+              {/* Stock Status Selector inside modal */}
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "10px 14px",
+                backgroundColor: formData.isAvailable ? "#f0fdf4" : "#fef2f2",
+                border: formData.isAvailable ? "1px solid #bbf7d0" : "1px solid #fecaca",
+                borderRadius: 4
+              }}>
+                <div>
+                  <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, color: formData.isAvailable ? "#166534" : "#991b1b" }}>
+                    Stock Availability
+                  </div>
+                  <div style={{ fontSize: 11.5, fontStyle: "italic", color: formData.isAvailable ? "#15803d" : "#b91c1c" }}>
+                    {formData.isAvailable ? "Item is In Stock and open for customer ordering" : "Item is Out of Stock (Disabled for customers)"}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, isAvailable: !formData.isAvailable })}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: "var(--radius-pill)",
+                    fontFamily: "var(--font-serif)",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    backgroundColor: formData.isAvailable ? "#15803d" : "#dc2626",
+                    color: "#ffffff",
+                    border: "none",
+                    boxShadow: "var(--shadow-sm)"
+                  }}
+                >
+                  {formData.isAvailable ? "● In Stock" : "✕ Out of Stock"}
+                </button>
               </div>
 
               {/* Modal Footer with Save, Cancel, and Remove Dish */}

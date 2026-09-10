@@ -85,6 +85,7 @@ export function OnlineOrderProvider({ children }) {
 
   // Cart operations
   const addToCart = (item) => {
+    if (!item || item.isAvailable === false) return;
     setCart((prev) => {
       const existingIdx = prev.findIndex((i) => i.id === item.id);
       if (existingIdx >= 0) {

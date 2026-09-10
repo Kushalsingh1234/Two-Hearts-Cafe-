@@ -16,8 +16,10 @@ export default function CartDrawer({
   if (!isOpen) return null;
 
   const total = cartItems.reduce((acc, it) => acc + it.price * it.quantity, 0);
+  const hasOutOfStockItem = cartItems.some((it) => it.isAvailable === false);
 
   const handleOrderSubmit = () => {
+    if (hasOutOfStockItem) return;
     onPlaceOrder({
       tableNumber,
       items: cartItems,
@@ -171,8 +173,26 @@ export default function CartDrawer({
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                     <div style={{ flex: 1, paddingRight: 10 }}>
-                      <div style={{ fontFamily: "var(--font-serif)", fontSize: 16, fontWeight: 700, color: "var(--color-ink)" }}>
-                        {item.name}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <span style={{ fontFamily: "var(--font-serif)", fontSize: 16, fontWeight: 700, color: "var(--color-ink)" }}>
+                          {item.name}
+                        </span>
+                        {item.isAvailable === false && (
+                          <span style={{
+                            fontSize: 10,
+                            fontFamily: "var(--font-serif)",
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            letterSpacing: 0.5,
+                            color: "#dc2626",
+                            backgroundColor: "#fee2e2",
+                            border: "1px solid #fca5a5",
+                            padding: "1px 6px",
+                            borderRadius: "var(--radius-pill)"
+                          }}>
+                            Out of Stock
+                          </span>
+                        )}
                       </div>
                       {item.note && (
                         <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 12, color: "var(--color-bronze)", marginTop: 2 }}>
@@ -282,6 +302,22 @@ export default function CartDrawer({
               </div>
             </div>
 
+            {/* Out of stock warning message */}
+            {hasOutOfStockItem && (
+              <div style={{
+                backgroundColor: "#FEF2F2",
+                border: "1.2px solid #FCA5A5",
+                borderRadius: 4,
+                padding: "10px 14px",
+                fontSize: 12.5,
+                fontFamily: "var(--font-serif)",
+                color: "#991B1B",
+                lineHeight: 1.4
+              }}>
+                <strong>⚠️ Out of Stock Alert:</strong> One or more items in your order are currently out of stock. Please remove them using the trash icon above to send your order to the kitchen.
+              </div>
+            )}
+
             {/* Total Amount */}
             <div style={{
               backgroundColor: "#fff",
@@ -322,10 +358,10 @@ export default function CartDrawer({
           }}>
             <button
               onClick={handleOrderSubmit}
-              disabled={isPlacing}
+              disabled={isPlacing || hasOutOfStockItem}
               style={{
                 width: "100%",
-                backgroundColor: isPlacing ? "#999" : "var(--color-ink)",
+                backgroundColor: (isPlacing || hasOutOfStockItem) ? "#999" : "var(--color-ink)",
                 color: "#FAF7F2",
                 padding: "14px 20px",
                 borderRadius: "var(--radius-pill)",
@@ -338,13 +374,15 @@ export default function CartDrawer({
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 10,
-                border: "1.5px solid var(--color-bronze)",
+                border: (isPlacing || hasOutOfStockItem) ? "1.5px solid #888" : "1.5px solid var(--color-bronze)",
                 boxShadow: "var(--shadow-floating)",
-                cursor: isPlacing ? "not-allowed" : "pointer"
+                cursor: (isPlacing || hasOutOfStockItem) ? "not-allowed" : "pointer"
               }}
             >
               {isPlacing ? (
                 <span>Sending to Kitchen...</span>
+              ) : hasOutOfStockItem ? (
+                <span>Remove Out of Stock Items to Order</span>
               ) : (
                 <>
                   <span>Send Order to Kitchen • Rs.{total}</span>

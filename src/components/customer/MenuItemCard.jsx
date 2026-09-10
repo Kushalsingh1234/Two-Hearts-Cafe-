@@ -12,6 +12,7 @@ export default function MenuItemCard({
   const isOutOfStock = item.isAvailable === false;
 
   const handleAdd = () => {
+    if (isOutOfStock) return;
     onAddToCart({
       ...item,
       note: customNote.trim()
@@ -22,12 +23,12 @@ export default function MenuItemCard({
 
   return (
     <div style={{
-      backgroundColor: "#ffffff",
+      backgroundColor: isOutOfStock ? "#fcfaf9" : "#ffffff",
       borderRadius: "var(--radius-sm)",
-      border: "1px solid var(--border-color)",
+      border: isOutOfStock ? "1px dashed #fca5a5" : "1px solid var(--border-color)",
       padding: "12px 14px",
       marginBottom: 10,
-      opacity: isOutOfStock ? 0.5 : 1,
+      opacity: isOutOfStock ? 0.65 : 1,
       boxShadow: "var(--shadow-sm)",
       width: "100%",
       boxSizing: "border-box"
@@ -120,15 +121,22 @@ export default function MenuItemCard({
         <div style={{ flexShrink: 0, marginTop: 2 }}>
           {isOutOfStock ? (
             <span style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
               fontSize: 11,
               fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
+              fontWeight: 700,
+              letterSpacing: 0.5,
+              textTransform: "uppercase",
               color: "#dc2626",
               backgroundColor: "#fee2e2",
-              padding: "3px 8px",
+              border: "1.2px solid #fca5a5",
+              padding: "4px 9px",
               borderRadius: "var(--radius-pill)"
             }}>
-              Sold Out
+              <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#dc2626" }} />
+              Out of Stock
             </span>
           ) : cartQuantity > 0 ? (
             <div style={{

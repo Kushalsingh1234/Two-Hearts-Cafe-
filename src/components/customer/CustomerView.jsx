@@ -96,7 +96,19 @@ export default function CustomerView({
     return cartItems.reduce((acc, it) => acc + it.price * it.quantity, 0);
   }, [cartItems]);
 
+  // Synchronize stock status with latest menu items
+  const enrichedCartItems = useMemo(() => {
+    return cartItems.map((ci) => {
+      const match = menuItems.find((m) => m.id === ci.id);
+      return {
+        ...ci,
+        isAvailable: match ? match.isAvailable !== false : true
+      };
+    });
+  }, [cartItems, menuItems]);
+
   const handleAddToCart = (itemWithNote) => {
+    if (itemWithNote.isAvailable === false) return; // Prevent adding out of stock item
     const existingIdx = cartItems.findIndex((c) => c.id === itemWithNote.id);
     if (existingIdx >= 0) {
       const updated = [...cartItems];
@@ -500,7 +512,7 @@ export default function CustomerView({
       <CartDrawer
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
-        cartItems={cartItems}
+        cartItems={enrichedCartItems}
         tableNumber={tableNumber}
         onUpdateQuantity={handleUpdateQty}
         onRemoveItem={handleRemoveCartItem}

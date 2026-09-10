@@ -129,15 +129,18 @@ export const seedMenuToFirestore = async () => {
  * Toggle menu item availability (In Stock / Out of Stock)
  */
 export const toggleItemAvailability = async (itemId, isAvailable) => {
+  // 1. Immediately update local storage cache & broadcast for instant response
+  const local = getLocalData(LOCAL_STORAGE_MENU_KEY, INITIAL_MENU_ITEMS);
+  const updated = local.map((it) => (it.id === itemId ? { ...it, isAvailable } : it));
+  setLocalData(LOCAL_STORAGE_MENU_KEY, updated);
+  window.dispatchEvent(new CustomEvent("twohearts_menu_updated"));
+
+  // 2. Persist to Firestore with setDoc merge
   try {
     const docRef = doc(db, MENU_COLLECTION, itemId);
-    await updateDoc(docRef, { isAvailable });
+    await setDoc(docRef, { isAvailable, updatedAt: new Date().toISOString() }, { merge: true });
   } catch (err) {
-    console.warn("Firestore update error, updating locally:", err);
-    const local = getLocalData(LOCAL_STORAGE_MENU_KEY, INITIAL_MENU_ITEMS);
-    const updated = local.map((it) => (it.id === itemId ? { ...it, isAvailable } : it));
-    setLocalData(LOCAL_STORAGE_MENU_KEY, updated);
-    window.dispatchEvent(new CustomEvent("twohearts_menu_updated"));
+    console.warn("Firestore toggleItemAvailability error, preserved in local storage:", err);
   }
 };
 

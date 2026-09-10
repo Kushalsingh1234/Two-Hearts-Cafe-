@@ -107,6 +107,7 @@ export default function MenuLandingPage({
 
   // Handle Add Item with bounce trigger
   const handleAddItem = (dish) => {
+    if (dish.isAvailable === false) return;
     addToCart(dish);
     setBouncedItemId(dish.id);
     setTimeout(() => setBouncedItemId(null), 400);
@@ -548,11 +549,12 @@ export default function MenuLandingPage({
                     style={{
                       display: "flex",
                       flexDirection: "column",
-                      backgroundColor: "#FFFFFF",
+                      backgroundColor: item.isAvailable === false ? "#faf8f6" : "#FFFFFF",
                       overflow: "hidden",
                       transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                      border: qty > 0 ? "1.5px solid var(--color-bronze)" : "1px solid var(--border-color)",
-                      boxShadow: qty > 0 ? "0 4px 18px rgba(138, 87, 56, 0.12)" : "var(--shadow-sm)"
+                      border: item.isAvailable === false ? "1px dashed #fca5a5" : qty > 0 ? "1.5px solid var(--color-bronze)" : "1px solid var(--border-color)",
+                      boxShadow: qty > 0 ? "0 4px 18px rgba(138, 87, 56, 0.12)" : "var(--shadow-sm)",
+                      opacity: item.isAvailable === false ? 0.65 : 1
                     }}
                   >
                     {/* Dish Photography */}
@@ -623,6 +625,25 @@ export default function MenuLandingPage({
                           </span>
                         )}
                       </div>
+
+                      {item.isAvailable === false && (
+                        <div style={{
+                          position: "absolute",
+                          top: 10,
+                          right: 10,
+                          backgroundColor: "#dc2626",
+                          color: "#ffffff",
+                          fontSize: 10,
+                          fontFamily: "var(--font-serif)",
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          borderRadius: "var(--radius-pill)",
+                          letterSpacing: 0.5,
+                          textTransform: "uppercase"
+                        }}>
+                          Out of Stock
+                        </div>
+                      )}
                     </div>
 
                     {/* Card Content & Action Area */}
@@ -677,8 +698,27 @@ export default function MenuLandingPage({
                           </span>
                         </div>
 
-                        {/* If 0: Pill "+ ADD" Button, If >= 1: Stepper */}
-                        {qty === 0 ? (
+                        {/* If Out of stock: badge; If 0: Pill "+ ADD" Button, If >= 1: Stepper */}
+                        {item.isAvailable === false ? (
+                          <span style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            padding: "6px 12px",
+                            fontSize: 11,
+                            fontFamily: "var(--font-serif)",
+                            fontWeight: 700,
+                            letterSpacing: 0.5,
+                            textTransform: "uppercase",
+                            color: "#dc2626",
+                            backgroundColor: "#fee2e2",
+                            border: "1.2px solid #fca5a5",
+                            borderRadius: "var(--radius-pill)"
+                          }}>
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#dc2626" }} />
+                            Out of Stock
+                          </span>
+                        ) : qty === 0 ? (
                           <button
                             type="button"
                             onClick={() => handleAddItem(item)}

@@ -22,6 +22,7 @@ import { subscribeMenuItems, subscribeLiveOrders } from "./firebase/services";
 import { subscribeAuth, logoutUser } from "./firebase/auth";
 import { INITIAL_MENU_ITEMS } from "./data/seedMenu";
 import { triggerOrderNotification } from "./utils/notifications";
+import { updatePageSEO } from "./utils/seo";
 
 export default function App() {
   // Parse table parameter ONLY if accessed via physical QR code scan (e.g. ?table=5)
@@ -109,6 +110,15 @@ export default function App() {
     await logoutUser();
     setCurrentUser(null);
   };
+
+  // Dynamic SEO and document title synchronization across all pages and views
+  useEffect(() => {
+    updatePageSEO({
+      pageKey: marketingPage,
+      view: currentView,
+      tableNumber,
+    });
+  }, [currentView, marketingPage, tableNumber]);
 
   // Listen to browser navigation
   useEffect(() => {

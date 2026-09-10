@@ -440,7 +440,28 @@ export default function OrderDetailsModal({
                 </div>
               </div>
 
-              {!isPickup && (
+              {isPickup ? (
+                <a
+                  href="https://maps.google.com/?q=28.7758,77.5026+(Two+Hearts+Cafe+Muradnagar+Pillar+852)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-pill-outline"
+                  style={{
+                    fontSize: 11.5,
+                    padding: "7px 14px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    borderColor: "var(--border-color)",
+                    textDecoration: "none"
+                  }}
+                  title="Open Cafe Location in Google Maps"
+                >
+                  <Navigation size={13} color="var(--color-bronze)" />
+                  <span>Directions to Cafe</span>
+                  <ExternalLink size={11} />
+                </a>
+              ) : (
                 <a
                   href={googleMapsUrl}
                   target="_blank"
@@ -462,6 +483,30 @@ export default function OrderDetailsModal({
                   <ExternalLink size={11} />
                 </a>
               )}
+            </div>
+
+            {/* Embedded Google Map */}
+            <div style={{
+              width: "100%",
+              height: 180,
+              borderRadius: 8,
+              overflow: "hidden",
+              border: "1px solid var(--border-color)",
+              marginTop: 14,
+              backgroundColor: "#f3f4f6"
+            }}>
+              <iframe
+                title={isPickup ? "Two Hearts Cafe Pickup Location" : "Delivery Address Map"}
+                width="100%"
+                height="100%"
+                style={{ border: 0, display: "block" }}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                src={isPickup
+                  ? "https://maps.google.com/maps?width=100%25&height=600&hl=en&q=28.7758,77.5026+(Two%20Hearts%20Cafe%20Pillar%20852)&t=&z=16&ie=UTF8&iwloc=B&output=embed"
+                  : `https://maps.google.com/maps?width=100%25&height=600&hl=en&q=${encodeURIComponent((deliveryAddr || "Muradnagar, Uttar Pradesh") + (order.landmark ? ` Near ${order.landmark}` : ""))}&t=&z=15&ie=UTF8&iwloc=B&output=embed`
+                }
+              />
             </div>
           </div>
 

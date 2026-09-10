@@ -726,37 +726,35 @@ export default function OnlineOrderDetailModal({ order, onClose, onOrderUpdated 
                   </span>
                 </div>
 
-                {/* Google Maps Directions Button - ALWAYS visible for delivery orders */}
-                {isDelivery && (
-                  <a
-                    href={getGoogleMapsDirectionsUrl()}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                      padding: "5px 12px",
-                      borderRadius: "var(--radius-pill)",
-                      backgroundColor: "var(--color-ink)",
-                      color: "#FFFFFF",
-                      fontSize: 11,
-                      fontFamily: "var(--font-serif)",
-                      fontWeight: 700,
-                      textDecoration: "none",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.12)"
-                    }}
-                    title="Open Google Maps Navigation"
-                  >
-                    <Navigation size={11} />
-                    <span>Get Directions</span>
-                    <ExternalLink size={10} />
-                  </a>
-                )}
+                {/* Google Maps Directions / Open Button */}
+                <a
+                  href={isDelivery ? getGoogleMapsDirectionsUrl() : "https://maps.google.com/?q=28.7758,77.5026+(Two+Hearts+Cafe+Pillar+852+Muradnagar)"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    padding: "5px 12px",
+                    borderRadius: "var(--radius-pill)",
+                    backgroundColor: "var(--color-ink)",
+                    color: "#FFFFFF",
+                    fontSize: 11,
+                    fontFamily: "var(--font-serif)",
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.12)"
+                  }}
+                  title={isDelivery ? "Open Google Maps Navigation" : "Open Cafe Location in Google Maps"}
+                >
+                  <Navigation size={11} />
+                  <span>{isDelivery ? "Get Directions" : "Open in Maps"}</span>
+                  <ExternalLink size={10} />
+                </a>
               </div>
 
               {isDelivery ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {/* Full Formatted Address */}
                   {(() => {
                     const resolvedDeliveryAddr = (order.deliveryAddress || order.address || order.fullAddress || "").trim();
@@ -796,18 +794,65 @@ export default function OnlineOrderDetailModal({ order, onClose, onOrderUpdated 
                       <strong>Rider Notes:</strong> "{order.customerNotes}"
                     </div>
                   )}
+
+                  {/* Embedded Google Map for Delivery Destination */}
+                  <div style={{
+                    width: "100%",
+                    height: 180,
+                    borderRadius: 8,
+                    overflow: "hidden",
+                    border: "1px solid var(--border-color)",
+                    backgroundColor: "#f3f4f6",
+                    marginTop: 4
+                  }}>
+                    <iframe
+                      title="Customer Delivery Destination Map"
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0, display: "block" }}
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      src={(() => {
+                        const q = (order.coords?.lat && order.coords?.lng)
+                          ? `${order.coords.lat},${order.coords.lng}`
+                          : encodeURIComponent((order.deliveryAddress || order.address || "Muradnagar, Uttar Pradesh") + (order.landmark ? ` Near ${order.landmark}` : ""));
+                        return `https://maps.google.com/maps?width=100%25&height=600&hl=en&q=${q}&t=&z=15&ie=UTF8&iwloc=B&output=embed`;
+                      })()}
+                    />
+                  </div>
                 </div>
               ) : (
                 <div style={{ fontSize: 12.5, color: "var(--color-ink-soft)", lineHeight: 1.5 }}>
-                  <p style={{ margin: "0 0 6px 0", fontWeight: 600, color: "var(--color-ink)" }}>
+                  <p style={{ margin: "0 0 4px 0", fontWeight: 600, color: "var(--color-ink)" }}>
                     Pick up at Cafe Counter:
                   </p>
-                  <p style={{ margin: 0 }}>Two Hearts Cafe, Pillar #852, Delhi-Meerut Highway, Muradnagar</p>
+                  <p style={{ margin: "0 0 10px 0" }}>Two Hearts Cafe, Pillar #852, Delhi-Meerut Highway, Muradnagar</p>
                   {order.customerNotes && (
-                    <p style={{ marginTop: 8, fontSize: 11.5, color: "var(--color-bronze)" }}>
+                    <p style={{ margin: "0 0 10px 0", fontSize: 11.5, color: "var(--color-bronze)" }}>
                       <strong>Customer Pickup Notes:</strong> "{order.customerNotes}"
                     </p>
                   )}
+
+                  {/* Embedded Google Map for Cafe Counter Pickup */}
+                  <div style={{
+                    width: "100%",
+                    height: 190,
+                    borderRadius: 8,
+                    overflow: "hidden",
+                    border: "1px solid var(--border-color)",
+                    backgroundColor: "#f3f4f6",
+                    marginTop: 6
+                  }}>
+                    <iframe
+                      title="Two Hearts Cafe Pickup Location Map"
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0, display: "block" }}
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      src="https://maps.google.com/maps?width=100%25&height=600&hl=en&q=28.7758,77.5026+(Two%20Hearts%20Cafe%20Pillar%20852)&t=&z=16&ie=UTF8&iwloc=B&output=embed"
+                    />
+                  </div>
                 </div>
               )}
             </div>

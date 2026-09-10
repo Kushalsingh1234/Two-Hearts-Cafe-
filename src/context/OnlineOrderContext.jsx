@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
-import { placeOnlineDeliveryOrder } from "../firebase/services";
+import { placeOnlineDeliveryOrder, INITIAL_DEMO_ORDERS } from "../firebase/services";
 
 const OnlineOrderContext = createContext(null);
 
@@ -43,10 +43,20 @@ export function OnlineOrderProvider({ children }) {
   const [activeOrder, setActiveOrder] = useState(() => {
     try {
       const saved = localStorage.getItem(ACTIVE_ORDER_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : null;
+      if (saved) return JSON.parse(saved);
+
+      const params = new URLSearchParams(window.location.search);
+      const targetId = params.get("orderId");
+      if (targetId) {
+        const cached = localStorage.getItem("twohearts_orders_cache");
+        const list = cached ? JSON.parse(cached) : INITIAL_DEMO_ORDERS;
+        const match = (list || INITIAL_DEMO_ORDERS).find((o) => o.id === targetId || o.orderNumber === targetId);
+        if (match) return match;
+      }
     } catch {
       return null;
     }
+    return null;
   });
 
   // 5. Cart Drawer visibility state
@@ -82,6 +92,42 @@ export function OnlineOrderProvider({ children }) {
       console.warn("Error saving active order to localStorage", e);
     }
   }, [activeOrder]);
+
+  // Listen for real-time admin status & estimated time updates
+  useEffect(() => {
+    const handleOrderUpdate = (e) => {
+      const updated = e?.detail;
+      if (!updated) {
+        try {
+          const fresh = localStorage.getItem(ACTIVE_ORDER_STORAGE_KEY);
+          if (fresh) setActiveOrder(JSON.parse(fresh));
+        } catch {}
+        return;
+      }
+
+      setActiveOrder((prev) => {
+        if (!prev) return prev;
+        if (prev.id === updated.id || prev.orderNumber === updated.orderNumber || prev.orderNumber === updated.id) {
+          const merged = { ...prev, ...updated };
+          try {
+            localStorage.setItem(ACTIVE_ORDER_STORAGE_KEY, JSON.stringify(merged));
+          } catch {}
+          return merged;
+        }
+        return prev;
+      });
+    };
+
+    window.addEventListener("twohearts_order_updated", handleOrderUpdate);
+    window.addEventListener("twohearts_new_order", handleOrderUpdate);
+    window.addEventListener("storage", handleOrderUpdate);
+
+    return () => {
+      window.removeEventListener("twohearts_order_updated", handleOrderUpdate);
+      window.removeEventListener("twohearts_new_order", handleOrderUpdate);
+      window.removeEventListener("storage", handleOrderUpdate);
+    };
+  }, []);
 
   // Cart operations
   const addToCart = (item) => {

@@ -20,6 +20,88 @@ const ORDERS_COLLECTION = "orders";
 const LOCAL_STORAGE_MENU_KEY = "twohearts_menu_cache_v7";
 const LOCAL_STORAGE_ORDERS_KEY = "twohearts_orders_cache";
 
+export const INITIAL_DEMO_ORDERS = [
+  {
+    id: "ord_demo_1",
+    orderNumber: "THD-8942",
+    orderType: "delivery",
+    status: "placed",
+    createdAt: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
+    timestamp: Date.now() - 8 * 60 * 1000,
+    customerName: "Aarav Sharma",
+    customerPhone: "9876543210",
+    customerEmail: "aarav.sharma@example.com",
+    deliveryAddress: "Flat 402, Tower B, Green Glen Layout, Muradnagar",
+    landmark: "Opposite Pillar 842, Next to KIET Gate 2",
+    customerNotes: "Please ring bell twice and leave near doorstep",
+    paymentMethod: "UPI (Google Pay)",
+    paymentStatus: "paid",
+    paymentId: "TXN_UPI_98241029",
+    items: [
+      { id: "demo_1", name: "Penne Rosa Love Pasta", price: 249, quantity: 2, category: "pasta", specialInstructions: "Extra parmesan please" },
+      { id: "demo_2", name: "Kitkat Hazelnut Shake", price: 149, quantity: 1, category: "shakes" }
+    ],
+    subtotal: 647,
+    deliveryFee: 0,
+    tax: 32,
+    total: 679,
+    etaMinutes: 30,
+    estimatedTime: "30 mins"
+  },
+  {
+    id: "ord_demo_2",
+    orderNumber: "THD-8938",
+    orderType: "delivery",
+    status: "out_for_delivery",
+    createdAt: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
+    timestamp: Date.now() - 25 * 60 * 1000,
+    customerName: "Priya Verma",
+    customerPhone: "9811223344",
+    customerEmail: "priya.v@example.com",
+    deliveryAddress: "Room 214, Gargi Girls Hostel, Modinagar Road",
+    landmark: "Near Main Library Lawn",
+    customerNotes: "Call when you reach gate",
+    paymentMethod: "UPI (PhonePe)",
+    paymentStatus: "paid",
+    paymentId: "TXN_UPI_88712399",
+    items: [
+      { id: "demo_3", name: "Cottage Cheese Burger", price: 179, quantity: 2, category: "burgers" },
+      { id: "demo_4", name: "Cold Brew Coffee", price: 129, quantity: 1, category: "coffee" }
+    ],
+    subtotal: 487,
+    deliveryFee: 0,
+    tax: 24,
+    total: 511,
+    etaMinutes: 15,
+    estimatedTime: "15 mins"
+  },
+  {
+    id: "ord_demo_3",
+    orderNumber: "THP-8931",
+    orderType: "pickup",
+    status: "ready_for_pickup",
+    createdAt: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
+    timestamp: Date.now() - 40 * 60 * 1000,
+    customerName: "Rohan Gupta",
+    customerPhone: "9988776655",
+    customerEmail: "rohan.g@example.com",
+    customerNotes: "Will collect in 10 mins",
+    paymentMethod: "Card (Verified)",
+    paymentStatus: "paid",
+    paymentId: "TXN_CARD_441290",
+    items: [
+      { id: "demo_5", name: "Double Cheese Veg Burger", price: 189, quantity: 1, category: "burgers" },
+      { id: "demo_6", name: "Peri Peri French Fries", price: 119, quantity: 1, category: "sides" }
+    ],
+    subtotal: 308,
+    deliveryFee: 0,
+    tax: 15,
+    total: 323,
+    etaMinutes: 10,
+    estimatedTime: "Ready for Pickup"
+  }
+];
+
 // Helper for local storage backup
 const getLocalData = (key, fallback) => {
   try {
@@ -28,6 +110,13 @@ const getLocalData = (key, fallback) => {
   } catch {
     return fallback;
   }
+};
+
+const getInitialOrders = () => {
+  const local = getLocalData(LOCAL_STORAGE_ORDERS_KEY, null);
+  if (Array.isArray(local) && local.length > 0) return local;
+  setLocalData(LOCAL_STORAGE_ORDERS_KEY, INITIAL_DEMO_ORDERS);
+  return INITIAL_DEMO_ORDERS;
 };
 
 const setLocalData = (key, val) => {
@@ -310,7 +399,7 @@ export const subscribeLiveOrders = (onSuccess, onError) => {
       (err) => {
         console.warn("Firestore live orders subscription fallback to local:", err.message);
         firestorePermissionErrorDetected = true;
-        const local = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+        const local = getInitialOrders();
         onSuccess(local);
         if (onError) onError(err);
       }
@@ -318,21 +407,23 @@ export const subscribeLiveOrders = (onSuccess, onError) => {
 
     // Also listen to window local event for instant cross-tab or local test sync
     const handleLocalSync = () => {
-      const local = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+      const local = getInitialOrders();
       onSuccess(local);
     };
     window.addEventListener("storage", handleLocalSync);
     window.addEventListener("twohearts_new_order", handleLocalSync);
+    window.addEventListener("twohearts_order_updated", handleLocalSync);
 
     return () => {
       isUnsubscribed = true;
       unsubscribe();
       window.removeEventListener("storage", handleLocalSync);
       window.removeEventListener("twohearts_new_order", handleLocalSync);
+      window.removeEventListener("twohearts_order_updated", handleLocalSync);
     };
   } catch (err) {
     console.warn("Live orders setup error:", err);
-    const local = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+    const local = getInitialOrders();
     onSuccess(local);
     return () => {};
   }
@@ -355,6 +446,68 @@ export const updateOrderStatus = async (orderId, newStatus) => {
     setLocalData(LOCAL_STORAGE_ORDERS_KEY, updated);
     window.dispatchEvent(new CustomEvent("twohearts_new_order"));
   }
+};
+
+/**
+ * Update online delivery / pickup order details (status, estimated ready time, etaMinutes, notes)
+ */
+export const updateOnlineOrder = async (orderId, updates = {}) => {
+  const updatedAt = new Date().toISOString();
+  const payload = {
+    ...updates,
+    updatedAt
+  };
+
+  let updatedOrder = null;
+
+  try {
+    const docRef = doc(db, ORDERS_COLLECTION, orderId);
+    await updateDoc(docRef, payload);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      updatedOrder = { id: snap.id, ...snap.data() };
+    }
+  } catch (err) {
+    console.warn("Firestore updateOnlineOrder fallback to local storage:", err);
+  }
+
+  // Always update local storage
+  const orders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+  let found = false;
+  const updatedOrders = orders.map((ord) => {
+    if (ord.id === orderId || ord.orderNumber === orderId) {
+      found = true;
+      const merged = { ...ord, ...payload };
+      updatedOrder = merged;
+      return merged;
+    }
+    return ord;
+  });
+
+  if (found) {
+    setLocalData(LOCAL_STORAGE_ORDERS_KEY, updatedOrders);
+  }
+
+  // Sync to customer active order in localStorage if matching
+  try {
+    const activeRaw = localStorage.getItem("twohearts_active_online_order_v1");
+    if (activeRaw) {
+      const active = JSON.parse(activeRaw);
+      if (active && (active.id === orderId || active.orderNumber === orderId)) {
+        const mergedActive = { ...active, ...payload };
+        localStorage.setItem("twohearts_active_online_order_v1", JSON.stringify(mergedActive));
+      }
+    }
+  } catch (e) {
+    console.warn("Error syncing active customer order", e);
+  }
+
+  const finalDetail = updatedOrder || { id: orderId, ...payload };
+  // Dispatch events for real-time reactive sync across tabs / components
+  window.dispatchEvent(new CustomEvent("twohearts_order_updated", { detail: finalDetail }));
+  window.dispatchEvent(new CustomEvent("twohearts_new_order", { detail: finalDetail }));
+
+  return finalDetail;
 };
 
 /**

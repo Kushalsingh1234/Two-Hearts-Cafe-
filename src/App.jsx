@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Navbar from "./components/common/Navbar";
 import SiteNavbar from "./components/common/SiteNavbar";
 import SiteFooter from "./components/common/SiteFooter";
@@ -21,6 +21,7 @@ import UserProfilePage from "./components/profile/UserProfilePage";
 import { subscribeMenuItems, subscribeLiveOrders } from "./firebase/services";
 import { subscribeAuth, logoutUser } from "./firebase/auth";
 import { INITIAL_MENU_ITEMS } from "./data/seedMenu";
+import { triggerOrderNotification } from "./utils/notifications";
 
 export default function App() {
   // Parse table parameter ONLY if accessed via physical QR code scan (e.g. ?table=5)
@@ -160,6 +161,32 @@ export default function App() {
       if (unsubscribeOrders) unsubscribeOrders();
     };
   }, []);
+
+  const knownStaffOrderIdsRef = useRef(new Set());
+  const isInitialStaffLoadRef = useRef(true);
+
+  // Global order notification & ting chime for staff when logged in
+  useEffect(() => {
+    if (!currentUser) {
+      isInitialStaffLoadRef.current = true;
+      return;
+    }
+
+    if (isInitialStaffLoadRef.current) {
+      orders.forEach((o) => knownStaffOrderIdsRef.current.add(o.id));
+      isInitialStaffLoadRef.current = false;
+      return;
+    }
+
+    orders.forEach((order) => {
+      if (!knownStaffOrderIdsRef.current.has(order.id)) {
+        knownStaffOrderIdsRef.current.add(order.id);
+        if (order.status === "placed") {
+          triggerOrderNotification(order);
+        }
+      }
+    });
+  }, [orders, currentUser]);
 
   // Compute active orders for current table (QR ordering only)
   const tableActiveOrders = orders.filter(

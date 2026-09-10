@@ -10,7 +10,11 @@ import {
   LogOut,
   KeyRound,
   Star,
-  ShieldCheck
+  ShieldCheck,
+  Smartphone,
+  Sun,
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
 import OrderCard from "./OrderCard";
 import MenuManager from "./MenuManager";
@@ -20,6 +24,13 @@ import ChangePinModal from "./ChangePinModal";
 import FirestoreRulesModal from "./FirestoreRulesModal";
 import { updateOrderStatus, clearAllOrders, subscribeReviews } from "../../firebase/services";
 import { soundNotifier } from "../../utils/audio";
+import {
+  triggerOrderNotification,
+  requestNotificationPermission,
+  getNotificationPermission,
+  subscribeInstallPrompt,
+  promptPwaInstall
+} from "../../utils/notifications";
 
 export default function AdminDashboard({ orders, menuItems, currentUser, onLogout }) {
   const [activeTab, setActiveTab] = useState("orders"); // 'orders' | 'menu' | 'qr' | 'reviews'
@@ -71,17 +82,37 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
     return list;
   }, [reviews, orders]);
 
-  const prevOrdersCountRef = useRef(orders.length);
+  const [notifPermission, setNotifPermission] = useState(getNotificationPermission());
+  const [canInstallPwa, setCanInstallPwa] = useState(false);
+  const [isScreenAwake, setIsScreenAwake] = useState(false);
 
-  // Play audio chime when a new order arrives
+  // Subscribe to PWA install prompt availability
   useEffect(() => {
-    if (orders.length > prevOrdersCountRef.current) {
-      const latestOrder = orders[0];
-      if (latestOrder && latestOrder.status === "placed") {
-        soundNotifier.playChime();
-      }
+    const unsub = subscribeInstallPrompt((available) => {
+      setCanInstallPwa(available);
+    });
+    return () => unsub();
+  }, []);
+
+  // Track known order IDs so we only alert for genuinely new incoming orders
+  const knownOrderIdsRef = useRef(new Set());
+  const isInitialLoadRef = useRef(true);
+
+  useEffect(() => {
+    if (isInitialLoadRef.current) {
+      orders.forEach((o) => knownOrderIdsRef.current.add(o.id));
+      isInitialLoadRef.current = false;
+      return;
     }
-    prevOrdersCountRef.current = orders.length;
+
+    orders.forEach((order) => {
+      if (!knownOrderIdsRef.current.has(order.id)) {
+        knownOrderIdsRef.current.add(order.id);
+        if (order.status === "placed") {
+          triggerOrderNotification(order);
+        }
+      }
+    });
   }, [orders]);
 
   const handleToggleMute = () => {
@@ -90,7 +121,34 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
   };
 
   const handleTestChime = () => {
-    soundNotifier.playChime();
+    triggerOrderNotification({
+      id: "test_" + Date.now(),
+      tableNumber: "5",
+      total: 380,
+      items: [
+        { name: "Penne Arabiata", quantity: 1 },
+        { name: "KitKat Shake", quantity: 1 }
+      ]
+    });
+  };
+
+  const handleRequestPermission = async () => {
+    const res = await requestNotificationPermission();
+    setNotifPermission(res);
+  };
+
+  const handleToggleWakeLock = async () => {
+    if (isScreenAwake) {
+      soundNotifier.releaseWakeLock();
+      setIsScreenAwake(false);
+    } else {
+      const success = await soundNotifier.requestWakeLock();
+      setIsScreenAwake(success);
+    }
+  };
+
+  const handleInstallApp = async () => {
+    await promptPwaInstall();
   };
 
   // Stats calculation
@@ -255,6 +313,158 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
             >
               <LogOut size={13} />
               <span>Sign Out</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* PWA & Background Ting Sound Status Banner */}
+      <div style={{
+        backgroundColor: "#FFFFFF",
+        borderRadius: 6,
+        border: "1.2px solid var(--color-border-frame)",
+        padding: "12px 16px",
+        marginBottom: 20,
+        boxShadow: "var(--shadow-sm)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
+        gap: 12
+      }}>
+        {/* Left: Status Indicator */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          {notifPermission === "granted" ? (
+            <div style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              backgroundColor: "#f0fdf4",
+              border: "1.2px solid #86efac",
+              color: "#15803d",
+              padding: "5px 12px",
+              borderRadius: "var(--radius-pill)",
+              fontFamily: "var(--font-serif)",
+              fontSize: 12.5,
+              fontWeight: 700
+            }}>
+              <span style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: "#16a34a",
+                boxShadow: "0 0 6px rgba(22, 163, 74, 0.7)"
+              }} />
+              <span>Background Ting Sound & System Notifications Active</span>
+            </div>
+          ) : (
+            <button
+              onClick={handleRequestPermission}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 7,
+                backgroundColor: "#fef3c7",
+                border: "1.5px solid #f59e0b",
+                color: "#92400e",
+                padding: "6px 14px",
+                borderRadius: "var(--radius-pill)",
+                fontFamily: "var(--font-serif)",
+                fontSize: 12.5,
+                fontWeight: 800,
+                cursor: "pointer",
+                boxShadow: "0 2px 8px rgba(245, 158, 11, 0.2)"
+              }}
+              title="Click to allow background sound and system alerts"
+            >
+              <Bell size={14} />
+              <span>Tap to Enable Background Ting Sound & Notifications</span>
+            </button>
+          )}
+
+          <span style={{
+            fontSize: 12,
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            color: "var(--color-bronze)"
+          }}>
+            {notifPermission === "granted" 
+              ? "Ting chime sounds and native banner pops up even when app is minimized or phone is locked."
+              : "Allow permission so you never miss an incoming order!"}
+          </span>
+        </div>
+
+        {/* Right: Quick Controls (Test Chime, Screen Wake, Install PWA) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {/* Test Chime Button */}
+          <button
+            onClick={handleTestChime}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "5px 12px",
+              borderRadius: "var(--radius-pill)",
+              backgroundColor: "#FAF7F2",
+              border: "1px solid var(--color-border-frame)",
+              fontFamily: "var(--font-serif)",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "var(--color-ink)",
+              cursor: "pointer"
+            }}
+            title="Simulate a new order chime and notification"
+          >
+            <Bell size={13} />
+            <span>Test "Ting!" Chime</span>
+          </button>
+
+          {/* Screen Wake Lock for Counter Tablet */}
+          <button
+            onClick={handleToggleWakeLock}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "5px 12px",
+              borderRadius: "var(--radius-pill)",
+              backgroundColor: isScreenAwake ? "#eff6ff" : "#FAF7F2",
+              border: isScreenAwake ? "1px solid #93c5fd" : "1px solid var(--color-border-frame)",
+              fontFamily: "var(--font-serif)",
+              fontSize: 12,
+              fontWeight: 700,
+              color: isScreenAwake ? "#1d4ed8" : "var(--color-ink)",
+              cursor: "pointer"
+            }}
+            title="Keep screen awake while tablet is stationed at counter"
+          >
+            <Sun size={13} />
+            <span>{isScreenAwake ? "Screen Awake: ON" : "Keep Screen Awake"}</span>
+          </button>
+
+          {/* PWA Install Button */}
+          {canInstallPwa && (
+            <button
+              onClick={handleInstallApp}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "5px 14px",
+                borderRadius: "var(--radius-pill)",
+                backgroundColor: "var(--color-ink)",
+                color: "#FAF7F2",
+                border: "none",
+                fontFamily: "var(--font-serif)",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                boxShadow: "var(--shadow-sm)"
+              }}
+              title="Install Two Hearts Cafe as an app on your device"
+            >
+              <Smartphone size={13} />
+              <span>Install App</span>
             </button>
           )}
         </div>

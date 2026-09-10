@@ -23,11 +23,10 @@ import {
   Table as TableIcon,
   AlertCircle,
   TrendingUp,
-  CreditCard,
-  Plus
+  CreditCard
 } from "lucide-react";
 import OnlineOrderDetailModal from "./OnlineOrderDetailModal";
-import { INITIAL_DEMO_ORDERS, updateOnlineOrder, placeOnlineDeliveryOrder } from "../../firebase/services";
+import { updateOnlineOrder } from "../../firebase/services";
 
 // Helper: Format relative time
 function formatTimeAgo(dateString) {
@@ -59,11 +58,7 @@ export default function OnlineOrdersManager({ orders = [], onRefresh }) {
       const params = new URLSearchParams(window.location.search);
       const targetId = params.get("orderId") || params.get("openOrder");
       if (targetId) {
-        return (
-          (orders || []).find((o) => o.id === targetId || o.orderNumber === targetId) ||
-          INITIAL_DEMO_ORDERS.find((o) => o.id === targetId || o.orderNumber === targetId) ||
-          null
-        );
+        return (orders || []).find((o) => o.id === targetId || o.orderNumber === targetId) || null;
       }
     } catch {}
     return null;
@@ -86,7 +81,7 @@ export default function OnlineOrdersManager({ orders = [], onRefresh }) {
 
   // Filter only online orders (Website Delivery & Pickup, not dine-in QR table orders)
   const onlineOrders = useMemo(() => {
-    const list = (orders || []).filter((ord) => {
+    return (orders || []).filter((ord) => {
       if (!ord) return false;
       const isOnlineType = ord.orderType === "delivery" || ord.orderType === "pickup";
       const isOnlineTable = ord.tableNumber === "Delivery" || ord.tableNumber === "Takeaway";
@@ -95,12 +90,6 @@ export default function OnlineOrdersManager({ orders = [], onRefresh }) {
         (ord.orderNumber.startsWith("THD-") || ord.orderNumber.startsWith("THP-"));
       return isOnlineType || isOnlineTable || isOnlinePrefix;
     });
-
-    // If no online orders exist yet in Firestore, populate with demo orders so the section is immediately usable
-    if (list.length === 0) {
-      return INITIAL_DEMO_ORDERS;
-    }
-    return list;
   }, [orders]);
 
   // Apply search, filters & sort
@@ -208,34 +197,6 @@ export default function OnlineOrdersManager({ orders = [], onRefresh }) {
       console.error("Failed to advance status:", err);
     } finally {
       setActionLoadingId(null);
-    }
-  };
-
-  // Create demo order if admin wants to test
-  const handleCreateDemoOrder = async () => {
-    try {
-      await placeOnlineDeliveryOrder({
-        orderType: "delivery",
-        items: [
-          { id: "demo_pasta_1", name: "Penne Rosa Love Pasta", price: 249, quantity: 2, category: "pasta" },
-          { id: "demo_shake_1", name: "Kitkat Hazelnut Shake", price: 149, quantity: 1, category: "shakes" }
-        ],
-        subtotal: 647,
-        deliveryFee: 0,
-        tax: 32,
-        total: 679,
-        customerName: "Aarav Sharma",
-        customerPhone: "9812345678",
-        deliveryAddress: "Room 304, Ganga Boys Hostel, KIET Campus, Muradnagar",
-        landmark: "Near College Gate No. 2, Opp. Pillar 852",
-        customerNotes: "Please call when near hostel gate",
-        paymentMethod: "Instant UPI (Google Pay)",
-        paymentId: `TXN_${Date.now().toString().slice(-8)}`,
-        etaMinutes: 30
-      });
-      handleManualRefresh();
-    } catch (err) {
-      console.error("Demo order creation failed:", err);
     }
   };
 
@@ -670,15 +631,15 @@ export default function OnlineOrdersManager({ orders = [], onRefresh }) {
             <h3 style={{ fontFamily: "var(--font-serif)", fontSize: 18, fontWeight: 700, margin: "0 0 6px 0", color: "var(--color-ink)" }}>
               No Online Orders Found
             </h3>
-            <p style={{ fontSize: 12.5, color: "var(--color-ink-soft)", margin: 0, maxWidth: 400 }}>
-              {searchQuery || statusFilter !== "all" || typeFilter !== "all"
+            <p style={{ fontSize: 13, color: "var(--color-bronze)", fontStyle: "italic", margin: 0, maxWidth: 420 }}>
+              {searchQuery || statusFilter !== "all" || typeFilter !== "all" || dateFilter !== "all"
                 ? "No online orders match your active search or filter filters. Try clearing filters."
-                : "No delivery or takeaway orders have been placed through the website yet."}
+                : "New incoming online delivery and takeaway orders placed on the website will appear here in real time."}
             </p>
           </div>
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", marginTop: 6 }}>
-            {searchQuery || statusFilter !== "all" || typeFilter !== "all" ? (
+          {(searchQuery || statusFilter !== "all" || typeFilter !== "all" || dateFilter !== "all") && (
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center", marginTop: 6 }}>
               <button
                 type="button"
                 onClick={() => {
@@ -692,18 +653,8 @@ export default function OnlineOrdersManager({ orders = [], onRefresh }) {
               >
                 Clear All Filters
               </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleCreateDemoOrder}
-                className="btn-pill-black"
-                style={{ padding: "8px 18px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}
-              >
-                <Plus size={14} />
-                <span>Create Test Delivery Order</span>
-              </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       ) : viewMode === "cards" ? (
         /* CARD GRID VIEW */

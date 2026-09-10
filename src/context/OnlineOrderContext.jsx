@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
-import { placeOnlineDeliveryOrder, INITIAL_DEMO_ORDERS } from "../firebase/services";
+import { placeOnlineDeliveryOrder } from "../firebase/services";
 
 const OnlineOrderContext = createContext(null);
 
@@ -49,8 +49,8 @@ export function OnlineOrderProvider({ children }) {
       const targetId = params.get("orderId");
       if (targetId) {
         const cached = localStorage.getItem("twohearts_orders_cache");
-        const list = cached ? JSON.parse(cached) : INITIAL_DEMO_ORDERS;
-        const match = (list || INITIAL_DEMO_ORDERS).find((o) => o.id === targetId || o.orderNumber === targetId);
+        const list = cached ? JSON.parse(cached) : [];
+        const match = (list || []).find((o) => o.id === targetId || o.orderNumber === targetId);
         if (match) return match;
       }
     } catch {

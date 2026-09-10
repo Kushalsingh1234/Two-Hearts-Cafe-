@@ -20,88 +20,6 @@ const ORDERS_COLLECTION = "orders";
 const LOCAL_STORAGE_MENU_KEY = "twohearts_menu_cache_v7";
 const LOCAL_STORAGE_ORDERS_KEY = "twohearts_orders_cache";
 
-export const INITIAL_DEMO_ORDERS = [
-  {
-    id: "ord_demo_1",
-    orderNumber: "THD-8942",
-    orderType: "delivery",
-    status: "placed",
-    createdAt: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
-    timestamp: Date.now() - 8 * 60 * 1000,
-    customerName: "Aarav Sharma",
-    customerPhone: "9876543210",
-    customerEmail: "aarav.sharma@example.com",
-    deliveryAddress: "Flat 402, Tower B, Green Glen Layout, Muradnagar",
-    landmark: "Opposite Pillar 842, Next to KIET Gate 2",
-    customerNotes: "Please ring bell twice and leave near doorstep",
-    paymentMethod: "UPI (Google Pay)",
-    paymentStatus: "paid",
-    paymentId: "TXN_UPI_98241029",
-    items: [
-      { id: "demo_1", name: "Penne Rosa Love Pasta", price: 249, quantity: 2, category: "pasta", specialInstructions: "Extra parmesan please" },
-      { id: "demo_2", name: "Kitkat Hazelnut Shake", price: 149, quantity: 1, category: "shakes" }
-    ],
-    subtotal: 647,
-    deliveryFee: 0,
-    tax: 32,
-    total: 679,
-    etaMinutes: 30,
-    estimatedTime: "30 mins"
-  },
-  {
-    id: "ord_demo_2",
-    orderNumber: "THD-8938",
-    orderType: "delivery",
-    status: "out_for_delivery",
-    createdAt: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
-    timestamp: Date.now() - 25 * 60 * 1000,
-    customerName: "Priya Verma",
-    customerPhone: "9811223344",
-    customerEmail: "priya.v@example.com",
-    deliveryAddress: "Room 214, Gargi Girls Hostel, Modinagar Road",
-    landmark: "Near Main Library Lawn",
-    customerNotes: "Call when you reach gate",
-    paymentMethod: "UPI (PhonePe)",
-    paymentStatus: "paid",
-    paymentId: "TXN_UPI_88712399",
-    items: [
-      { id: "demo_3", name: "Cottage Cheese Burger", price: 179, quantity: 2, category: "burgers" },
-      { id: "demo_4", name: "Cold Brew Coffee", price: 129, quantity: 1, category: "coffee" }
-    ],
-    subtotal: 487,
-    deliveryFee: 0,
-    tax: 24,
-    total: 511,
-    etaMinutes: 15,
-    estimatedTime: "15 mins"
-  },
-  {
-    id: "ord_demo_3",
-    orderNumber: "THP-8931",
-    orderType: "pickup",
-    status: "ready_for_pickup",
-    createdAt: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
-    timestamp: Date.now() - 40 * 60 * 1000,
-    customerName: "Rohan Gupta",
-    customerPhone: "9988776655",
-    customerEmail: "rohan.g@example.com",
-    customerNotes: "Will collect in 10 mins",
-    paymentMethod: "Card (Verified)",
-    paymentStatus: "paid",
-    paymentId: "TXN_CARD_441290",
-    items: [
-      { id: "demo_5", name: "Double Cheese Veg Burger", price: 189, quantity: 1, category: "burgers" },
-      { id: "demo_6", name: "Peri Peri French Fries", price: 119, quantity: 1, category: "sides" }
-    ],
-    subtotal: 308,
-    deliveryFee: 0,
-    tax: 15,
-    total: 323,
-    etaMinutes: 10,
-    estimatedTime: "Ready for Pickup"
-  }
-];
-
 // Helper for local storage backup
 const getLocalData = (key, fallback) => {
   try {
@@ -112,13 +30,6 @@ const getLocalData = (key, fallback) => {
   }
 };
 
-const getInitialOrders = () => {
-  const local = getLocalData(LOCAL_STORAGE_ORDERS_KEY, null);
-  if (Array.isArray(local) && local.length > 0) return local;
-  setLocalData(LOCAL_STORAGE_ORDERS_KEY, INITIAL_DEMO_ORDERS);
-  return INITIAL_DEMO_ORDERS;
-};
-
 const setLocalData = (key, val) => {
   try {
     localStorage.setItem(key, JSON.stringify(val));
@@ -126,6 +37,33 @@ const setLocalData = (key, val) => {
     console.warn("LocalStorage save error", err);
   }
 };
+
+// Purge any legacy demo/testing orders from local caches
+try {
+  const cachedOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+  if (Array.isArray(cachedOrders) && cachedOrders.length > 0) {
+    const cleaned = cachedOrders.filter(
+      (o) =>
+        !o?.id?.startsWith("ord_demo_") &&
+        o?.orderNumber !== "THD-8942" &&
+        o?.orderNumber !== "THD-8938" &&
+        o?.orderNumber !== "THP-8931"
+    );
+    if (cleaned.length !== cachedOrders.length) {
+      setLocalData(LOCAL_STORAGE_ORDERS_KEY, cleaned);
+    }
+  }
+  const active = localStorage.getItem("twohearts_active_online_order_v1");
+  if (
+    active &&
+    (active.includes("ord_demo_") ||
+      active.includes("THD-8942") ||
+      active.includes("THD-8938") ||
+      active.includes("THP-8931"))
+  ) {
+    localStorage.removeItem("twohearts_active_online_order_v1");
+  }
+} catch {}
 
 let firestorePermissionErrorDetected = false;
 
@@ -399,7 +337,7 @@ export const subscribeLiveOrders = (onSuccess, onError) => {
       (err) => {
         console.warn("Firestore live orders subscription fallback to local:", err.message);
         firestorePermissionErrorDetected = true;
-        const local = getInitialOrders();
+        const local = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
         onSuccess(local);
         if (onError) onError(err);
       }
@@ -407,7 +345,7 @@ export const subscribeLiveOrders = (onSuccess, onError) => {
 
     // Also listen to window local event for instant cross-tab or local test sync
     const handleLocalSync = () => {
-      const local = getInitialOrders();
+      const local = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
       onSuccess(local);
     };
     window.addEventListener("storage", handleLocalSync);
@@ -423,7 +361,7 @@ export const subscribeLiveOrders = (onSuccess, onError) => {
     };
   } catch (err) {
     console.warn("Live orders setup error:", err);
-    const local = getInitialOrders();
+    const local = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
     onSuccess(local);
     return () => {};
   }

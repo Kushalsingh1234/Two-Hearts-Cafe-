@@ -169,30 +169,41 @@ export default function OnlineOrdersManager({ orders = [], onRefresh }) {
     setTimeout(() => setIsRefreshing(false), 600);
   };
 
+  // Next Step info (status key and human-friendly step action name)
+  const getNextStatusInfo = (ord) => {
+    if (!ord) return null;
+    const isDelivery = ord.orderType === "delivery";
+    const st = String(ord.status || "").toLowerCase();
+
+    if (st === "placed") {
+      return { key: "confirmed", label: "Confirm Order" };
+    }
+    if (st === "confirmed") {
+      return { key: "preparing", label: "Send to Kitchen" };
+    }
+    if (st === "preparing") {
+      return isDelivery
+        ? { key: "out_for_delivery", label: "Out for Delivery" }
+        : { key: "ready_for_pickup", label: "Ready for Pickup" };
+    }
+    if (st === "out_for_delivery") {
+      return { key: "delivered", label: "Mark Delivered" };
+    }
+    if (st === "ready_for_pickup") {
+      return { key: "completed", label: "Mark Collected" };
+    }
+    return null;
+  };
+
   // Quick Advance Status from Card
   const handleQuickAdvanceStatus = async (ord, e) => {
     e.stopPropagation();
-    const isDelivery = ord.orderType === "delivery";
-    const nextStatusMap = isDelivery
-      ? {
-          placed: "confirmed",
-          confirmed: "preparing",
-          preparing: "out_for_delivery",
-          out_for_delivery: "delivered"
-        }
-      : {
-          placed: "confirmed",
-          confirmed: "preparing",
-          preparing: "ready_for_pickup",
-          ready_for_pickup: "completed"
-        };
-
-    const next = nextStatusMap[ord.status];
-    if (!next) return;
+    const nextInfo = getNextStatusInfo(ord);
+    if (!nextInfo?.key) return;
 
     setActionLoadingId(ord.id);
     try {
-      await updateOnlineOrder(ord.id, { status: next });
+      await updateOnlineOrder(ord.id, { status: nextInfo.key });
     } catch (err) {
       console.error("Failed to advance status:", err);
     } finally {
@@ -872,58 +883,39 @@ export default function OnlineOrdersManager({ orders = [], onRefresh }) {
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    {/* Quick Google Maps directions button */}
-                    {mapsDirectionsUrl && (
-                      <a
-                        href={mapsDirectionsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          padding: "6px 10px",
-                          borderRadius: "var(--radius-pill)",
-                          backgroundColor: "#FFFFFF",
-                          border: "1px solid var(--border-color)",
-                          color: "var(--color-ink)",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          textDecoration: "none",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 4
-                        }}
-                        title="Get Google Maps Directions"
-                      >
-                        <Navigation size={11} style={{ color: "var(--color-bronze)" }} />
-                        <span>Map</span>
-                      </a>
-                    )}
+                    {/* Advance Status Quick Button with exact next step name */}
+                    {(() => {
+                      const nextInfo = getNextStatusInfo(ord);
+                      if (!nextInfo) return null;
 
-                    {/* Advance Status Quick Button */}
-                    {ord.status !== "delivered" && ord.status !== "completed" && ord.status !== "cancelled" && (
-                      <button
-                        type="button"
-                        disabled={actionLoadingId === ord.id}
-                        onClick={(e) => handleQuickAdvanceStatus(ord, e)}
-                        style={{
-                          padding: "6px 10px",
-                          borderRadius: "var(--radius-pill)",
-                          backgroundColor: "var(--color-ink)",
-                          color: "#FFFFFF",
-                          border: "none",
-                          fontSize: 11,
-                          fontFamily: "var(--font-serif)",
-                          fontWeight: 700,
-                          cursor: "pointer",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 4
-                        }}
-                      >
-                        <span>Next</span>
-                        <ChevronRight size={12} />
-                      </button>
-                    )}
+                      return (
+                        <button
+                          type="button"
+                          disabled={actionLoadingId === ord.id}
+                          onClick={(e) => handleQuickAdvanceStatus(ord, e)}
+                          style={{
+                            padding: "6px 14px",
+                            borderRadius: "var(--radius-pill)",
+                            backgroundColor: "var(--color-ink)",
+                            color: "#FFFFFF",
+                            border: "none",
+                            fontSize: 11.5,
+                            fontFamily: "var(--font-serif)",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 5,
+                            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+                            transition: "all 0.15s ease"
+                          }}
+                          title={`Advance order to ${nextInfo.label}`}
+                        >
+                          <span>{nextInfo.label}</span>
+                          <ChevronRight size={12} />
+                        </button>
+                      );
+                    })()}
 
                     {/* View Details Icon */}
                     <button
@@ -1060,37 +1052,47 @@ export default function OnlineOrdersManager({ orders = [], onRefresh }) {
                         <div style={{ fontSize: 10, color: "#16A34A", fontWeight: 700 }}>PAID</div>
                       </td>
                       <td style={{ padding: "12px 14px", textAlign: "center" }}>
-                        <div style={{ display: "inline-flex", gap: 6 }}>
-                          {mapsDirectionsUrl && (
-                            <a
-                              href={mapsDirectionsUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              style={{
-                                padding: "4px 8px",
-                                borderRadius: 6,
-                                backgroundColor: "#FAF6F0",
-                                border: "1px solid var(--border-color)",
-                                color: "var(--color-ink)",
-                                fontSize: 11,
-                                textDecoration: "none"
-                              }}
-                              title="Directions"
-                            >
-                              <Navigation size={12} color="var(--color-bronze)" />
-                            </a>
-                          )}
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          {(() => {
+                            const nextInfo = getNextStatusInfo(ord);
+                            if (!nextInfo) return null;
+                            return (
+                              <button
+                                type="button"
+                                disabled={actionLoadingId === ord.id}
+                                onClick={(e) => handleQuickAdvanceStatus(ord, e)}
+                                style={{
+                                  padding: "5px 10px",
+                                  borderRadius: "var(--radius-pill)",
+                                  backgroundColor: "var(--color-ink)",
+                                  color: "#FFFFFF",
+                                  border: "none",
+                                  fontSize: 11,
+                                  fontFamily: "var(--font-serif)",
+                                  fontWeight: 700,
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 4
+                                }}
+                                title={`Advance to ${nextInfo.label}`}
+                              >
+                                <span>{nextInfo.label}</span>
+                                <ChevronRight size={11} />
+                              </button>
+                            );
+                          })()}
                           <button
                             type="button"
                             onClick={() => setSelectedOrder(ord)}
                             style={{
-                              padding: "4px 8px",
+                              padding: "5px 10px",
                               borderRadius: 6,
-                              backgroundColor: "var(--color-ink)",
-                              color: "#FFFFFF",
-                              border: "none",
+                              backgroundColor: "#FAF6F0",
+                              border: "1px solid var(--border-color)",
+                              color: "var(--color-ink)",
                               fontSize: 11,
+                              fontWeight: 600,
                               cursor: "pointer"
                             }}
                           >

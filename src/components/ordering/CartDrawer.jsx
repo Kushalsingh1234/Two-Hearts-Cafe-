@@ -8,7 +8,8 @@ import {
   ShoppingBag,
   Sparkles,
   Bike,
-  Store
+  Store,
+  AlertCircle
 } from "lucide-react";
 import { useOnlineOrder } from "../../context/OnlineOrderContext";
 import { useCustomerAuth } from "../../context/CustomerAuthContext";
@@ -27,13 +28,16 @@ export default function CartDrawer({ isOpen, onClose, onNavigate }) {
     total,
     deliveryType,
     setDeliveryType,
-    FREE_DELIVERY_THRESHOLD
+    FREE_DELIVERY_THRESHOLD,
+    DELIVERY_CONFIG
   } = useOnlineOrder();
 
   if (!isOpen) return null;
 
-  const amountNeededForFree = Math.max(0, FREE_DELIVERY_THRESHOLD - subtotal);
-  const freeProgress = Math.min(100, Math.round((subtotal / FREE_DELIVERY_THRESHOLD) * 100));
+  const minDeliverySubtotal = DELIVERY_CONFIG?.MIN_DELIVERY_SUBTOTAL || 299;
+  const meetsMinSubtotal = subtotal >= minDeliverySubtotal;
+  const amountNeededForDelivery = Math.max(0, minDeliverySubtotal - subtotal);
+  const deliveryProgress = Math.min(100, Math.round((subtotal / minDeliverySubtotal) * 100));
 
   const handleCheckoutClick = () => {
     onClose();
@@ -160,38 +164,66 @@ export default function CartDrawer({ isOpen, onClose, onNavigate }) {
           </div>
         </div>
 
-        {/* Free Delivery Bar */}
+        {/* Delivery / Pickup Threshold Indicator */}
         {cart.length > 0 && deliveryType === "delivery" && (
           <div style={{
             padding: "10px 18px",
-            backgroundColor: amountNeededForFree === 0 ? "rgba(240, 253, 244, 0.9)" : "rgba(245, 239, 230, 0.6)",
-            borderBottom: "1px solid var(--border-color)",
+            backgroundColor: meetsMinSubtotal ? "rgba(240, 253, 244, 0.95)" : "#FFFBEB",
+            borderBottom: `1px solid ${meetsMinSubtotal ? "rgba(34, 197, 94, 0.3)" : "#FDE68A"}`,
             fontSize: 12
           }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-              <span style={{ fontWeight: 600, color: amountNeededForFree === 0 ? "#16A34A" : "var(--color-ink)" }}>
-                {amountNeededForFree === 0
-                  ? "FREE Delivery Unlocked 🎉"
-                  : `Add ₹${amountNeededForFree} for FREE delivery`}
-              </span>
-              <span style={{ fontSize: 11, color: "var(--color-bronze)", fontWeight: 700 }}>
-                {freeProgress}%
+              <div style={{ display: "flex", alignItems: "center", gap: 5, fontWeight: 600, color: meetsMinSubtotal ? "#166534" : "#92400E" }}>
+                {meetsMinSubtotal ? (
+                  <>
+                    <Sparkles size={13} color="#16A34A" />
+                    <span>Delivery Unlocked + FREE Delivery 🎉</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle size={13} style={{ color: "#D97706" }} />
+                    <span>Add ₹{amountNeededForDelivery} more for delivery</span>
+                  </>
+                )}
+              </div>
+              <span style={{ fontSize: 11, color: meetsMinSubtotal ? "#166534" : "#B45309", fontWeight: 700 }}>
+                {deliveryProgress}%
               </span>
             </div>
             <div style={{
               width: "100%",
-              height: 4,
-              backgroundColor: "rgba(220, 212, 200, 0.5)",
-              borderRadius: 2,
+              height: 5,
+              backgroundColor: meetsMinSubtotal ? "rgba(34, 197, 94, 0.2)" : "#FEF3C7",
+              borderRadius: 3,
               overflow: "hidden"
             }}>
               <div style={{
-                width: `${freeProgress}%`,
+                width: `${deliveryProgress}%`,
                 height: "100%",
-                backgroundColor: amountNeededForFree === 0 ? "#16A34A" : "var(--color-bronze)",
+                backgroundColor: meetsMinSubtotal ? "#16A34A" : "#D97706",
                 transition: "width 0.3s ease"
               }} />
             </div>
+            {!meetsMinSubtotal && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 5, fontSize: 11 }}>
+                <span style={{ color: "#B45309" }}>Min order ₹{minDeliverySubtotal}</span>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryType("pickup")}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#92400E",
+                    fontWeight: 700,
+                    textDecoration: "underline",
+                    cursor: "pointer",
+                    padding: 0
+                  }}
+                >
+                  Switch to Pickup
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -434,15 +466,41 @@ export default function CartDrawer({ isOpen, onClose, onNavigate }) {
               >
                 View Full Cart
               </button>
-              <button
-                type="button"
-                onClick={handleCheckoutClick}
-                className="btn-pill-black"
-                style={{ flex: 1.5, padding: "10px 14px", fontSize: 12 }}
-              >
-                <span>Checkout</span>
-                <ArrowRight size={13} />
-              </button>
+              {deliveryType === "delivery" && !meetsMinSubtotal ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeliveryType("pickup");
+                    handleCheckoutClick();
+                  }}
+                  className="btn-pill-black"
+                  style={{
+                    flex: 1.5,
+                    padding: "10px 12px",
+                    fontSize: 11.5,
+                    backgroundColor: "var(--color-bronze-dark)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6
+                  }}
+                  title="Switch to Takeaway & Checkout"
+                >
+                  <Store size={13} />
+                  <span>Pickup & Pay</span>
+                  <ArrowRight size={13} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleCheckoutClick}
+                  className="btn-pill-black"
+                  style={{ flex: 1.5, padding: "10px 14px", fontSize: 12 }}
+                >
+                  <span>Checkout</span>
+                  <ArrowRight size={13} />
+                </button>
+              )}
             </div>
           </div>
         )}

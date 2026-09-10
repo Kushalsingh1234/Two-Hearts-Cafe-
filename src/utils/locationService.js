@@ -9,14 +9,15 @@
  * - Smart campus/local address extraction for Muradnagar, Ghaziabad & Delhi NCR
  */
 
-const GOOGLE_MAPS_API_KEY = import.meta.env?.VITE_GOOGLE_MAPS_API_KEY || "";
+import {
+  DELIVERY_CONFIG,
+  calculateDistanceKm,
+  DEFAULT_CAFE_COORDS
+} from "../config/deliveryConfig";
 
-// Default fallback coordinates: Two Hearts Café, Pillar #852, Muradnagar (KIET Campus vicinity)
-export const DEFAULT_CAFE_COORDS = {
-  lat: 28.7758,
-  lng: 77.5026,
-  areaName: "Near Pillar 852, Delhi-Meerut Road, Muradnagar, Ghaziabad"
-};
+export { DELIVERY_CONFIG, calculateDistanceKm, DEFAULT_CAFE_COORDS };
+
+const GOOGLE_MAPS_API_KEY = import.meta.env?.VITE_GOOGLE_MAPS_API_KEY || "";
 
 /**
  * Get current browser coordinates via Geolocation API
@@ -171,3 +172,54 @@ export async function reverseGeocode(lat, lng) {
     formattedAddress: `Near Muradnagar (${lat.toFixed(4)}, ${lng.toFixed(4)})`
   };
 }
+
+/**
+ * Forward geocode an address string to lat/lng coordinates
+ * @param {string} addressString
+ * @returns {Promise<{lat: number, lng: number}|null>}
+ */
+export async function geocodeAddress(addressString) {
+  if (!addressString || typeof addressString !== "string") return null;
+  const cleanAddr = addressString.trim();
+  if (cleanAddr.length < 3) return null;
+
+  // 1. Try Google Maps Geocoding API if key configured
+  if (GOOGLE_MAPS_API_KEY && !GOOGLE_MAPS_API_KEY.includes("YOUR_") && !GOOGLE_MAPS_API_KEY.includes("PLACEHOLDER")) {
+    try {
+      const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(cleanAddr)}&key=${GOOGLE_MAPS_API_KEY}`;
+      const res = await fetch(gUrl);
+      const data = await res.json();
+      if (data.status === "OK" && data.results && data.results.length > 0) {
+        const loc = data.results[0].geometry.location;
+        return { lat: Number(loc.lat), lng: Number(loc.lng) };
+      }
+    } catch (err) {
+      console.warn("Google forward geocode failed:", err);
+    }
+  }
+
+  // 2. OpenStreetMap Nominatim search
+  try {
+    const nomUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cleanAddr + ", Muradnagar, Uttar Pradesh")}&limit=1`;
+    const res = await fetch(nomUrl, {
+      headers: {
+        "Accept-Language": "en",
+        "User-Agent": "TwoHeartsCafeWeb/1.0"
+      }
+    });
+    if (res.ok) {
+      const results = await res.json();
+      if (Array.isArray(results) && results.length > 0) {
+        return {
+          lat: parseFloat(results[0].lat),
+          lng: parseFloat(results[0].lon)
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("Nominatim forward geocode failed:", err);
+  }
+
+  return null;
+}
+

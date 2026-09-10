@@ -10,7 +10,8 @@ import {
   Store,
   Info,
   Sparkles,
-  MessageSquareQuote
+  MessageSquareQuote,
+  AlertCircle
 } from "lucide-react";
 import { useOnlineOrder } from "../../context/OnlineOrderContext";
 import { useCustomerAuth } from "../../context/CustomerAuthContext";
@@ -29,6 +30,7 @@ export default function CartPage({ onNavigate }) {
     taxes,
     total,
     FREE_DELIVERY_THRESHOLD,
+    DELIVERY_CONFIG,
     deliveryType,
     setDeliveryType,
     customerInfo,
@@ -44,6 +46,11 @@ export default function CartPage({ onNavigate }) {
   };
 
   const [activeNoteItemId, setActiveNoteItemId] = useState(null);
+
+  const minDeliverySubtotal = DELIVERY_CONFIG?.MIN_DELIVERY_SUBTOTAL || 299;
+  const meetsDeliveryMin = subtotal >= minDeliverySubtotal;
+  const amountNeededForDelivery = Math.max(0, minDeliverySubtotal - subtotal);
+  const deliveryProgress = Math.min(100, Math.round((subtotal / minDeliverySubtotal) * 100));
 
   const amountNeededForFreeDelivery = Math.max(0, FREE_DELIVERY_THRESHOLD - subtotal);
   const freeDeliveryProgress = Math.min(100, Math.round((subtotal / FREE_DELIVERY_THRESHOLD) * 100));
@@ -277,42 +284,145 @@ export default function CartPage({ onNavigate }) {
           </div>
         </div>
 
-        {/* Free Delivery Threshold Bar (if delivery) */}
-        {deliveryType === "delivery" && (
-          <div className="bistro-card" style={{
-            padding: "14px 18px",
-            marginBottom: 24,
-            backgroundColor: amountNeededForFreeDelivery === 0 ? "rgba(240, 253, 244, 0.95)" : "#FFFFFF",
-            border: amountNeededForFreeDelivery === 0 ? "1px solid rgba(34, 197, 94, 0.4)" : "1px solid var(--border-color)"
-          }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600 }}>
-                <Sparkles size={15} color={amountNeededForFreeDelivery === 0 ? "#16A34A" : "var(--color-bronze)"} />
-                <span>
-                  {amountNeededForFreeDelivery === 0
-                    ? "Congratulations! You've unlocked FREE Delivery 🎉"
-                    : `Add ₹${amountNeededForFreeDelivery} more to enjoy FREE Delivery`}
+        {/* Delivery / Pickup Eligibility Banner */}
+        {deliveryType === "delivery" ? (
+          !meetsDeliveryMin ? (
+            <div className="bistro-card" style={{
+              padding: "16px 18px",
+              marginBottom: 24,
+              backgroundColor: "#FFFBEB",
+              border: "1px solid #FCD34D",
+              borderRadius: 14,
+              display: "flex",
+              flexDirection: "column",
+              gap: 10
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: "#92400E" }}>
+                  <AlertCircle size={18} style={{ color: "#D97706", flexShrink: 0 }} />
+                  <span>
+                    Add ₹{amountNeededForDelivery} more to your order to unlock delivery, or switch to Pickup
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryType("pickup")}
+                  className="touch-target-44"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "6px 14px",
+                    backgroundColor: "#FFFFFF",
+                    color: "#92400E",
+                    border: "1px solid #F59E0B",
+                    borderRadius: "var(--radius-pill)",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    fontFamily: "var(--font-serif)",
+                    cursor: "pointer",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                    minHeight: 36
+                  }}
+                >
+                  <Store size={14} />
+                  <span>Switch to Pickup (No Min)</span>
+                </button>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{
+                  flex: 1,
+                  height: 7,
+                  backgroundColor: "#FEF3C7",
+                  borderRadius: 4,
+                  overflow: "hidden"
+                }}>
+                  <div style={{
+                    width: `${deliveryProgress}%`,
+                    height: "100%",
+                    backgroundColor: "#D97706",
+                    borderRadius: 4,
+                    transition: "width 0.3s ease"
+                  }} />
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#B45309", fontFamily: "var(--font-serif)", flexShrink: 0 }}>
+                  ₹{subtotal} / ₹{minDeliverySubtotal} ({deliveryProgress}%)
                 </span>
               </div>
-              <span style={{ fontSize: 12, color: "var(--color-bronze)", fontFamily: "var(--font-serif)", fontWeight: 700 }}>
-                {freeDeliveryProgress}%
-              </span>
-            </div>
 
-            <div style={{
-              width: "100%",
-              height: 6,
-              backgroundColor: "rgba(230, 223, 213, 0.5)",
-              borderRadius: 3,
-              overflow: "hidden"
-            }}>
-              <div style={{
-                width: `${freeDeliveryProgress}%`,
-                height: "100%",
-                backgroundColor: amountNeededForFreeDelivery === 0 ? "#16A34A" : "var(--color-bronze)",
-                transition: "width 0.3s ease"
-              }} />
+              <div style={{ fontSize: 11, color: "#92400E", opacity: 0.95, lineHeight: 1.4 }}>
+                💡 Delivery is available within 2 km of Pillar #852, Muradnagar for orders above ₹{minDeliverySubtotal}. All pickup orders have zero minimum!
+              </div>
             </div>
+          ) : (
+            <div className="bistro-card" style={{
+              padding: "14px 18px",
+              marginBottom: 24,
+              backgroundColor: "rgba(240, 253, 244, 0.95)",
+              border: "1px solid rgba(34, 197, 94, 0.4)",
+              borderRadius: 14
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#166534" }}>
+                  <Sparkles size={15} color="#16A34A" />
+                  <span>
+                    Congratulations! Subtotal ₹{subtotal} unlocks Doorstep Delivery + FREE Delivery 🎉
+                  </span>
+                </div>
+                <span style={{ fontSize: 12, color: "#166534", fontFamily: "var(--font-serif)", fontWeight: 700 }}>
+                  100%
+                </span>
+              </div>
+
+              <div style={{
+                width: "100%",
+                height: 6,
+                backgroundColor: "rgba(34, 197, 94, 0.2)",
+                borderRadius: 3,
+                overflow: "hidden"
+              }}>
+                <div style={{
+                  width: "100%",
+                  height: "100%",
+                  backgroundColor: "#16A34A",
+                  transition: "width 0.3s ease"
+                }} />
+              </div>
+            </div>
+          )
+        ) : (
+          <div className="bistro-card" style={{
+            padding: "12px 18px",
+            marginBottom: 24,
+            backgroundColor: "rgba(245, 239, 230, 0.7)",
+            border: "1px solid var(--border-color)",
+            borderRadius: 14,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 10
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--color-ink)", fontWeight: 600 }}>
+              <Store size={15} style={{ color: "var(--color-bronze)" }} />
+              <span>Self Takeaway / Pickup at Cafe Counter — <strong>No minimum order required</strong></span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDeliveryType("delivery")}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--color-bronze-dark)",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                textDecoration: "underline"
+              }}
+            >
+              Switch to Delivery
+            </button>
           </div>
         )}
 
@@ -623,21 +733,73 @@ export default function CartPage({ onNavigate }) {
               </div>
 
               {/* Proceed to Checkout Button */}
-              <button
-                type="button"
-                onClick={handleProceedToCheckout}
-                className="btn-pill-black touch-target-44"
-                style={{
-                  width: "100%",
-                  padding: "14px 24px",
-                  fontSize: 13,
-                  marginTop: 18,
-                  minHeight: 48
-                }}
-              >
-                <span>Proceed to Checkout</span>
-                <ArrowRight size={14} />
-              </button>
+              {deliveryType === "delivery" && !meetsDeliveryMin ? (
+                <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 8 }}>
+                  <button
+                    type="button"
+                    disabled
+                    className="touch-target-44"
+                    style={{
+                      width: "100%",
+                      padding: "14px 20px",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      backgroundColor: "#F3F4F6",
+                      color: "#9CA3AF",
+                      border: "1px solid #E5E7EB",
+                      borderRadius: "var(--radius-pill)",
+                      cursor: "not-allowed",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      minHeight: 48
+                    }}
+                  >
+                    <AlertCircle size={15} style={{ color: "#9CA3AF" }} />
+                    <span>Add ₹{amountNeededForDelivery} more for Delivery</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeliveryType("pickup");
+                      handleProceedToCheckout();
+                    }}
+                    className="btn-pill-black touch-target-44"
+                    style={{
+                      width: "100%",
+                      padding: "12px 18px",
+                      fontSize: 12.5,
+                      minHeight: 44,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      backgroundColor: "var(--color-bronze-dark)"
+                    }}
+                  >
+                    <Store size={14} />
+                    <span>Switch to Pickup & Proceed</span>
+                    <ArrowRight size={14} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleProceedToCheckout}
+                  className="btn-pill-black touch-target-44"
+                  style={{
+                    width: "100%",
+                    padding: "14px 24px",
+                    fontSize: 13,
+                    marginTop: 18,
+                    minHeight: 48
+                  }}
+                >
+                  <span>Proceed to Checkout</span>
+                  <ArrowRight size={14} />
+                </button>
+              )}
             </div>
 
             {/* Pure Veg Guarantee Ribbon */}

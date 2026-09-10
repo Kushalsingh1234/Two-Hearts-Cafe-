@@ -14,10 +14,15 @@ import {
   AlertCircle,
   FileText,
   Loader2,
-  Navigation
+  Navigation,
+  Store
 } from "lucide-react";
 import LocationAddressModal from "./LocationAddressModal";
 import { getCurrentCoordinates } from "../../utils/locationService";
+import {
+  DELIVERY_CONFIG,
+  calculateDistanceKm
+} from "../../config/deliveryConfig";
 
 const TAG_CONFIG = {
   Hostel: { emoji: "🏢", label: "Hostel", color: "var(--color-bronze)" },
@@ -38,7 +43,9 @@ export default function CheckoutAddressSection({
   formErrors = {},
   setFormErrors,
   customerUser,
-  onNavigate
+  onNavigate,
+  deliveryType = "delivery",
+  setDeliveryType
 }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalInitialCoords, setModalInitialCoords] = useState(null);
@@ -199,6 +206,39 @@ export default function CheckoutAddressSection({
               const isSelected = selectedAddressId === addr.id;
               const tagInfo = TAG_CONFIG[addr.label] || TAG_CONFIG[addr.tag] || TAG_CONFIG.Other;
 
+              // Calculate distance from cafe origin (Pillar #852, Muradnagar)
+              const distanceKm =
+                addr.coords && addr.coords.lat != null && addr.coords.lng != null
+                  ? calculateDistanceKm(
+                      DELIVERY_CONFIG.CAFE_COORDINATES.lat,
+                      DELIVERY_CONFIG.CAFE_COORDINATES.lng,
+                      addr.coords.lat,
+                      addr.coords.lng
+                    )
+                  : null;
+              const isWithinZone =
+                distanceKm == null
+                  ? true
+                  : distanceKm <= DELIVERY_CONFIG.MAX_DELIVERY_RADIUS_KM;
+
+              const getCardBorder = () => {
+                if (isSelected) {
+                  if (!isWithinZone && deliveryType === "delivery") return "2px solid #EF4444";
+                  return "2px solid var(--color-bronze)";
+                }
+                if (!isWithinZone && deliveryType === "delivery") return "1px dashed #FCA5A5";
+                return "1px solid rgba(138, 87, 56, 0.2)";
+              };
+
+              const getCardBg = () => {
+                if (isSelected) {
+                  if (!isWithinZone && deliveryType === "delivery") return "#FEF2F2";
+                  return "#FFFDF9";
+                }
+                if (!isWithinZone && deliveryType === "delivery") return "#FAFAFA";
+                return "#FFFFFF";
+              };
+
               return (
                 <div
                   key={addr.id}
@@ -207,12 +247,13 @@ export default function CheckoutAddressSection({
                     position: "relative",
                     padding: "16px",
                     borderRadius: 14,
-                    border: isSelected
-                      ? "2px solid var(--color-bronze)"
-                      : "1px solid rgba(138, 87, 56, 0.2)",
-                    backgroundColor: isSelected ? "#FFFDF9" : "#FFFFFF",
+                    border: getCardBorder(),
+                    backgroundColor: getCardBg(),
+                    opacity: !isWithinZone && deliveryType === "delivery" && !isSelected ? 0.82 : 1,
                     boxShadow: isSelected
-                      ? "0 6px 20px -4px rgba(138, 87, 56, 0.18)"
+                      ? !isWithinZone && deliveryType === "delivery"
+                        ? "0 6px 20px -4px rgba(239, 68, 68, 0.18)"
+                        : "0 6px 20px -4px rgba(138, 87, 56, 0.18)"
                       : "0 2px 6px rgba(0, 0, 0, 0.02)",
                     cursor: "pointer",
                     transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
@@ -223,27 +264,28 @@ export default function CheckoutAddressSection({
                   }}
                   onMouseEnter={(e) => {
                     if (!isSelected) {
-                      e.currentTarget.style.borderColor = "rgba(138, 87, 56, 0.4)";
+                      e.currentTarget.style.borderColor = !isWithinZone && deliveryType === "delivery" ? "#EF4444" : "rgba(138, 87, 56, 0.4)";
                       e.currentTarget.style.transform = "translateY(-1px)";
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isSelected) {
-                      e.currentTarget.style.borderColor = "rgba(138, 87, 56, 0.2)";
+                      e.currentTarget.style.borderColor = !isWithinZone && deliveryType === "delivery" ? "#FCA5A5" : "rgba(138, 87, 56, 0.2)";
                       e.currentTarget.style.transform = "translateY(0)";
                     }
                   }}
                 >
-                  {/* Card Header: Radio Selector, Tag Badge & Edit Button */}
+                  {/* Card Header: Radio Selector, Tag Badge, Distance Badge & Edit Button */}
                   <div
                     style={{
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      gap: 8
+                      gap: 8,
+                      flexWrap: "wrap"
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       {/* Radio Circle */}
                       <div
                         style={{
@@ -251,7 +293,9 @@ export default function CheckoutAddressSection({
                           height: 18,
                           borderRadius: "50%",
                           border: isSelected
-                            ? "5.5px solid var(--color-bronze)"
+                            ? !isWithinZone && deliveryType === "delivery"
+                              ? "5.5px solid #DC2626"
+                              : "5.5px solid var(--color-bronze)"
                             : "2px solid #D1D5DB",
                           backgroundColor: "#FFFFFF",
                           transition: "all 0.15s ease",
@@ -267,10 +311,14 @@ export default function CheckoutAddressSection({
                           gap: 5,
                           padding: "3px 9px",
                           backgroundColor: isSelected
-                            ? "var(--color-bronze-light)"
+                            ? !isWithinZone && deliveryType === "delivery"
+                              ? "#FEE2E2"
+                              : "var(--color-bronze-light)"
                             : "rgba(0, 0, 0, 0.04)",
                           color: isSelected
-                            ? "var(--color-bronze-dark)"
+                            ? !isWithinZone && deliveryType === "delivery"
+                              ? "#991B1B"
+                              : "var(--color-bronze-dark)"
                             : "var(--color-ink)",
                           borderRadius: "var(--radius-pill)",
                           fontSize: 11,
@@ -281,6 +329,28 @@ export default function CheckoutAddressSection({
                         <span>{tagInfo.emoji}</span>
                         <span>{addr.label || addr.tag || "Address"}</span>
                       </div>
+
+                      {/* Distance / Delivery Zone Badge */}
+                      {distanceKm != null && (
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            fontFamily: "var(--font-serif)",
+                            padding: "2px 7px",
+                            borderRadius: "var(--radius-pill)",
+                            backgroundColor: isWithinZone ? "#F0FDF4" : "#FEF2F2",
+                            color: isWithinZone ? "#166534" : "#B91C1C",
+                            border: isWithinZone ? "1px solid #BBF7D0" : "1px solid #FECACA",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 3
+                          }}
+                        >
+                          <span>{isWithinZone ? "✓" : "✕"}</span>
+                          <span>{distanceKm} km {isWithinZone ? "(Within 2 km)" : "(Outside zone)"}</span>
+                        </span>
+                      )}
 
                       {/* Default Badge */}
                       {addr.isDefault && (
@@ -388,14 +458,23 @@ export default function CheckoutAddressSection({
                         gap: 5,
                         fontSize: 11,
                         fontWeight: 700,
-                        color: "var(--color-bronze-dark)",
-                        borderTop: "1px dashed rgba(138, 87, 56, 0.25)",
+                        color: !isWithinZone && deliveryType === "delivery" ? "#B91C1C" : "var(--color-bronze-dark)",
+                        borderTop: `1px dashed ${!isWithinZone && deliveryType === "delivery" ? "rgba(239, 68, 68, 0.3)" : "rgba(138, 87, 56, 0.25)"}`,
                         paddingTop: 8,
                         marginTop: 2
                       }}
                     >
-                      <Check size={12} style={{ color: "var(--color-bronze)" }} />
-                      <span>Delivering to this address</span>
+                      {!isWithinZone && deliveryType === "delivery" ? (
+                        <>
+                          <AlertCircle size={13} style={{ color: "#DC2626", flexShrink: 0 }} />
+                          <span>Outside 2 km delivery zone — Switch to Pickup</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check size={12} style={{ color: "var(--color-bronze)" }} />
+                          <span>{deliveryType === "delivery" ? "Delivering to this address" : "Address selected"}</span>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -458,6 +537,86 @@ export default function CheckoutAddressSection({
               </span>
             </button>
           </div>
+
+          {/* Out-of-Zone Alert Banner for Selected Address */}
+          {(() => {
+            const selectedAddr = savedAddresses.find((a) => a.id === selectedAddressId);
+            const selectedDist =
+              selectedAddr?.coords &&
+              selectedAddr.coords.lat != null &&
+              selectedAddr.coords.lng != null
+                ? calculateDistanceKm(
+                    DELIVERY_CONFIG.CAFE_COORDINATES.lat,
+                    DELIVERY_CONFIG.CAFE_COORDINATES.lng,
+                    selectedAddr.coords.lat,
+                    selectedAddr.coords.lng
+                  )
+                : null;
+            const isSelectedOutOfZone =
+              selectedDist != null &&
+              selectedDist > DELIVERY_CONFIG.MAX_DELIVERY_RADIUS_KM;
+
+            if (deliveryType === "delivery" && isSelectedOutOfZone) {
+              return (
+                <div
+                  style={{
+                    padding: "12px 16px",
+                    backgroundColor: "#FEF2F2",
+                    border: "1px solid #FCA5A5",
+                    borderRadius: 12,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 10
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      color: "#991B1B",
+                      fontSize: 12.5,
+                      fontWeight: 600
+                    }}
+                  >
+                    <AlertCircle size={18} style={{ flexShrink: 0, color: "#DC2626" }} />
+                    <span>
+                      Sorry, this address is outside our 2 km delivery zone ({selectedDist} km away). You're welcome to place a Pickup order instead!
+                    </span>
+                  </div>
+                  {setDeliveryType && (
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryType("pickup")}
+                      className="touch-target-44"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "6px 14px",
+                        backgroundColor: "#991B1B",
+                        color: "#FFFFFF",
+                        border: "none",
+                        borderRadius: "var(--radius-pill)",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        fontFamily: "var(--font-serif)",
+                        cursor: "pointer",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                        minHeight: 36
+                      }}
+                    >
+                      <Store size={13} />
+                      <span>Switch to Pickup</span>
+                    </button>
+                  )}
+                </div>
+              );
+            }
+            return null;
+          })()}
         </div>
       ) : (
         /* Empty State: No addresses saved yet */

@@ -1,5 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { placeOnlineDeliveryOrder } from "../firebase/services";
+import {
+  DELIVERY_CONFIG,
+  calculateDistanceKm,
+  checkDeliveryEligibility
+} from "../config/deliveryConfig";
 
 const OnlineOrderContext = createContext(null);
 
@@ -226,16 +231,16 @@ export function OnlineOrderProvider({ children }) {
     return cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
   }, [cart]);
 
-  // Delivery fee rules: Free above ₹299 or pickup; else ₹30
-  const FREE_DELIVERY_THRESHOLD = 299;
+  // Delivery fee rules: Free above MIN_DELIVERY_SUBTOTAL or pickup; else standard fee
+  const FREE_DELIVERY_THRESHOLD = DELIVERY_CONFIG.FREE_DELIVERY_THRESHOLD;
   const deliveryFee = useMemo(() => {
     if (deliveryType === "pickup" || cart.length === 0) return 0;
-    return subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : 30;
+    return subtotal >= DELIVERY_CONFIG.FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_CONFIG.STANDARD_DELIVERY_FEE;
   }, [deliveryType, subtotal, cart.length]);
 
   const taxes = useMemo(() => {
     // 5% GST
-    return Math.round(subtotal * 0.05);
+    return Math.round(subtotal * DELIVERY_CONFIG.GST_PERCENTAGE);
   }, [subtotal]);
 
   const total = useMemo(() => {
@@ -310,6 +315,9 @@ export function OnlineOrderProvider({ children }) {
     taxes,
     total,
     FREE_DELIVERY_THRESHOLD,
+    DELIVERY_CONFIG,
+    calculateDistanceKm,
+    checkDeliveryEligibility,
     deliveryType,
     setDeliveryType,
     customerInfo,

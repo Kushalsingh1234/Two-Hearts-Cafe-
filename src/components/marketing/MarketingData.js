@@ -73,7 +73,7 @@ export const DISH_PHOTOS = {
 
   // --- PANEER ---
   th_chilli_paneer: "/images/dishes/chilli_paneer.jpg",
-  th_lemon_paneer: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?auto=format&fit=crop&w=800&q=80",
+  th_lemon_paneer: "/images/dishes/lemon_paneer.jpg",
   th_paneer_65: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?auto=format&fit=crop&w=800&q=80",
 
   // --- SNACKS ---

@@ -410,10 +410,17 @@ export const updateOnlineOrder = async (orderId, updates = {}) => {
   }
 
   // Always update local storage
+  const cleanNum = (n) => String(n || "").replace(/^#/, "").trim().toUpperCase();
+  const targetNum = cleanNum(orderId);
+
   const orders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
   let found = false;
   const updatedOrders = orders.map((ord) => {
-    if (ord.id === orderId || ord.orderNumber === orderId) {
+    const matches =
+      ord.id === orderId ||
+      ord.orderNumber === orderId ||
+      (targetNum && (cleanNum(ord.id) === targetNum || cleanNum(ord.orderNumber) === targetNum));
+    if (matches) {
       found = true;
       const merged = { ...ord, ...payload };
       updatedOrder = merged;
@@ -431,9 +438,22 @@ export const updateOnlineOrder = async (orderId, updates = {}) => {
     const activeRaw = localStorage.getItem("twohearts_active_online_order_v1");
     if (activeRaw) {
       const active = JSON.parse(activeRaw);
-      if (active && (active.id === orderId || active.orderNumber === orderId)) {
-        const mergedActive = { ...active, ...payload };
-        localStorage.setItem("twohearts_active_online_order_v1", JSON.stringify(mergedActive));
+      const isTarget =
+        active &&
+        (active.id === orderId ||
+          active.orderNumber === orderId ||
+          (targetNum && (cleanNum(active.id) === targetNum || cleanNum(active.orderNumber) === targetNum)) ||
+          (updatedOrder && (cleanNum(active.orderNumber) === cleanNum(updatedOrder.orderNumber) || active.id === updatedOrder.id)));
+      if (isTarget) {
+        const isTerminal = ["cancelled", "delivered", "completed", "rejected"].includes(
+          String(payload.status || "").toLowerCase().trim()
+        );
+        if (isTerminal) {
+          localStorage.removeItem("twohearts_active_online_order_v1");
+        } else {
+          const mergedActive = { ...active, ...payload };
+          localStorage.setItem("twohearts_active_online_order_v1", JSON.stringify(mergedActive));
+        }
       }
     }
   } catch (e) {
@@ -483,19 +503,64 @@ export const getCustomerOrders = async (phone) => {
     // offline/rules fallback
   }
 
-  // Combine and deduplicate
-  const map = new Map();
-  [...remoteOrders, ...localOrders, ...(activeOrder ? [activeOrder] : [])].forEach((ord) => {
-    if (ord && ord.id) {
-      const existing = map.get(ord.id);
-      map.set(ord.id, existing ? { ...existing, ...ord } : ord);
+  // Normalize order keys for universal deduplication (ignoring leading #, case-insensitive)
+  const cleanOrderNum = (num) => String(num || "").replace(/^#/, "").trim().toUpperCase();
+  const isOrderMatch = (a, b) => {
+    if (!a || !b) return false;
+    if (a.id && b.id && a.id === b.id) return true;
+    const numA = cleanOrderNum(a.orderNumber);
+    const numB = cleanOrderNum(b.orderNumber);
+    if (numA && numB && numA === numB) return true;
+    if (a.id && numB && cleanOrderNum(a.id) === numB) return true;
+    if (b.id && numA && cleanOrderNum(b.id) === numA) return true;
+    return false;
+  };
+
+  // Combine and deduplicate: localOrders and remoteOrders first, then activeOrder
+  const combined = [...localOrders, ...remoteOrders, ...(activeOrder ? [activeOrder] : [])];
+  const unified = [];
+
+  combined.forEach((ord) => {
+    if (!ord || (!ord.id && !ord.orderNumber)) return;
+    const existingIdx = unified.findIndex((u) => isOrderMatch(u, ord));
+    if (existingIdx >= 0) {
+      const existing = unified[existingIdx];
+      const isTerminal = (st) =>
+        ["cancelled", "delivered", "completed", "rejected"].includes(String(st || "").toLowerCase().trim());
+      
+      // Authoritative status: terminal status (cancelled/delivered/completed) ALWAYS wins
+      let finalStatus = ord.status || existing.status;
+      if (isTerminal(existing.status) && !isTerminal(ord.status)) {
+        finalStatus = existing.status;
+      } else if (isTerminal(ord.status)) {
+        finalStatus = ord.status;
+      }
+
+      unified[existingIdx] = {
+        ...existing,
+        ...ord,
+        status: finalStatus
+      };
+    } else {
+      unified.push({ ...ord });
     }
   });
 
-  const allOrders = Array.from(map.values());
+  // Clean up localStorage active order if it is cancelled or completed
+  if (activeOrder) {
+    const matchedActive = unified.find((u) => isOrderMatch(u, activeOrder));
+    if (
+      matchedActive &&
+      ["cancelled", "delivered", "completed", "rejected"].includes(String(matchedActive.status || "").toLowerCase().trim())
+    ) {
+      try {
+        localStorage.removeItem("twohearts_active_online_order_v1");
+      } catch {}
+    }
+  }
 
-  // Filter for orders matching this phone or userId, or show active browser order
-  const customerOrders = allOrders.filter((ord) => {
+  // Filter for orders matching this phone or userId, or active browser order
+  const customerOrders = unified.filter((ord) => {
     if (!cleanPhone) return true;
     const ordPhone = String(ord.customerPhone || "").replace(/\D/g, "").slice(-10);
     const ordUserId = String(ord.userId || "").replace(/\D/g, "").slice(-10);
@@ -504,7 +569,7 @@ export const getCustomerOrders = async (phone) => {
       (ordPhone && ordPhone === cleanPhone) ||
       (ordUserId && ordUserId === cleanPhone) ||
       ordRawUserId === phone ||
-      (activeOrder && activeOrder.id === ord.id)
+      (activeOrder && isOrderMatch(ord, activeOrder))
     );
   });
 

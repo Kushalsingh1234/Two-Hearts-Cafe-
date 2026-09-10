@@ -80,10 +80,15 @@ export function OnlineOrderProvider({ children }) {
     }
   }, [customerInfo]);
 
-  // Sync activeOrder to localStorage
+  // Sync activeOrder to localStorage (only if not cancelled/completed)
   useEffect(() => {
     try {
-      if (activeOrder) {
+      const isTerminal =
+        activeOrder &&
+        ["cancelled", "delivered", "completed", "rejected"].includes(
+          String(activeOrder.status || "").toLowerCase().trim()
+        );
+      if (activeOrder && !isTerminal) {
         localStorage.setItem(ACTIVE_ORDER_STORAGE_KEY, JSON.stringify(activeOrder));
       } else {
         localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
@@ -105,12 +110,28 @@ export function OnlineOrderProvider({ children }) {
         return;
       }
 
+      const cleanNum = (n) => String(n || "").replace(/^#/, "").trim().toUpperCase();
+
       setActiveOrder((prev) => {
         if (!prev) return prev;
-        if (prev.id === updated.id || prev.orderNumber === updated.orderNumber || prev.orderNumber === updated.id) {
+        const matches =
+          prev.id === updated.id ||
+          prev.orderNumber === updated.orderNumber ||
+          (cleanNum(prev.orderNumber) && cleanNum(prev.orderNumber) === cleanNum(updated.orderNumber)) ||
+          (cleanNum(prev.id) && cleanNum(prev.id) === cleanNum(updated.orderNumber)) ||
+          (cleanNum(prev.orderNumber) && cleanNum(prev.orderNumber) === cleanNum(updated.id));
+
+        if (matches) {
           const merged = { ...prev, ...updated };
+          const isTerminal = ["cancelled", "delivered", "completed", "rejected"].includes(
+            String(merged.status || "").toLowerCase().trim()
+          );
           try {
-            localStorage.setItem(ACTIVE_ORDER_STORAGE_KEY, JSON.stringify(merged));
+            if (isTerminal) {
+              localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
+            } else {
+              localStorage.setItem(ACTIVE_ORDER_STORAGE_KEY, JSON.stringify(merged));
+            }
           } catch {}
           return merged;
         }

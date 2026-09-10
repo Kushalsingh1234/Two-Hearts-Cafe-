@@ -138,10 +138,31 @@ export default function CustomerView({
     setCartItems(cartItems.filter((i) => i.cartItemId !== cartItemId));
   };
 
+  const getSessionOrderIds = (tbl) => {
+    try {
+      const raw = sessionStorage.getItem(`twohearts_table_${tbl}_session_orders`);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const addSessionOrderId = (tbl, id) => {
+    try {
+      const curr = getSessionOrderIds(tbl);
+      if (!curr.includes(id)) {
+        sessionStorage.setItem(`twohearts_table_${tbl}_session_orders`, JSON.stringify([...curr, id]));
+      }
+    } catch {}
+  };
+
   const handlePlaceOrder = async (orderPayload) => {
     setIsPlacing(true);
     try {
-      await placeOrder(orderPayload);
+      const created = await placeOrder(orderPayload);
+      if (created && created.id) {
+        addSessionOrderId(tableNumber, created.id);
+      }
       setCartItems([]);
       setIsCartOpen(false);
 
@@ -160,13 +181,18 @@ export default function CustomerView({
     }
   };
 
-  const customerActiveOrders = orders.filter(
-    (ord) => String(ord.tableNumber) === String(tableNumber) && ord.status !== "settled" && ord.status !== "cancelled"
-  );
+  const sessionOrderIds = getSessionOrderIds(tableNumber);
 
-  const customerSettledOrders = orders.filter(
-    (ord) => String(ord.tableNumber) === String(tableNumber) && ord.status === "settled"
-  );
+  // Only active in-kitchen orders for this table (NEVER show settled orders of previous guests)
+  const customerActiveOrders = orders.filter((ord) => {
+    if (String(ord.tableNumber) !== String(tableNumber)) return false;
+    if (ord.status === "settled" || ord.status === "cancelled") return false;
+    if (sessionOrderIds.length > 0) {
+      return sessionOrderIds.includes(ord.id);
+    }
+    const ageMs = Date.now() - (ord.timestamp || (ord.createdAt ? new Date(ord.createdAt).getTime() : 0));
+    return ageMs < 45 * 60 * 1000;
+  });
 
   return (
     <div style={{
@@ -176,7 +202,7 @@ export default function CustomerView({
       padding: "12px 14px 110px 14px",
       boxSizing: "border-box"
     }}>
-      {/* Live Order Active Banner if table has an active order */}
+      {/* Live Order Active Banner if table has an active in-kitchen order */}
       {customerActiveOrders.length > 0 ? (
         <div
           onClick={() => setIsTrackerOpen(true)}
@@ -202,33 +228,6 @@ export default function CustomerView({
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, textDecoration: "underline" }}>
             <span>Track & Pay Bill</span>
-            <ChevronRight size={13} />
-          </div>
-        </div>
-      ) : customerSettledOrders.length > 0 ? (
-        <div
-          onClick={() => setIsTrackerOpen(true)}
-          style={{
-            marginBottom: 12,
-            backgroundColor: "#15803d",
-            color: "#fff",
-            borderRadius: "var(--radius-sm)",
-            padding: "8px 12px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            cursor: "pointer",
-            boxShadow: "var(--shadow-sm)"
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "#a7f3d0" }} />
-            <span>
-              <strong>Bill Settled:</strong> Download digital invoice (Table #{tableNumber})
-            </span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, textDecoration: "underline" }}>
-            <span>Invoice (PDF)</span>
             <ChevronRight size={13} />
           </div>
         </div>

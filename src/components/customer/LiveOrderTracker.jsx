@@ -18,9 +18,42 @@ export default function LiveOrderTracker({ isOpen, onClose, orders, tableNumber 
 
   if (!isOpen) return null;
 
-  const tableOrders = (orders || []).filter(
-    (ord) => String(ord.tableNumber) === String(tableNumber)
-  );
+  const getSessionOrderIds = () => {
+    try {
+      const raw = sessionStorage.getItem(`twohearts_table_${tableNumber}_session_orders`);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const sessionOrderIds = getSessionOrderIds();
+
+  // Filter orders for this table:
+  // - MUST match tableNumber
+  // - Active in-kitchen orders (placed, preparing, served)
+  // - Settled orders are ONLY shown to the device that placed them in this session (< 30 mins)
+  // Prevents past settled orders of previous dining parties from ever appearing to new customers!
+  const tableOrders = (orders || []).filter((ord) => {
+    if (String(ord.tableNumber) !== String(tableNumber)) return false;
+
+    if (ord.status === "placed" || ord.status === "preparing" || ord.status === "served") {
+      if (sessionOrderIds.length > 0) {
+        return sessionOrderIds.includes(ord.id);
+      }
+      const ageMs = Date.now() - (ord.timestamp || (ord.createdAt ? new Date(ord.createdAt).getTime() : 0));
+      return ageMs < 45 * 60 * 1000;
+    }
+
+    if (ord.status === "settled") {
+      if (!sessionOrderIds.includes(ord.id)) return false;
+      const settledTime = ord.settledAt ? new Date(ord.settledAt).getTime() : (ord.timestamp || 0);
+      const settledAgeMs = Date.now() - settledTime;
+      return settledAgeMs < 30 * 60 * 1000;
+    }
+
+    return false;
+  });
 
   return (
     <div style={{

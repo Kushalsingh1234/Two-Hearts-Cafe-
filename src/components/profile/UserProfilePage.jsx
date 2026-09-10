@@ -21,11 +21,20 @@ import {
   CreditCard,
   Shield,
   Smartphone,
-  X
+  X,
+  ChefHat,
+  Store,
+  Phone,
+  MessageSquare,
+  Navigation,
+  ExternalLink,
+  Copy,
+  CheckCircle2,
+  Ban
 } from "lucide-react";
 import CafeLogoIcon from "../common/CafeLogoIcon";
 import { useCustomerAuth } from "../../context/CustomerAuthContext";
-import { getCustomerOrders } from "../../firebase/services";
+import { getCustomerOrders, updateOnlineOrder } from "../../firebase/services";
 import { printReceipt } from "../../utils/receiptGenerator";
 import OrderDetailsModal from "./OrderDetailsModal";
 import OrderFeedbackModal from "./OrderFeedbackModal";
@@ -59,11 +68,12 @@ export default function UserProfilePage({ setPage, initialTab = "orders" }) {
     }
   }, [initialTab]);
 
-  // Order history state
+  // Orders state
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [activeOrderDetails, setActiveOrderDetails] = useState(null);
   const [activeFeedbackOrder, setActiveFeedbackOrder] = useState(null);
+  const [copiedOrderId, setCopiedOrderId] = useState(null);
 
   // Profile Edit State
   const [editName, setEditName] = useState(customerUser?.name || "");
@@ -96,15 +106,112 @@ export default function UserProfilePage({ setPage, initialTab = "orders" }) {
     }
   }, [customerUser]);
 
-  // Load customer order history
-  const loadOrders = useCallback(async () => {
-    if (!customerUser || !customerUser.phone) {
-      setOrders([]);
-      setLoadingOrders(false);
+  // Cancel active order handler
+  const handleCancelOrder = async (e, ord) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to cancel Order #${ord.orderNumber || ord.id}?`)) {
       return;
     }
+    try {
+      await updateOnlineOrder(ord.id, { status: "cancelled" });
+      try {
+        localStorage.removeItem("twohearts_active_online_order_v1");
+      } catch {}
+
+      // Also update in cached orders
+      const cached = localStorage.getItem("twohearts_orders_cache");
+      if (cached) {
+        const cachedList = JSON.parse(cached);
+        const updated = cachedList.map((o) =>
+          o.id === ord.id || o.orderNumber === ord.orderNumber ? { ...o, status: "cancelled" } : o
+        );
+        localStorage.setItem("twohearts_orders_cache", JSON.stringify(updated));
+      }
+
+      setOrders((prev) =>
+        prev.map((o) => (o.id === ord.id || o.orderNumber === ord.orderNumber ? { ...o, status: "cancelled" } : o))
+      );
+      window.dispatchEvent(
+        new CustomEvent("twohearts_order_updated", {
+          detail: { id: ord.id, orderNumber: ord.orderNumber, status: "cancelled" }
+        })
+      );
+      loadOrders();
+    } catch (err) {
+      console.error("Cancel order error:", err);
+    }
+  };
+
+  // Load customer orders with live active order sync
+  const loadOrders = useCallback(async () => {
     setLoadingOrders(true);
-    const list = await getCustomerOrders(customerUser.phone);
+    const phone = customerUser?.phone || "";
+    let list = await getCustomerOrders(phone);
+
+    const cleanNum = (n) => String(n || "").replace(/^#/, "").trim().toUpperCase();
+    const isOrderMatch = (a, b) => {
+      if (!a || !b) return false;
+      if (a.id && b.id && a.id === b.id) return true;
+      const numA = cleanNum(a.orderNumber);
+      const numB = cleanNum(b.orderNumber);
+      if (numA && numB && numA === numB) return true;
+      if (a.id && numB && cleanNum(a.id) === numB) return true;
+      if (b.id && numA && cleanNum(b.id) === numA) return true;
+      return false;
+    };
+
+    // Check twohearts_orders_cache directly to ensure cancelled/delivered status overrides
+    try {
+      const cached = localStorage.getItem("twohearts_orders_cache");
+      if (cached) {
+        const cachedOrders = JSON.parse(cached);
+        if (Array.isArray(cachedOrders)) {
+          list = list.map((ord) => {
+            const matched = cachedOrders.find((c) => isOrderMatch(c, ord));
+            if (matched && matched.status) {
+              return { ...ord, ...matched };
+            }
+            return ord;
+          });
+        }
+      }
+    } catch (e) {}
+
+    // Check active order from localStorage
+    try {
+      const activeRaw = localStorage.getItem("twohearts_active_online_order_v1");
+      if (activeRaw) {
+        const activeObj = JSON.parse(activeRaw);
+        if (activeObj && (activeObj.id || activeObj.orderNumber)) {
+          const isCancelledOrDone = ["cancelled", "delivered", "completed", "rejected"].includes(
+            String(activeObj.status || "").toLowerCase().trim()
+          );
+          const inList = list.find((o) => isOrderMatch(o, activeObj));
+
+          if (
+            isCancelledOrDone ||
+            (inList &&
+              ["cancelled", "delivered", "completed", "rejected"].includes(
+                String(inList.status || "").toLowerCase().trim()
+              ))
+          ) {
+            try {
+              localStorage.removeItem("twohearts_active_online_order_v1");
+            } catch {}
+          } else if (!inList) {
+            list = [activeObj, ...list];
+          }
+        }
+      }
+    } catch (e) {}
+
+    // Sort newest first
+    list.sort((a, b) => {
+      const timeA = a.timestamp || (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const timeB = b.timestamp || (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+      return timeB - timeA;
+    });
+
     setOrders(list);
     setLoadingOrders(false);
   }, [customerUser]);
@@ -118,10 +225,18 @@ export default function UserProfilePage({ setPage, initialTab = "orders" }) {
 
     window.addEventListener("twohearts_new_order", handleOrderChange);
     window.addEventListener("twohearts_order_updated", handleOrderChange);
+    window.addEventListener("storage", handleOrderChange);
+
+    // Periodic sync every 3 seconds to catch live kitchen updates
+    const syncInterval = setInterval(() => {
+      loadOrders();
+    }, 3000);
 
     return () => {
       window.removeEventListener("twohearts_new_order", handleOrderChange);
       window.removeEventListener("twohearts_order_updated", handleOrderChange);
+      window.removeEventListener("storage", handleOrderChange);
+      clearInterval(syncInterval);
     };
   }, [loadOrders]);
 
@@ -254,7 +369,7 @@ export default function UserProfilePage({ setPage, initialTab = "orders" }) {
   );
 
   const tabs = [
-    { id: "orders", label: "Order History", icon: Clock },
+    { id: "orders", label: "My Orders", icon: Clock },
     { id: "addresses", label: "Your Addresses", icon: MapPin },
     { id: "profile", label: "My Profile", icon: User },
     { id: "settings", label: "Settings", icon: Settings },
@@ -477,12 +592,15 @@ export default function UserProfilePage({ setPage, initialTab = "orders" }) {
 
         {/* 3. TAB CONTENT SECTIONS */}
 
-        {/* TAB 1: ORDER HISTORY */}
+        {/* TAB 1: MY ORDERS */}
         {activeTab === "orders" && (
           <div>
             {loadingOrders ? (
               <div style={{ textAlign: "center", padding: "40px 0", color: "#78716C" }}>
-                <p>Loading your order history...</p>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 10, fontSize: 14 }}>
+                  <Clock size={18} style={{ color: "var(--color-bronze)" }} />
+                  <span>Loading your orders...</span>
+                </div>
               </div>
             ) : orders.length === 0 ? (
               <div
@@ -509,7 +627,7 @@ export default function UserProfilePage({ setPage, initialTab = "orders" }) {
                   <Package size={28} />
                 </div>
                 <h3 style={{ fontFamily: "var(--font-serif)", fontSize: 22, marginBottom: 6 }}>
-                  No past orders found
+                  No orders found
                 </h3>
                 <p style={{ fontSize: 13, color: "var(--color-ink-soft)", maxWidth: 380, margin: "0 auto 20px auto" }}>
                   You haven't placed an online food delivery or takeaway order with us yet. Explore our handcrafted pastas, burgers, and shakes!
@@ -523,200 +641,453 @@ export default function UserProfilePage({ setPage, initialTab = "orders" }) {
                   Browse Menu & Order Now
                 </button>
               </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                {orders.map((ord) => {
-                  const itemsCount = (ord.items || []).reduce((acc, i) => acc + (i.quantity || 1), 0);
-                  const itemsSummary = (ord.items || [])
-                    .map((i) => `${i.quantity}x ${i.name}`)
-                    .slice(0, 3)
-                    .join(", ") + ((ord.items || []).length > 3 ? "..." : "");
+            ) : (() => {
+              const isOrderDone = (status) =>
+                ["delivered", "completed", "cancelled", "rejected"].includes(
+                  String(status || "").toLowerCase().trim()
+                );
+              const activeOrders = orders.filter((ord) => !isOrderDone(ord.status));
+              const pastOrders = orders.filter((ord) => isOrderDone(ord.status));
 
-                  const dateText = ord.createdAt
-                    ? new Date(ord.createdAt).toLocaleString("en-IN", {
-                        dateStyle: "medium",
-                        timeStyle: "short"
-                      })
-                    : "Recent Order";
-
-                  const isDelivered = ord.status === "delivered";
-
-                  return (
-                    <div
-                      key={ord.id}
-                      className="bistro-card bistro-card-hover mobile-card-compact"
-                      style={{
-                        backgroundColor: "#FFFFFF",
-                        padding: "20px 24px",
-                        borderRadius: 16,
-                        border: "1px solid var(--border-color)"
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          flexWrap: "wrap",
-                          gap: 12,
-                          paddingBottom: 14,
-                          borderBottom: "1px solid var(--border-color)"
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          {ord.orderType === "pickup" ? (
-                            <div
-                              style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: "50%",
-                                backgroundColor: "var(--bg-app)",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                color: "var(--color-bronze)"
-                              }}
-                            >
-                              <ShoppingBag size={18} />
-                            </div>
-                          ) : (
-                            <div
-                              style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: "50%",
-                                backgroundColor: "var(--bg-app)",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                color: "var(--color-bronze)"
-                              }}
-                            >
-                              <Bike size={18} />
-                            </div>
-                          )}
-
-                          <div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <span style={{ fontFamily: "var(--font-serif)", fontSize: 17, fontWeight: 700, color: "var(--color-ink)" }}>
-                                Order #{ord.orderNumber || ord.id}
-                              </span>
-                              <span
-                                style={{
-                                  fontSize: 10,
-                                  fontFamily: "var(--font-serif)",
-                                  fontWeight: 700,
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.06em",
-                                  padding: "2px 8px",
-                                  borderRadius: "var(--radius-pill)",
-                                  backgroundColor: isDelivered ? "#ECFDF5" : "#FEF3C7",
-                                  color: isDelivered ? "#059669" : "#D97706",
-                                  border: `1px solid ${isDelivered ? "#A7F3D0" : "#FCD34D"}`
-                                }}
-                              >
-                                {ord.status ? ord.status.replace("_", " ").toUpperCase() : "DELIVERED"}
-                              </span>
-                            </div>
-                            <div style={{ fontSize: 12, color: "#78716C", marginTop: 2 }}>
-                              {dateText} • {ord.orderType === "pickup" ? "Takeaway" : "Home Delivery"}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontFamily: "var(--font-serif)", fontSize: 20, fontWeight: 700, color: "var(--color-ink)" }}>
-                            ₹{ord.total}
-                          </div>
-                          <div style={{ fontSize: 11, color: "#78716C" }}>
-                            {itemsCount} item{itemsCount !== 1 ? "s" : ""}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{ padding: "12px 0", fontSize: 13, color: "var(--color-ink-soft)" }}>
-                        <strong>Items:</strong> {itemsSummary}
-                      </div>
-
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          flexWrap: "wrap",
-                          gap: 10,
-                          paddingTop: 12,
-                          borderTop: "1px dashed var(--border-color)"
-                        }}
-                      >
-                        <div>
-                          {ord.rating ? (
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <div style={{ display: "flex", gap: 2 }}>
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <Star
-                                    key={star}
-                                    size={13}
-                                    fill={star <= ord.rating ? "#F59E0B" : "transparent"}
-                                    color={star <= ord.rating ? "#F59E0B" : "#D1D5DB"}
-                                  />
-                                ))}
-                              </div>
-                              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-bronze-dark)" }}>
-                                You rated {ord.rating}★
-                              </span>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setActiveFeedbackOrder(ord)}
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 5,
-                                padding: "6px 12px",
-                                borderRadius: "var(--radius-pill)",
-                                backgroundColor: "var(--bg-app)",
-                                border: "1px solid var(--border-color)",
-                                fontSize: 11,
-                                fontWeight: 600,
-                                color: "var(--color-bronze-dark)",
-                                cursor: "pointer"
-                              }}
-                            >
-                              <Star size={12} color="#F59E0B" />
-                              <span>Rate this meal</span>
-                            </button>
-                          )}
-                        </div>
-
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                  {/* SECTION A: ACTIVE IN-PROGRESS ORDERS (COMPACT CARDS) */}
+                  {activeOrders.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <button
-                            type="button"
-                            onClick={() => printReceipt(ord)}
-                            className="btn-pill-outline"
-                            style={{ padding: "7px 14px", fontSize: 11 }}
-                            title="Print or Save PDF Receipt"
-                          >
-                            <Download size={12} />
-                            <span>Receipt</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setActiveOrderDetails(ord)}
-                            className="btn-pill-black"
-                            style={{ padding: "7px 16px", fontSize: 11 }}
-                          >
-                            <span>View Details</span>
-                          </button>
+                          <span style={{ position: "relative", display: "flex", height: 10, width: 10 }}>
+                            <span style={{ animation: "ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite", position: "absolute", display: "inline-flex", height: "100%", width: "100%", borderRadius: "50%", backgroundColor: "#10B981", opacity: 0.75 }} />
+                            <span style={{ position: "relative", display: "inline-flex", borderRadius: "50%", height: 10, width: 10, backgroundColor: "#059669" }} />
+                          </span>
+                          <h3 style={{ fontFamily: "var(--font-serif)", fontSize: 18, fontWeight: 700, color: "var(--color-ink)", margin: 0 }}>
+                            Live Order in Progress ({activeOrders.length})
+                          </h3>
                         </div>
+                        <span style={{ fontSize: 12, color: "#059669", fontWeight: 700 }}>
+                          ● Synced with Kitchen
+                        </span>
                       </div>
+
+                      {activeOrders.map((ord) => {
+                        const isPickup = ord.orderType === "pickup";
+                        const itemsCount = (ord.items || []).reduce((acc, i) => acc + (i.quantity || 1), 0);
+                        const itemsSummary = (ord.items || [])
+                          .map((i) => `${i.quantity || 1}x ${i.name}`)
+                          .slice(0, 2)
+                          .join(", ") + ((ord.items || []).length > 2 ? "..." : "");
+
+                        const dateText = ord.createdAt
+                          ? new Date(ord.createdAt).toLocaleString("en-IN", {
+                              dateStyle: "medium",
+                              timeStyle: "short"
+                            })
+                          : "Just now";
+
+                        const getStepInfo = (status) => {
+                          switch (status) {
+                            case "placed":
+                            case "confirmed":
+                              return { idx: 1, label: "Order Confirmed", desc: "Ticket received in kitchen", icon: CheckCircle2, pct: 25 };
+                            case "preparing":
+                              return { idx: 2, label: "In Kitchen", desc: "Chefs cooking freshly", icon: ChefHat, pct: 50 };
+                            case "out_for_delivery":
+                              return { idx: 3, label: "On the Way", desc: "Driver moving to destination", icon: Bike, pct: 75 };
+                            case "ready_for_pickup":
+                              return { idx: 3, label: "Ready for Pickup", desc: "Packed at cafe counter", icon: Store, pct: 75 };
+                            case "delivered":
+                            case "completed":
+                              return { idx: 4, label: isPickup ? "Collected" : "Delivered", desc: "Enjoy your meal!", icon: ShoppingBag, pct: 100 };
+                            default:
+                              return { idx: 1, label: "Order Confirmed", desc: "Received", icon: CheckCircle2, pct: 25 };
+                          }
+                        };
+
+                        const stepInfo = getStepInfo(ord.status);
+                        const StepIcon = stepInfo.icon;
+                        const liveEta = ord.estimatedTime || (ord.etaMinutes ? `${ord.etaMinutes} mins` : (isPickup ? "15-20 mins" : "30-35 mins"));
+
+                        return (
+                          <div
+                            key={ord.id}
+                            onClick={() => setActiveOrderDetails(ord)}
+                            className="bistro-card bistro-card-hover"
+                            style={{
+                              backgroundColor: "#FFFFFF",
+                              padding: "16px 20px",
+                              borderRadius: 16,
+                              border: "1.5px solid #10B981",
+                              boxShadow: "0 4px 20px -3px rgba(16, 185, 129, 0.15)",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease"
+                            }}
+                          >
+                            {/* Top Meta Line: Badge, Order ID, and Live ETA */}
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                flexWrap: "wrap",
+                                gap: 8,
+                                marginBottom: 10
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    padding: "3px 10px",
+                                    backgroundColor: "#ECFDF5",
+                                    borderRadius: "var(--radius-pill)",
+                                    border: "1px solid #A7F3D0"
+                                  }}
+                                >
+                                  <span style={{ position: "relative", display: "flex", height: 7, width: 7 }}>
+                                    <span style={{ animation: "ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite", position: "absolute", display: "inline-flex", height: "100%", width: "100%", borderRadius: "50%", backgroundColor: "#10B981", opacity: 0.75 }} />
+                                    <span style={{ position: "relative", display: "inline-flex", borderRadius: "50%", height: 7, width: 7, backgroundColor: "#059669" }} />
+                                  </span>
+                                  <span style={{ fontSize: 10.5, fontWeight: 800, color: "#059669", letterSpacing: 0.8, textTransform: "uppercase" }}>
+                                    IN PROGRESS
+                                  </span>
+                                </span>
+                                <span style={{ fontFamily: "var(--font-serif)", fontSize: 15, fontWeight: 700, color: "var(--color-ink)" }}>
+                                  Order #{ord.orderNumber || ord.id}
+                                </span>
+                              </div>
+
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 5,
+                                    fontSize: 11.5,
+                                    fontWeight: 700,
+                                    color: "#065F46",
+                                    backgroundColor: "#D1FAE5",
+                                    padding: "3px 10px",
+                                    borderRadius: "var(--radius-pill)",
+                                    border: "1px solid #A7F3D0"
+                                  }}
+                                  title="Kitchen estimated delivery time"
+                                >
+                                  <Clock size={12} />
+                                  <span>ETA: {liveEta}</span>
+                                </span>
+                                <span style={{ fontSize: 11, color: "#78716C" }}>{dateText}</span>
+                              </div>
+                            </div>
+
+                            {/* Middle: Step Label & Sleek Progress Bar */}
+                            <div style={{ marginBottom: 12 }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, marginBottom: 5 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#065F46", fontWeight: 700 }}>
+                                  <StepIcon size={14} color="#059669" />
+                                  <span>{stepInfo.label}</span>
+                                  <span style={{ fontWeight: 400, color: "#78716C" }}>• {stepInfo.desc}</span>
+                                </div>
+                                <span style={{ fontSize: 11, color: "#059669", fontWeight: 700 }}>
+                                  Step {stepInfo.idx} of 4
+                                </span>
+                              </div>
+                              <div style={{ width: "100%", height: 5, backgroundColor: "#E5E7EB", borderRadius: 99, overflow: "hidden" }}>
+                                <div
+                                  style={{
+                                    width: `${stepInfo.pct}%`,
+                                    height: "100%",
+                                    backgroundColor: "#059669",
+                                    borderRadius: 99,
+                                    transition: "width 0.4s ease"
+                                  }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Bottom Row: Item Summary, Paid Amount, and Quick Actions */}
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                flexWrap: "wrap",
+                                gap: 10,
+                                paddingTop: 10,
+                                borderTop: "1px solid #F3F4F6"
+                              }}
+                            >
+                              <div style={{ fontSize: 12.5, color: "var(--color-ink-soft)" }}>
+                                <span style={{ fontWeight: 600, color: "var(--color-ink)" }}>{itemsSummary || `${itemsCount} items`}</span>
+                                <span style={{ margin: "0 6px" }}>•</span>
+                                <span style={{ fontWeight: 700, color: "var(--color-ink)" }}>₹{ord.total || ord.subtotal}</span>
+                                <span style={{ marginLeft: 6, fontSize: 10.5, color: "#059669", fontWeight: 700, backgroundColor: "#ECFDF5", padding: "2px 6px", borderRadius: 4 }}>
+                                  PAID
+                                </span>
+                              </div>
+
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                {stepInfo.idx <= 2 && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCancelOrder(e, ord);
+                                    }}
+                                    style={{
+                                      backgroundColor: "transparent",
+                                      border: "none",
+                                      color: "#DC2626",
+                                      fontSize: 11.5,
+                                      fontWeight: 600,
+                                      cursor: "pointer",
+                                      padding: "4px 8px",
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: 4
+                                    }}
+                                  >
+                                    <Ban size={12} />
+                                    <span>Cancel</span>
+                                  </button>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveOrderDetails(ord);
+                                  }}
+                                  className="btn-pill-black"
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    padding: "7px 16px",
+                                    fontSize: 12,
+                                    fontWeight: 700
+                                  }}
+                                >
+                                  <span>View Order Details</span>
+                                  <ChevronRight size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  )}
+
+                  {/* SECTION B: PAST COMPLETED ORDERS */}
+                  {pastOrders.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      {activeOrders.length > 0 && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "12px 0 6px 0" }}>
+                          <h3 style={{ fontFamily: "var(--font-serif)", fontSize: 18, fontWeight: 700, color: "var(--color-ink)", margin: 0 }}>
+                            Past Completed Orders ({pastOrders.length})
+                          </h3>
+                          <div style={{ height: 1, flex: 1, backgroundColor: "var(--border-color)" }} />
+                        </div>
+                      )}
+
+                      {pastOrders.map((ord) => {
+                        const itemsCount = (ord.items || []).reduce((acc, i) => acc + (i.quantity || 1), 0);
+                        const itemsSummary = (ord.items || [])
+                          .map((i) => `${i.quantity}x ${i.name}`)
+                          .slice(0, 3)
+                          .join(", ") + ((ord.items || []).length > 3 ? "..." : "");
+
+                        const dateText = ord.createdAt
+                          ? new Date(ord.createdAt).toLocaleString("en-IN", {
+                              dateStyle: "medium",
+                              timeStyle: "short"
+                            })
+                          : "Past Order";
+
+                        const isCancelled = ord.status === "cancelled";
+                        const isDelivered = ord.status === "delivered" || ord.status === "completed";
+
+                        return (
+                          <div
+                            key={ord.id}
+                            className="bistro-card bistro-card-hover mobile-card-compact"
+                            style={{
+                              backgroundColor: "#FFFFFF",
+                              padding: "20px 24px",
+                              borderRadius: 16,
+                              border: "1px solid var(--border-color)"
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                flexWrap: "wrap",
+                                gap: 12,
+                                paddingBottom: 14,
+                                borderBottom: "1px solid var(--border-color)"
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                {ord.orderType === "pickup" ? (
+                                  <div
+                                    style={{
+                                      width: 36,
+                                      height: 36,
+                                      borderRadius: "50%",
+                                      backgroundColor: "var(--bg-app)",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      color: "var(--color-bronze)"
+                                    }}
+                                  >
+                                    <ShoppingBag size={18} />
+                                  </div>
+                                ) : (
+                                  <div
+                                    style={{
+                                      width: 36,
+                                      height: 36,
+                                      borderRadius: "50%",
+                                      backgroundColor: "var(--bg-app)",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      color: "var(--color-bronze)"
+                                    }}
+                                  >
+                                    <Bike size={18} />
+                                  </div>
+                                )}
+
+                                <div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <span style={{ fontFamily: "var(--font-serif)", fontSize: 17, fontWeight: 700, color: "var(--color-ink)" }}>
+                                      Order #{ord.orderNumber || ord.id}
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontSize: 10,
+                                        fontFamily: "var(--font-serif)",
+                                        fontWeight: 700,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.06em",
+                                        padding: "2px 8px",
+                                        borderRadius: "var(--radius-pill)",
+                                        backgroundColor: isCancelled ? "#FEE2E2" : (isDelivered ? "#ECFDF5" : "#FEF3C7"),
+                                        color: isCancelled ? "#DC2626" : (isDelivered ? "#059669" : "#D97706"),
+                                        border: `1px solid ${isCancelled ? "#FCA5A5" : (isDelivered ? "#A7F3D0" : "#FCD34D")}`
+                                      }}
+                                    >
+                                      {isCancelled ? "CANCELLED" : (ord.status ? ord.status.replace("_", " ").toUpperCase() : "COMPLETED")}
+                                    </span>
+                                  </div>
+                                  <div style={{ fontSize: 12, color: "#78716C", marginTop: 2 }}>
+                                    {dateText} • {ord.orderType === "pickup" ? "Takeaway" : "Home Delivery"}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div style={{ textAlign: "right" }}>
+                                <div style={{ fontFamily: "var(--font-serif)", fontSize: 20, fontWeight: 700, color: "var(--color-ink)" }}>
+                                  ₹{ord.total}
+                                </div>
+                                <div style={{ fontSize: 11, color: "#78716C" }}>
+                                  {itemsCount} item{itemsCount !== 1 ? "s" : ""}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div style={{ padding: "12px 0", fontSize: 13, color: "var(--color-ink-soft)" }}>
+                              <strong>Items:</strong> {itemsSummary}
+                            </div>
+
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                flexWrap: "wrap",
+                                gap: 10,
+                                paddingTop: 12,
+                                borderTop: "1px dashed var(--border-color)"
+                              }}
+                            >
+                              <div>
+                                {ord.rating ? (
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    <div style={{ display: "flex", gap: 2 }}>
+                                      {[1, 2, 3, 4, 5].map((star) => (
+                                        <Star
+                                          key={star}
+                                          size={13}
+                                          fill={star <= ord.rating ? "#F59E0B" : "transparent"}
+                                          color={star <= ord.rating ? "#F59E0B" : "#D1D5DB"}
+                                        />
+                                      ))}
+                                    </div>
+                                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-bronze-dark)" }}>
+                                      You rated {ord.rating}★
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveFeedbackOrder(ord)}
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: 5,
+                                      padding: "6px 12px",
+                                      borderRadius: "var(--radius-pill)",
+                                      backgroundColor: "var(--bg-app)",
+                                      border: "1px solid var(--border-color)",
+                                      fontSize: 11,
+                                      fontWeight: 600,
+                                      color: "var(--color-bronze-dark)",
+                                      cursor: "pointer"
+                                    }}
+                                  >
+                                    <Star size={12} color="#F59E0B" />
+                                    <span>Rate this meal</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => printReceipt(ord)}
+                                  className="btn-pill-outline"
+                                  style={{ padding: "7px 14px", fontSize: 11 }}
+                                  title="Print or Save PDF Receipt"
+                                >
+                                  <Download size={12} />
+                                  <span>Receipt</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveOrderDetails(ord)}
+                                  className="btn-pill-black"
+                                  style={{ padding: "7px 16px", fontSize: 11 }}
+                                >
+                                  <span>View Details</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -1357,7 +1728,7 @@ export default function UserProfilePage({ setPage, initialTab = "orders" }) {
                   className="btn-pill-black"
                   style={{ padding: "10px 24px", fontSize: 12 }}
                 >
-                  View Order History
+                  View My Orders
                 </button>
               </div>
             ) : (
@@ -1628,6 +1999,11 @@ export default function UserProfilePage({ setPage, initialTab = "orders" }) {
           order={activeOrderDetails}
           onClose={() => setActiveOrderDetails(null)}
           onOpenFeedback={(orderToRate) => setActiveFeedbackOrder(orderToRate)}
+          onCancelOrder={handleCancelOrder}
+          onNavigate={(p) => {
+            setActiveOrderDetails(null);
+            setPage(p);
+          }}
         />
       )}
 

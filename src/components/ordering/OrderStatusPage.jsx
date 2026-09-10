@@ -18,21 +18,41 @@ import CafeLogoIcon from "../common/CafeLogoIcon";
 
 export default function OrderStatusPage({ onNavigate }) {
   const { activeOrder } = useOnlineOrder();
+  const isDelivery = activeOrder?.orderType === "delivery";
 
-  // Simulated live step progress:
-  // step 1 = placed, 2 = preparing, 3 = out for delivery, 4 = delivered
-  const [currentStep, setCurrentStep] = useState(2);
-  const [remainingMinutes, setRemainingMinutes] = useState(28);
+  // Map order status to progress step:
+  // placed / confirmed -> 1
+  // preparing -> 2
+  // out_for_delivery / ready_for_pickup -> 3
+  // delivered / completed -> 4
+  // cancelled -> -1
+  const getStepFromStatus = (status) => {
+    switch (status) {
+      case "placed":
+        return 1;
+      case "confirmed":
+        return 1;
+      case "preparing":
+        return 2;
+      case "out_for_delivery":
+      case "ready_for_pickup":
+        return 3;
+      case "delivered":
+      case "completed":
+        return 4;
+      case "cancelled":
+        return -1;
+      default:
+        return 1;
+    }
+  };
+
+  const currentStep = getStepFromStatus(activeOrder?.status || "placed");
+  const isCancelled = activeOrder?.status === "cancelled";
+
+  // Live estimated delivery/ready time from admin or initial estimate
+  const estimatedTimeDisplay = activeOrder?.estimatedTime || (activeOrder?.etaMinutes ? `${activeOrder.etaMinutes} mins` : (isDelivery ? "35 mins" : "20 mins"));
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-
-  useEffect(() => {
-    // Dynamic simulated progression for delivery app feel
-    const timer = setInterval(() => {
-      setRemainingMinutes((prev) => (prev > 1 ? prev - 1 : 1));
-    }, 60000);
-
-    return () => clearInterval(timer);
-  }, []);
 
   if (!activeOrder) {
     return (
@@ -56,8 +76,6 @@ export default function OrderStatusPage({ onNavigate }) {
       </div>
     );
   }
-
-  const isDelivery = activeOrder.orderType === "delivery";
 
   const steps = [
     {
@@ -171,14 +189,31 @@ export default function OrderStatusPage({ onNavigate }) {
               </span>
               <div style={{
                 fontFamily: "var(--font-serif)",
-                fontSize: "clamp(32px, 5vw, 44px)",
+                fontSize: "clamp(28px, 4.5vw, 40px)",
                 fontWeight: 700,
-                color: "var(--color-ink)",
+                color: isCancelled ? "#DC2626" : "var(--color-ink)",
                 lineHeight: 1.1
               }}>
-                {remainingMinutes} <span style={{ fontSize: 20, fontWeight: 500, color: "var(--color-bronze)" }}>minutes</span>
+                {isCancelled ? "Order Cancelled" : estimatedTimeDisplay}
               </div>
-              <span style={{ fontSize: 12, color: "var(--color-ink-soft)", marginTop: 4, display: "block" }}>
+              {Boolean(activeOrder?.estimatedTime) && !isCancelled && (
+                <div style={{
+                  fontSize: 11,
+                  color: "#16A34A",
+                  fontWeight: 700,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  marginTop: 6,
+                  backgroundColor: "rgba(22, 163, 74, 0.08)",
+                  padding: "3px 10px",
+                  borderRadius: "var(--radius-pill)",
+                  border: "1px solid rgba(22, 163, 74, 0.2)"
+                }}>
+                  <span>✓ Updated live by Cafe Kitchen</span>
+                </div>
+              )}
+              <span style={{ fontSize: 12, color: "var(--color-ink-soft)", marginTop: 6, display: "block" }}>
                 {isDelivery
                   ? `Delivering to: ${activeOrder.deliveryAddress}`
                   : "Pickup counter: Pillar 852, Muradnagar"}
@@ -203,8 +238,16 @@ export default function OrderStatusPage({ onNavigate }) {
                 display: "inline-block",
                 animation: "pulse 1.8s infinite ease-in-out"
               }} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#16A34A", fontFamily: "var(--font-serif)" }}>
-                Kitchen is preparing your meal
+              <span style={{ fontSize: 12, fontWeight: 700, color: isCancelled ? "#DC2626" : "#16A34A", fontFamily: "var(--font-serif)" }}>
+                {isCancelled
+                  ? "Order Cancelled"
+                  : currentStep === 1
+                  ? "Order Placed & Confirmed"
+                  : currentStep === 2
+                  ? "Kitchen is freshly preparing your meal"
+                  : currentStep === 3
+                  ? (isDelivery ? "Out for Delivery with rider" : "Ready for pickup at cafe counter")
+                  : "Order Delivered & Completed"}
               </span>
             </div>
           </div>

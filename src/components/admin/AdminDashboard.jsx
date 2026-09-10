@@ -9,6 +9,7 @@ import {
   Trash2,
   LogOut,
   KeyRound,
+  Bike,
   Star,
   Smartphone,
   Sun,
@@ -22,6 +23,7 @@ import MenuManager from "./MenuManager";
 import TableQRGenerator from "./TableQRGenerator";
 import ReviewsManager from "./ReviewsManager";
 import ChangePinModal from "./ChangePinModal";
+import OnlineOrdersManager from "./OnlineOrdersManager";
 import { updateOrderStatus, clearAllOrders, subscribeReviews } from "../../firebase/services";
 import { soundNotifier } from "../../utils/audio";
 import {
@@ -33,7 +35,11 @@ import {
 } from "../../utils/notifications";
 
 export default function AdminDashboard({ orders, menuItems, currentUser, onLogout }) {
-  const [activeTab, setActiveTab] = useState("orders"); // 'orders' | 'menu' | 'qr' | 'reviews'
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("tab") || "online-orders";
+  });
+
   const [orderStatusFilter, setOrderStatusFilter] = useState("active");
   const [tableFilter, setTableFilter] = useState("all");
   const [isMuted, setIsMuted] = useState(false);
@@ -171,16 +177,38 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
     await promptPwaInstall();
   };
 
-  // Stats calculation
-  const newOrdersCount = orders.filter((o) => o.status === "placed").length;
-  const preparingCount = orders.filter((o) => o.status === "preparing").length;
-  const servedCount = orders.filter((o) => o.status === "served").length;
-  const totalRevenue = orders
+  // Helper to distinguish online delivery/pickup orders from dine-in QR table orders
+  const isOnlineOrder = (ord) => {
+    if (!ord) return false;
+    return (
+      ord.orderType === "delivery" ||
+      ord.orderType === "pickup" ||
+      ord.tableNumber === "Delivery" ||
+      ord.tableNumber === "Takeaway" ||
+      (typeof ord.orderNumber === "string" && ord.orderNumber.startsWith("THD-")) ||
+      Boolean(ord.deliveryAddress)
+    );
+  };
+
+  const tableOrders = orders.filter((ord) => !isOnlineOrder(ord));
+  const onlineOrders = orders.filter(isOnlineOrder);
+
+  // Stats calculation for table orders
+  const tableNewOrdersCount = tableOrders.filter((o) => o.status === "placed").length;
+  const tablePreparingCount = tableOrders.filter((o) => o.status === "preparing").length;
+  const tableServedCount = tableOrders.filter((o) => o.status === "served").length;
+  const tableTotalRevenue = tableOrders
     .filter((o) => o.status !== "cancelled")
     .reduce((acc, o) => acc + (o.total || 0), 0);
 
-  // Filtered orders
-  const filteredOrders = orders.filter((ord) => {
+  // Online active orders count for tab badge
+  const onlineActiveCount = onlineOrders.filter(
+    (o) => !["delivered", "completed", "cancelled"].includes(o.status)
+  ).length;
+  const onlineNewCount = onlineOrders.filter((o) => o.status === "placed").length;
+
+  // Filtered table orders
+  const filteredTableOrders = tableOrders.filter((ord) => {
     if (orderStatusFilter === "active") {
       if (ord.status === "settled" || ord.status === "cancelled") return false;
     } else if (orderStatusFilter !== "all" && ord.status !== orderStatusFilter) {
@@ -192,12 +220,12 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
     return true;
   });
 
-  const uniqueTables = Array.from(new Set(orders.map((o) => String(o.tableNumber)))).sort(
+  const uniqueTables = Array.from(new Set(tableOrders.map((o) => String(o.tableNumber)))).sort(
     (a, b) => Number(a) - Number(b)
   );
 
   return (
-    <div className="admin-dashboard-container">
+    <div className="admin-dashboard-container" style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 16px 80px 16px" }}>
       {/* Top Header */}
       <div style={{
         display: "flex",
@@ -469,62 +497,91 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
         </div>
       </div>
 
-      {/* KPI Stats Grid */}
-      <div className="admin-kpi-grid">
-        {/* New Orders */}
-        <div className="admin-kpi-card" style={{
-          border: newOrdersCount > 0 ? "2px solid var(--color-bronze)" : "1.2px solid var(--color-border-frame)"
+      {/* KPI Stats - Table Orders (only shown on Table Feed tab, Online Orders tab has its own dedicated KPI grid) */}
+      {activeTab === "orders" && (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: 12,
+          marginBottom: 24
         }}>
-          <div className="admin-kpi-title" style={{ color: "var(--color-bronze)" }}>
-            New Orders
+          {/* New Orders */}
+          <div style={{
+            backgroundColor: "#fff",
+            padding: "14px 18px",
+            borderRadius: 4,
+            border: tableNewOrdersCount > 0 ? "2px solid var(--color-bronze)" : "1.2px solid var(--color-border-frame)",
+            boxShadow: "var(--shadow-sheet)"
+          }}>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, color: "var(--color-bronze)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+              New Orders
+            </div>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: 32, fontWeight: 800, color: "var(--color-ink)", lineHeight: 1.1, marginTop: 4 }}>
+              {tableNewOrdersCount}
+            </div>
+            <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 12, color: "var(--color-bronze)" }}>
+              Needs preparation
+            </div>
           </div>
-          <div className="admin-kpi-num" style={{ color: "var(--color-ink)" }}>
-            {newOrdersCount}
-          </div>
-          <div className="admin-kpi-desc">
-            Needs preparation
-          </div>
-        </div>
 
-        {/* In Kitchen */}
-        <div className="admin-kpi-card">
-          <div className="admin-kpi-title" style={{ color: "var(--color-ink)" }}>
-            In Cooking
+          {/* In Kitchen */}
+          <div style={{
+            backgroundColor: "#fff",
+            padding: "14px 18px",
+            borderRadius: 4,
+            border: "1.2px solid var(--color-border-frame)",
+            boxShadow: "var(--shadow-sheet)"
+          }}>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+              In Cooking
+            </div>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: 32, fontWeight: 800, color: "#2563eb", lineHeight: 1.1, marginTop: 4 }}>
+              {tablePreparingCount}
+            </div>
+            <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 12, color: "var(--color-bronze)" }}>
+              Currently on the stove/pan
+            </div>
           </div>
-          <div className="admin-kpi-num" style={{ color: "#2563eb" }}>
-            {preparingCount}
-          </div>
-          <div className="admin-kpi-desc">
-            Currently cooking
-          </div>
-        </div>
 
-        {/* Served */}
-        <div className="admin-kpi-card">
-          <div className="admin-kpi-title" style={{ color: "var(--color-ink)" }}>
-            Delivered
+          {/* Served */}
+          <div style={{
+            backgroundColor: "#fff",
+            padding: "14px 18px",
+            borderRadius: 4,
+            border: "1.2px solid var(--color-border-frame)",
+            boxShadow: "var(--shadow-sheet)"
+          }}>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+              Delivered
+            </div>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: 32, fontWeight: 800, color: "#15803d", lineHeight: 1.1, marginTop: 4 }}>
+              {tableServedCount}
+            </div>
+            <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 12, color: "var(--color-bronze)" }}>
+              Served to table
+            </div>
           </div>
-          <div className="admin-kpi-num" style={{ color: "#15803d" }}>
-            {servedCount}
-          </div>
-          <div className="admin-kpi-desc">
-            Served to table
-          </div>
-        </div>
 
-        {/* Revenue */}
-        <div className="admin-kpi-card">
-          <div className="admin-kpi-title" style={{ color: "var(--color-ink)" }}>
-            Total Tickets Value
-          </div>
-          <div className="admin-kpi-num" style={{ color: "var(--color-ink)" }}>
-            Rs.{totalRevenue}
-          </div>
-          <div className="admin-kpi-desc">
-            {orders.length} orders today
+          {/* Revenue */}
+          <div style={{
+            backgroundColor: "#fff",
+            padding: "14px 18px",
+            borderRadius: 4,
+            border: "1.2px solid var(--color-border-frame)",
+            boxShadow: "var(--shadow-sheet)"
+          }}>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+              Total Tickets Value
+            </div>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: 32, fontWeight: 800, color: "var(--color-ink)", lineHeight: 1.1, marginTop: 4 }}>
+              Rs.{tableTotalRevenue}
+            </div>
+            <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 12, color: "var(--color-bronze)" }}>
+              {tableOrders.length} table orders placed today
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Navigation Tabs with Smooth Horizontal Touch Scrolling & Fail-safe Chevrons */}
       <div style={{ position: "relative", marginBottom: 18 }}>
@@ -557,6 +614,35 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
             className="admin-nav-tabs-wrapper no-scrollbar"
             style={{ flex: 1 }}
           >
+            {/* 1. Online Orders Tab */}
+            <button
+              onClick={() => setActiveTab("online-orders")}
+              className="admin-nav-tab-btn"
+              data-active={activeTab === "online-orders"}
+              style={{
+                borderBottom: activeTab === "online-orders" ? "3px solid #15803d" : "3px solid transparent",
+                color: activeTab === "online-orders" ? "#15803d" : "var(--color-bronze)",
+                fontWeight: activeTab === "online-orders" ? 800 : 600,
+                marginBottom: -2
+              }}
+            >
+              <Bike size={16} />
+              <span>Online Orders</span>
+              {onlineActiveCount > 0 && (
+                <span style={{
+                  backgroundColor: onlineNewCount > 0 ? "#D97706" : "#15803D",
+                  color: "#fff",
+                  fontSize: 11,
+                  fontWeight: 800,
+                  padding: "1px 6px",
+                  borderRadius: "var(--radius-pill)"
+                }}>
+                  {onlineActiveCount}
+                </span>
+              )}
+            </button>
+
+            {/* 2. Table QR Orders Tab */}
             <button
               onClick={() => setActiveTab("orders")}
               className="admin-nav-tab-btn"
@@ -569,8 +655,8 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
               }}
             >
               <ChefHat size={16} />
-              <span>Live Kitchen Feed</span>
-              {newOrdersCount > 0 && (
+              <span>Table QR Feed</span>
+              {tableNewOrdersCount > 0 && (
                 <span style={{
                   backgroundColor: "var(--color-bronze)",
                   color: "#fff",
@@ -579,11 +665,12 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
                   padding: "1px 6px",
                   borderRadius: "var(--radius-pill)"
                 }}>
-                  {newOrdersCount}
+                  {tableNewOrdersCount}
                 </span>
               )}
             </button>
 
+            {/* 3. Menu & Stock Tab */}
             <button
               onClick={() => setActiveTab("menu")}
               className="admin-nav-tab-btn"
@@ -599,6 +686,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
               <span>Menu & Stock</span>
             </button>
 
+            {/* 4. Table QR Kit Tab */}
             <button
               onClick={() => setActiveTab("qr")}
               className="admin-nav-tab-btn"
@@ -614,6 +702,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
               <span>Table QR Kit</span>
             </button>
 
+            {/* 5. Table Reviews Tab */}
             <button
               onClick={() => setActiveTab("reviews")}
               className="admin-nav-tab-btn"
@@ -668,6 +757,10 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
       </div>
 
       {/* Tab Content */}
+      {activeTab === "online-orders" && (
+        <OnlineOrdersManager orders={orders} />
+      )}
+
       {activeTab === "orders" && (
         <div>
           {/* Filters Bar with Horizontal Scroll for Mobile */}
@@ -735,10 +828,10 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
                 </select>
               )}
 
-              {orders.length > 0 && (
+              {tableOrders.length > 0 && (
                 <button
                   onClick={() => {
-                    if (confirm("Clear all orders from the kitchen board?")) {
+                    if (confirm("Clear all table orders from the kitchen board?")) {
                       clearAllOrders();
                     }
                   }}
@@ -764,8 +857,8 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
             </div>
           </div>
 
-          {/* Orders Grid */}
-          {filteredOrders.length === 0 ? (
+          {/* Table Orders Grid */}
+          {filteredTableOrders.length === 0 ? (
             <div style={{
               backgroundColor: "#fff",
               borderRadius: 4,
@@ -775,15 +868,15 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
             }}>
               <ChefHat size={44} style={{ color: "var(--color-bronze)", marginBottom: 12 }} />
               <h3 style={{ fontFamily: "var(--font-serif)", fontSize: 20, color: "var(--color-ink)" }}>
-                No orders match your filter
+                No table orders match your filter
               </h3>
               <p style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 14, color: "var(--color-bronze)", marginTop: 4 }}>
-                Switch to "Menu" in the top right to simulate customer orders from Table 5!
+                Customer QR table orders will appear here in real time.
               </p>
             </div>
           ) : (
             <div className="admin-orders-grid">
-              {filteredOrders.map((order) => (
+              {filteredTableOrders.map((order) => (
                 <OrderCard
                   key={order.id}
                   order={order}

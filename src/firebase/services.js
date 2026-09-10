@@ -40,6 +40,33 @@ const setLocalData = (key, val) => {
   }
 };
 
+// Purge any legacy demo/testing orders from local caches
+try {
+  const cachedOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+  if (Array.isArray(cachedOrders) && cachedOrders.length > 0) {
+    const cleaned = cachedOrders.filter(
+      (o) =>
+        !o?.id?.startsWith("ord_demo_") &&
+        o?.orderNumber !== "THD-8942" &&
+        o?.orderNumber !== "THD-8938" &&
+        o?.orderNumber !== "THP-8931"
+    );
+    if (cleaned.length !== cachedOrders.length) {
+      setLocalData(LOCAL_STORAGE_ORDERS_KEY, cleaned);
+    }
+  }
+  const active = localStorage.getItem("twohearts_active_online_order_v1");
+  if (
+    active &&
+    (active.includes("ord_demo_") ||
+      active.includes("THD-8942") ||
+      active.includes("THD-8938") ||
+      active.includes("THP-8931"))
+  ) {
+    localStorage.removeItem("twohearts_active_online_order_v1");
+  }
+} catch {}
+
 let firestorePermissionErrorDetected = false;
 
 export const hasFirestorePermissionError = () => firestorePermissionErrorDetected;
@@ -381,12 +408,14 @@ export const subscribeLiveOrders = (onSuccess, onError) => {
     };
     window.addEventListener("storage", handleLocalSync);
     window.addEventListener("twohearts_new_order", handleLocalSync);
+    window.addEventListener("twohearts_order_updated", handleLocalSync);
 
     return () => {
       isUnsubscribed = true;
       unsubscribe();
       window.removeEventListener("storage", handleLocalSync);
       window.removeEventListener("twohearts_new_order", handleLocalSync);
+      window.removeEventListener("twohearts_order_updated", handleLocalSync);
     };
   } catch (err) {
     console.warn("Live orders setup error:", err);
@@ -453,6 +482,88 @@ export const updateOrderPayment = async (orderId, paymentData) => {
 };
 
 /**
+ * Update online delivery / pickup order details (status, estimated ready time, etaMinutes, notes)
+ */
+export const updateOnlineOrder = async (orderId, updates = {}) => {
+  const updatedAt = new Date().toISOString();
+  const payload = {
+    ...updates,
+    updatedAt
+  };
+
+  let updatedOrder = null;
+
+  try {
+    const docRef = doc(db, ORDERS_COLLECTION, orderId);
+    await updateDoc(docRef, payload);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      updatedOrder = { id: snap.id, ...snap.data() };
+    }
+  } catch (err) {
+    console.warn("Firestore updateOnlineOrder fallback to local storage:", err);
+  }
+
+  // Always update local storage
+  const cleanNum = (n) => String(n || "").replace(/^#/, "").trim().toUpperCase();
+  const targetNum = cleanNum(orderId);
+
+  const orders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+  let found = false;
+  const updatedOrders = orders.map((ord) => {
+    const matches =
+      ord.id === orderId ||
+      ord.orderNumber === orderId ||
+      (targetNum && (cleanNum(ord.id) === targetNum || cleanNum(ord.orderNumber) === targetNum));
+    if (matches) {
+      found = true;
+      const merged = { ...ord, ...payload };
+      updatedOrder = merged;
+      return merged;
+    }
+    return ord;
+  });
+
+  if (found) {
+    setLocalData(LOCAL_STORAGE_ORDERS_KEY, updatedOrders);
+  }
+
+  // Sync to customer active order in localStorage if matching
+  try {
+    const activeRaw = localStorage.getItem("twohearts_active_online_order_v1");
+    if (activeRaw) {
+      const active = JSON.parse(activeRaw);
+      const isTarget =
+        active &&
+        (active.id === orderId ||
+          active.orderNumber === orderId ||
+          (targetNum && (cleanNum(active.id) === targetNum || cleanNum(active.orderNumber) === targetNum)) ||
+          (updatedOrder && (cleanNum(active.orderNumber) === cleanNum(updatedOrder.orderNumber) || active.id === updatedOrder.id)));
+      if (isTarget) {
+        const isTerminal = ["cancelled", "delivered", "completed", "rejected"].includes(
+          String(payload.status || "").toLowerCase().trim()
+        );
+        if (isTerminal) {
+          localStorage.removeItem("twohearts_active_online_order_v1");
+        } else {
+          const mergedActive = { ...active, ...payload };
+          localStorage.setItem("twohearts_active_online_order_v1", JSON.stringify(mergedActive));
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Error syncing active customer order", e);
+  }
+
+  const finalDetail = updatedOrder || { id: orderId, ...payload };
+  // Dispatch events for real-time reactive sync across tabs / components
+  window.dispatchEvent(new CustomEvent("twohearts_order_updated", { detail: finalDetail }));
+  window.dispatchEvent(new CustomEvent("twohearts_new_order", { detail: finalDetail }));
+
+  return finalDetail;
+};
+
+/**
  * Clear all demo orders
  */
 export const clearAllOrders = async () => {
@@ -472,11 +583,11 @@ export const clearAllOrders = async () => {
  * Retrieve past orders for a specific customer (by mobile phone or customer ID)
  */
 export const getCustomerOrders = async (phone) => {
-  if (!phone) return [];
-  const cleanPhone = String(phone).replace(/\D/g, "").slice(-10);
-
+  const cleanPhone = phone ? String(phone).replace(/\D/g, "").slice(-10) : "";
+  
   // 1. First check local storage orders
   const localOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+  const activeOrder = getLocalData("twohearts_active_online_order_v1", null);
 
   // 2. Try fetching from Firestore
   let remoteOrders = [];
@@ -487,21 +598,74 @@ export const getCustomerOrders = async (phone) => {
     // offline/rules fallback
   }
 
-  // Combine and deduplicate
-  const map = new Map();
-  [...remoteOrders, ...localOrders].forEach((ord) => {
-    if (ord && ord.id) {
-      map.set(ord.id, ord);
+  // Normalize order keys for universal deduplication (ignoring leading #, case-insensitive)
+  const cleanOrderNum = (num) => String(num || "").replace(/^#/, "").trim().toUpperCase();
+  const isOrderMatch = (a, b) => {
+    if (!a || !b) return false;
+    if (a.id && b.id && a.id === b.id) return true;
+    const numA = cleanOrderNum(a.orderNumber);
+    const numB = cleanOrderNum(b.orderNumber);
+    if (numA && numB && numA === numB) return true;
+    if (a.id && numB && cleanOrderNum(a.id) === numB) return true;
+    if (b.id && numA && cleanOrderNum(b.id) === numA) return true;
+    return false;
+  };
+
+  // Combine and deduplicate: localOrders and remoteOrders first, then activeOrder
+  const combined = [...localOrders, ...remoteOrders, ...(activeOrder ? [activeOrder] : [])];
+  const unified = [];
+
+  combined.forEach((ord) => {
+    if (!ord || (!ord.id && !ord.orderNumber)) return;
+    const existingIdx = unified.findIndex((u) => isOrderMatch(u, ord));
+    if (existingIdx >= 0) {
+      const existing = unified[existingIdx];
+      const isTerminal = (st) =>
+        ["cancelled", "delivered", "completed", "rejected"].includes(String(st || "").toLowerCase().trim());
+      
+      // Authoritative status: terminal status (cancelled/delivered/completed) ALWAYS wins
+      let finalStatus = ord.status || existing.status;
+      if (isTerminal(existing.status) && !isTerminal(ord.status)) {
+        finalStatus = existing.status;
+      } else if (isTerminal(ord.status)) {
+        finalStatus = ord.status;
+      }
+
+      unified[existingIdx] = {
+        ...existing,
+        ...ord,
+        status: finalStatus
+      };
+    } else {
+      unified.push({ ...ord });
     }
   });
 
-  const allOrders = Array.from(map.values());
+  // Clean up localStorage active order if it is cancelled or completed
+  if (activeOrder) {
+    const matchedActive = unified.find((u) => isOrderMatch(u, activeOrder));
+    if (
+      matchedActive &&
+      ["cancelled", "delivered", "completed", "rejected"].includes(String(matchedActive.status || "").toLowerCase().trim())
+    ) {
+      try {
+        localStorage.removeItem("twohearts_active_online_order_v1");
+      } catch {}
+    }
+  }
 
-  // Filter for orders matching this phone or userId
-  const customerOrders = allOrders.filter((ord) => {
+  // Filter for orders matching this phone or userId, or active browser order
+  const customerOrders = unified.filter((ord) => {
+    if (!cleanPhone) return true;
     const ordPhone = String(ord.customerPhone || "").replace(/\D/g, "").slice(-10);
-    const ordUserId = String(ord.userId || "");
-    return (ordPhone && ordPhone === cleanPhone) || ordUserId === cleanPhone;
+    const ordUserId = String(ord.userId || "").replace(/\D/g, "").slice(-10);
+    const ordRawUserId = String(ord.userId || "");
+    return (
+      (ordPhone && ordPhone === cleanPhone) ||
+      (ordUserId && ordUserId === cleanPhone) ||
+      ordRawUserId === phone ||
+      (activeOrder && isOrderMatch(ord, activeOrder))
+    );
   });
 
   // Sort newest first

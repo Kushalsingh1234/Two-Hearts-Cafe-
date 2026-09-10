@@ -12,7 +12,8 @@ import {
   MapPin,
   Phone,
   User,
-  Check
+  Check,
+  AlertCircle
 } from "lucide-react";
 import { useOnlineOrder } from "../../context/OnlineOrderContext";
 import { useCustomerAuth } from "../../context/CustomerAuthContext";
@@ -35,13 +36,37 @@ export default function CheckoutPage({ onNavigate }) {
     taxes,
     total,
     deliveryType,
+    setDeliveryType,
     customerInfo,
     setCustomerInfo,
-    submitOnlineOrder
+    submitOnlineOrder,
+    DELIVERY_CONFIG,
+    calculateDistanceKm,
+    checkDeliveryEligibility
   } = useOnlineOrder();
 
   // Track currently selected saved address
   const [selectedAddressId, setSelectedAddressId] = useState(defaultAddress?.id || null);
+
+  // Resolve selected address object and evaluate live delivery eligibility
+  const selectedAddressObj = savedAddresses.find((a) => a.id === selectedAddressId);
+  const currentCoords = selectedAddressObj?.coords || null;
+
+  const deliveryEligibility = checkDeliveryEligibility
+    ? checkDeliveryEligibility({
+        coords: currentCoords,
+        subtotal,
+        orderType: deliveryType
+      })
+    : {
+        isEligible: true,
+        orderType: deliveryType,
+        distanceKm: null,
+        isWithinRadius: true,
+        meetsMinSubtotal: true,
+        amountNeeded: 0,
+        reason: null
+      };
 
   // Form State - pre-filled from customerUser & default address if available
   const [formData, setFormData] = useState({
@@ -185,6 +210,15 @@ export default function CheckoutPage({ onNavigate }) {
       return;
     }
 
+    // Check delivery eligibility strictly if in delivery mode
+    if (deliveryType === "delivery" && !deliveryEligibility.isEligible) {
+      alert(
+        deliveryEligibility.reason ||
+          "This order does not meet delivery eligibility requirements. Please switch to Pickup."
+      );
+      return;
+    }
+
     if (!validateForm()) {
       window.scrollTo({ top: 180, behavior: "smooth" });
       return;
@@ -207,11 +241,20 @@ export default function CheckoutPage({ onNavigate }) {
 
     setTimeout(async () => {
       try {
-        await submitOnlineOrder({
-          method: paymentTab === "upi" ? `UPI (${upiMethod.toUpperCase()})` : paymentTab === "card" ? "Credit/Debit Card" : "Net Banking",
-          transactionId: `TXN_${Date.now().toString().slice(-8)}`,
-          userId: customerUser?.phone || formData.phone.trim()
-        });
+        await submitOnlineOrder(
+          {
+            method: paymentTab === "upi" ? `UPI (${upiMethod.toUpperCase()})` : paymentTab === "card" ? "Credit/Debit Card" : "Net Banking",
+            transactionId: `TXN_${Date.now().toString().slice(-8)}`,
+            userId: customerUser?.phone || formData.phone.trim(),
+            customerName: formData.name.trim(),
+            customerPhone: formData.phone.trim(),
+            deliveryAddress: formData.address.trim(),
+            address: formData.address.trim(),
+            landmark: formData.landmark?.trim() || "",
+            customerNotes: formData.notes?.trim() || ""
+          },
+          formData
+        );
         setIsProcessingPayment(false);
         onNavigate("order-confirmation");
       } catch (err) {
@@ -285,34 +328,107 @@ export default function CheckoutPage({ onNavigate }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             {/* 1. Contact & Address Details */}
             <div className="bistro-card mobile-card-compact" style={{ padding: "clamp(14px, 3vw, 24px)", backgroundColor: "#FFFFFF" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-                <div style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: "50%",
-                  backgroundColor: "var(--color-bronze-light)",
+              <div
+                style={{
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  color: "var(--color-bronze)"
-                }}>
-                  {deliveryType === "delivery" ? <Bike size={16} /> : <Store size={16} />}
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: 12,
+                  marginBottom: 18
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: "50%",
+                      backgroundColor: "var(--color-bronze-light)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "var(--color-bronze)"
+                    }}
+                  >
+                    {deliveryType === "delivery" ? <Bike size={16} /> : <Store size={16} />}
+                  </div>
+                  <div>
+                    <h3
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontSize: 18,
+                        fontWeight: 700,
+                        color: "var(--color-ink)",
+                        margin: 0
+                      }}
+                    >
+                      {deliveryType === "delivery"
+                        ? "Delivery Destination & Contact"
+                        : "Takeaway Contact Info"}
+                    </h3>
+                    <span style={{ fontSize: 11, color: "var(--color-ink-soft)" }}>
+                      {deliveryType === "delivery"
+                        ? "Within 2 km of Pillar #852, Muradnagar"
+                        : "Pick up at Two Hearts Cafe Counter (No Minimum)"}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <h3 style={{
-                    fontFamily: "var(--font-serif)",
-                    fontSize: 18,
-                    fontWeight: 700,
-                    color: "var(--color-ink)",
-                    margin: 0
-                  }}>
-                    {deliveryType === "delivery" ? "Delivery Destination & Contact" : "Takeaway Contact Info"}
-                  </h3>
-                  <span style={{ fontSize: 11, color: "var(--color-ink-soft)" }}>
-                    {deliveryType === "delivery"
-                      ? "Pillar #852, Muradnagar"
-                      : "Pick up at Two Hearts Cafe, Pillar 852"}
-                  </span>
+
+                {/* Delivery / Takeaway Mode Switcher */}
+                <div
+                  style={{
+                    display: "inline-flex",
+                    backgroundColor: "var(--bg-app)",
+                    padding: 3,
+                    borderRadius: "var(--radius-pill)",
+                    border: "1px solid var(--border-color)"
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryType("delivery")}
+                    className="touch-target-44"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      padding: "6px 14px",
+                      borderRadius: "var(--radius-pill)",
+                      fontSize: 11.5,
+                      fontWeight: deliveryType === "delivery" ? 700 : 500,
+                      fontFamily: "var(--font-serif)",
+                      backgroundColor: deliveryType === "delivery" ? "var(--color-ink)" : "transparent",
+                      color: deliveryType === "delivery" ? "#FFFFFF" : "var(--color-ink-soft)",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease"
+                    }}
+                  >
+                    <Bike size={13} />
+                    <span>Delivery</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryType("pickup")}
+                    className="touch-target-44"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      padding: "6px 14px",
+                      borderRadius: "var(--radius-pill)",
+                      fontSize: 11.5,
+                      fontWeight: deliveryType === "pickup" ? 700 : 500,
+                      fontFamily: "var(--font-serif)",
+                      backgroundColor: deliveryType === "pickup" ? "var(--color-ink)" : "transparent",
+                      color: deliveryType === "pickup" ? "#FFFFFF" : "var(--color-ink-soft)",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease"
+                    }}
+                  >
+                    <Store size={13} />
+                    <span>Takeaway</span>
+                  </button>
                 </div>
               </div>
 
@@ -329,6 +445,8 @@ export default function CheckoutPage({ onNavigate }) {
                   setFormErrors={setFormErrors}
                   customerUser={customerUser}
                   onNavigate={onNavigate}
+                  deliveryType={deliveryType}
+                  setDeliveryType={setDeliveryType}
                 />
               ) : (
                 /* Takeaway Form */
@@ -831,26 +949,107 @@ export default function CheckoutPage({ onNavigate }) {
                 </div>
               </div>
 
+              {/* Delivery Ineligibility Warning Callout */}
+              {deliveryType === "delivery" && !deliveryEligibility.isEligible && (
+                <div
+                  style={{
+                    marginTop: 16,
+                    padding: "12px 14px",
+                    backgroundColor: "#FEF2F2",
+                    border: "1px solid #FCA5A5",
+                    borderRadius: 12,
+                    fontSize: 12,
+                    color: "#991B1B",
+                    lineHeight: 1.45,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 6
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, fontWeight: 700 }}>
+                    <AlertCircle size={16} style={{ color: "#DC2626", flexShrink: 0 }} />
+                    <span>
+                      {!deliveryEligibility.meetsMinSubtotal
+                        ? `Minimum ₹${DELIVERY_CONFIG?.MIN_DELIVERY_SUBTOTAL || 299} Required for Delivery`
+                        : "Delivery Zone Restriction"}
+                    </span>
+                  </div>
+                  <div>{deliveryEligibility.reason}</div>
+                </div>
+              )}
+
               {/* Pay Now Button */}
-              <button
-                type="button"
-                onClick={handlePayAndPlaceOrder}
-                className="btn-pill-black touch-target-44"
-                style={{
-                  width: "100%",
-                  padding: "14px 20px",
-                  fontSize: 13,
-                  marginTop: 20,
-                  minHeight: 48,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8
-                }}
-              >
-                <Lock size={14} />
-                <span>Pay ₹{total} & Confirm Order</span>
-              </button>
+              {deliveryType === "delivery" && !deliveryEligibility.isEligible ? (
+                <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+                  <button
+                    type="button"
+                    disabled
+                    className="touch-target-44"
+                    style={{
+                      width: "100%",
+                      padding: "14px 20px",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      backgroundColor: "#F3F4F6",
+                      color: "#9CA3AF",
+                      border: "1px solid #E5E7EB",
+                      borderRadius: "var(--radius-pill)",
+                      cursor: "not-allowed",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      minHeight: 48
+                    }}
+                  >
+                    <AlertCircle size={15} style={{ color: "#9CA3AF" }} />
+                    <span>
+                      {!deliveryEligibility.meetsMinSubtotal
+                        ? `Add ₹${deliveryEligibility.amountNeeded} more for Delivery`
+                        : "Outside 2 km Delivery Zone"}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeliveryType("pickup")}
+                    className="btn-pill-black touch-target-44"
+                    style={{
+                      width: "100%",
+                      padding: "12px 18px",
+                      fontSize: 12.5,
+                      minHeight: 44,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      backgroundColor: "var(--color-bronze-dark)"
+                    }}
+                  >
+                    <Store size={14} />
+                    <span>Switch to Pickup to Place Order</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handlePayAndPlaceOrder}
+                  className="btn-pill-black touch-target-44"
+                  style={{
+                    width: "100%",
+                    padding: "14px 20px",
+                    fontSize: 13,
+                    marginTop: 20,
+                    minHeight: 48,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8
+                  }}
+                >
+                  <Lock size={14} />
+                  <span>Pay ₹{total} & Confirm Order</span>
+                </button>
+              )}
 
               <div style={{
                 textAlign: "center",

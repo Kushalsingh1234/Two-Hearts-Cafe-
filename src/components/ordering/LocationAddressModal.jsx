@@ -19,6 +19,10 @@ import {
   reverseGeocode,
   DEFAULT_CAFE_COORDS
 } from "../../utils/locationService";
+import {
+  DELIVERY_CONFIG,
+  calculateDistanceKm
+} from "../../config/deliveryConfig";
 
 const ADDRESS_TYPES = [
   { id: "Hostel", label: "Hostel", icon: Building, emoji: "🏢" },
@@ -233,6 +237,18 @@ export default function LocationAddressModal({
     ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n
   );
   const osmTileUrl = `https://tile.openstreetmap.org/${zoom}/${xTile}/${yTile}.png`;
+
+  // Calculate distance from cafe origin (Pillar #852, Muradnagar)
+  const currentDistanceKm = calculateDistanceKm(
+    DELIVERY_CONFIG.CAFE_COORDINATES.lat,
+    DELIVERY_CONFIG.CAFE_COORDINATES.lng,
+    coords.lat,
+    coords.lng
+  );
+  const isWithinDeliveryRadius =
+    currentDistanceKm != null
+      ? currentDistanceKm <= DELIVERY_CONFIG.MAX_DELIVERY_RADIUS_KM
+      : true;
 
   return (
     <div
@@ -528,6 +544,46 @@ export default function LocationAddressModal({
                 </button>
               </div>
 
+              {/* Live Delivery Zone Status Pill (Bottom-Left) */}
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 10,
+                  left: 10,
+                  backgroundColor: isWithinDeliveryRadius
+                    ? "rgba(240, 253, 244, 0.95)"
+                    : "rgba(254, 242, 242, 0.95)",
+                  color: isWithinDeliveryRadius ? "#15803D" : "#B91C1C",
+                  border: isWithinDeliveryRadius
+                    ? "1px solid rgba(34, 197, 94, 0.45)"
+                    : "1px solid rgba(239, 68, 68, 0.45)",
+                  borderRadius: "var(--radius-pill)",
+                  padding: "4px 10px",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  fontFamily: "var(--font-serif)",
+                  backdropFilter: "blur(6px)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+                  pointerEvents: "none",
+                  maxWidth: "calc(100% - 130px)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis"
+                }}
+              >
+                <span>{isWithinDeliveryRadius ? "✓" : "⚠️"}</span>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {currentDistanceKm != null ? `${currentDistanceKm} km` : ""}
+                  {" • "}
+                  {isWithinDeliveryRadius
+                    ? "Within 2 km delivery zone"
+                    : "Outside 2 km zone (Pickup only)"}
+                </span>
+              </div>
+
               {/* "Locate Me" Button Overlay */}
               <button
                 type="button"
@@ -574,9 +630,9 @@ export default function LocationAddressModal({
                 borderTop: "1px solid rgba(138, 87, 56, 0.12)"
               }}
             >
-              <span>✋ Drag map or tap 'Locate Me' to pinpoint your address</span>
-              <span style={{ fontSize: 10, color: "var(--color-bronze)", fontWeight: 600 }}>
-                {coords.lat.toFixed(4)}°N, {coords.lng.toFixed(4)}°E
+              <span>✋ Drag map or tap 'Locate Me' (Cafe origin: Pillar #852, Muradnagar)</span>
+              <span style={{ fontSize: 11, color: isWithinDeliveryRadius ? "#16A34A" : "#DC2626", fontWeight: 700 }}>
+                {currentDistanceKm != null ? `${currentDistanceKm} km away` : `${coords.lat.toFixed(4)}°N, ${coords.lng.toFixed(4)}°E`}
               </span>
             </div>
           </div>
@@ -871,6 +927,29 @@ export default function LocationAddressModal({
               />
               <span style={{ fontWeight: 600 }}>Save as primary / default delivery address</span>
             </label>
+
+            {/* Out-of-zone friendly notice */}
+            {!isWithinDeliveryRadius && (
+              <div
+                style={{
+                  padding: "8px 12px",
+                  backgroundColor: "#FFFBEB",
+                  border: "1px solid #FCD34D",
+                  borderRadius: 8,
+                  fontSize: 11.5,
+                  color: "#92400E",
+                  lineHeight: 1.4,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6
+                }}
+              >
+                <AlertCircle size={14} style={{ color: "#D97706", flexShrink: 0 }} />
+                <span>
+                  This location is <strong>{currentDistanceKm} km away</strong> (outside our 2 km delivery zone). You can still save this address and use it for <strong>Pickup / Takeaway</strong> orders!
+                </span>
+              </div>
+            )}
 
             {/* Form Action Buttons */}
             <div

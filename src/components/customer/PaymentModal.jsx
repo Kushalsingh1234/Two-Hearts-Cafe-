@@ -20,29 +20,22 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmedMessage, setConfirmedMessage] = useState(null);
 
-  const upiId = "twohearts@ptaxis";
-  // Verified name registered on bank account for twohearts@ptaxis
-  const payeeName = "Anirudh Tyagi";
-  const payeePhone = "9027012158";
+  const upiId = "q086839601@ybl";
+  // PhonePe Merchant account for Two Hearts Cafe
+  const payeeName = "Two Hearts Cafe";
   const amount = order.total || 0;
-  const transactionNote = `Table ${order.tableNumber} Order ${order.orderNumber || (order.id ? order.id.slice(0, 6) : "101")}`;
+  const transactionNote = `Two Hearts Cafe T${order.tableNumber} ${order.orderNumber || (order.id ? order.id.slice(0, 6) : "101")}`;
 
-  // Standard NPCI UPI URI Schemes with verified payee name
+  // Standard NPCI UPI URI Schemes with verified merchant handle & MCC 5812 (Restaurant)
   const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}&mc=5812`;
+  const phonepeUri = `phonepe://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&mc=5812`;
   const paytmUri = `paytmmp://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR`;
-  const phonepeUri = `phonepe://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR`;
   const gpayUri = `tez://upi/pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR`;
 
   const handleCopyUpi = () => {
     navigator.clipboard.writeText(upiId);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
-  };
-
-  const handleCopyPhone = () => {
-    navigator.clipboard.writeText(payeePhone);
-    setIsCopiedPhone(true);
-    setTimeout(() => setIsCopiedPhone(false), 2000);
   };
 
   const handleConfirmOnlinePayment = async () => {
@@ -275,7 +268,7 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
               </button>
             </div>
 
-            {/* TAB 1: PAY ONLINE (UPI to twohearts@ptaxis) */}
+            {/* TAB 1: PAY ONLINE (PhonePe Merchant UPI: q086839601@ybl) */}
             {paymentType === "online" ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {/* 1-Click Launch Button for Mobile */}
@@ -400,7 +393,7 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
                       </button>
                     </div>
 
-                    {/* Mobile Number Pill */}
+                    {/* Verified Merchant Badge Pill */}
                     <div style={{
                       display: "flex",
                       alignItems: "center",
@@ -410,37 +403,32 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
                       borderRadius: "var(--radius-pill)",
                       border: "1px solid var(--color-border-frame)",
                       fontSize: 12,
-                      fontFamily: "monospace"
+                      fontFamily: "var(--font-serif)",
+                      color: "#15803d",
+                      fontWeight: 600
                     }}>
-                      <span>Paytm No: <strong>{payeePhone}</strong></span>
-                      <button
-                        type="button"
-                        onClick={handleCopyPhone}
-                        style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-bronze)", display: "flex", alignItems: "center" }}
-                        title="Copy Phone Number"
-                      >
-                        {isCopiedPhone ? <Check size={13} color="#15803d" /> : <Copy size={13} />}
-                      </button>
+                      <CheckCircle2 size={13} color="#15803d" />
+                      <span>PhonePe Verified Merchant</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Helpful Guidance Notice for Paytm Alert */}
+                {/* Helpful Guidance Notice for Merchant QR */}
                 <div style={{
-                  backgroundColor: "#FFFBEB",
-                  border: "1px solid #FDE68A",
+                  backgroundColor: "#F0FDF4",
+                  border: "1px solid #BBF7D0",
                   borderRadius: 6,
                   padding: "10px 12px",
                   fontSize: 11.5,
                   fontFamily: "var(--font-serif)",
-                  color: "#92400E",
+                  color: "#166534",
                   lineHeight: 1.45
                 }}>
                   <div style={{ fontWeight: 700, marginBottom: 2 }}>
-                    💡 Seeing a "UPI Risk Policy" alert in Paytm?
+                    ✓ Official PhonePe Merchant QR
                   </div>
                   <div>
-                    Because this is an in-cafe direct payment, tap <strong>"Pay via Scanning QR"</strong> or <strong>"Pay via Mobile Number"</strong> and pay to <strong>9027012158</strong> ({payeeName}) to complete instantly without blocks.
+                    Tap <strong>"Open Any UPI App"</strong> or scan the QR code above. Works smoothly on <strong>PhonePe, Google Pay, Paytm, BHIM</strong> and all UPI banking apps.
                   </div>
                 </div>
 

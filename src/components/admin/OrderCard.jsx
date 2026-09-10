@@ -201,7 +201,7 @@ export default function OrderCard({ order, onUpdateStatus }) {
             {isPaidOnline ? (
               <div style={{ fontSize: 12, color: "#15803d", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
                 <CheckCircle2 size={13} />
-                <span>Paid Online (twohearts@ptaxis) {utr ? `[UTR: ${utr}]` : ""}</span>
+                <span>Paid Online ({order.paymentDetails?.upiId || "q086839601@ybl"}) {utr ? `[UTR: ${utr}]` : ""}</span>
               </div>
             ) : isPayAtCounter ? (
               <div style={{ fontSize: 12, color: "#b45309", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>

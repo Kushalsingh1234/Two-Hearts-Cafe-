@@ -1,6 +1,8 @@
 import React from "react";
 import { BookOpen, Coffee, Award } from "lucide-react";
 import CafeLogoIcon from "../common/CafeLogoIcon";
+import InstagramIcon from "../common/InstagramIcon";
+import { CAFE_INFO } from "../../data/seedMenu";
 import { CAFE_STORY, VALUES_LIST } from "./MarketingData";
 
 export default function AboutPage({ setPage }) {
@@ -309,7 +311,7 @@ export default function AboutPage({ setPage }) {
           </div>
 
           {/* Direct CTA into Menu page */}
-          <div style={{ textAlign: "center", marginTop: 48 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", alignItems: "center", gap: 14, marginTop: 48 }}>
             <button
               onClick={() => {
                 if (setPage) setPage("menu");
@@ -321,6 +323,39 @@ export default function AboutPage({ setPage }) {
               <BookOpen size={15} />
               <span>Browse Our Complete Menu</span>
             </button>
+
+            <a
+              href={CAFE_INFO.instagramUrl || "https://www.instagram.com/Two_hearts_cafe/"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="touch-target-44"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "13px 24px",
+                borderRadius: "var(--radius-pill)",
+                backgroundColor: "rgba(225, 48, 108, 0.08)",
+                border: "1.5px solid rgba(225, 48, 108, 0.28)",
+                color: "#E1306C",
+                fontFamily: "var(--font-serif)",
+                fontSize: 13,
+                fontWeight: 700,
+                textDecoration: "none",
+                transition: "all 0.2s ease"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(225, 48, 108, 0.16)";
+                e.currentTarget.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(225, 48, 108, 0.08)";
+                e.currentTarget.style.transform = "none";
+              }}
+            >
+              <InstagramIcon size={16} color="#E1306C" />
+              <span>Follow @{CAFE_INFO.instagram || "Two_hearts_cafe"}</span>
+            </a>
           </div>
         </div>
       </section>

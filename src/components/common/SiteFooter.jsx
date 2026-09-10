@@ -1,6 +1,7 @@
 import React from "react";
 import { MapPin, Phone, Clock, Heart, BookOpen } from "lucide-react";
 import CafeLogoIcon from "./CafeLogoIcon";
+import InstagramIcon from "./InstagramIcon";
 import { CAFE_INFO } from "../../data/seedMenu";
 
 export default function SiteFooter({ setPage }) {
@@ -63,22 +64,58 @@ export default function SiteFooter({ setPage }) {
               "Where college conversations turn into lifelong memories over warm, comforting bowls."
             </p>
 
-            <div style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "4px 10px",
-              borderRadius: "var(--radius-pill)",
-              backgroundColor: "rgba(138, 87, 56, 0.1)",
-              border: "1px solid rgba(138, 87, 56, 0.2)",
-              fontSize: 11,
-              fontFamily: "var(--font-serif)",
-              fontWeight: 600,
-              color: "var(--color-bronze-dark)",
-              width: "fit-content"
-            }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#16a34a" }} />
-              <span>100% Pure Vegetarian Kitchen</span>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+              <div style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "4px 10px",
+                borderRadius: "var(--radius-pill)",
+                backgroundColor: "rgba(138, 87, 56, 0.1)",
+                border: "1px solid rgba(138, 87, 56, 0.2)",
+                fontSize: 11,
+                fontFamily: "var(--font-serif)",
+                fontWeight: 600,
+                color: "var(--color-bronze-dark)",
+                width: "fit-content"
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#16a34a" }} />
+                <span>100% Pure Vegetarian Kitchen</span>
+              </div>
+
+              {/* Instagram Follow Badge */}
+              <a
+                href={CAFE_INFO.instagramUrl || "https://www.instagram.com/Two_hearts_cafe/"}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "4px 11px",
+                  borderRadius: "var(--radius-pill)",
+                  background: "linear-gradient(135deg, rgba(245, 133, 41, 0.12), rgba(221, 42, 123, 0.12), rgba(129, 52, 175, 0.12))",
+                  border: "1px solid rgba(221, 42, 123, 0.3)",
+                  color: "var(--color-ink)",
+                  textDecoration: "none",
+                  fontSize: 11,
+                  fontFamily: "var(--font-serif)",
+                  fontWeight: 600,
+                  transition: "all 0.2s ease"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                  e.currentTarget.style.boxShadow = "0 3px 8px rgba(221, 42, 123, 0.25)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "none";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+                title="Follow Two Hearts Cafe on Instagram"
+              >
+                <InstagramIcon size={13} color="#E1306C" />
+                <span>Follow @{CAFE_INFO.instagram || "Two_hearts_cafe"}</span>
+              </a>
             </div>
           </div>
 
@@ -156,6 +193,27 @@ export default function SiteFooter({ setPage }) {
                   }}
                 >
                   +91 {CAFE_INFO.phone}
+                </a>
+              </div>
+
+              {/* Instagram Handle Line */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <InstagramIcon size={16} color="#E1306C" style={{ flexShrink: 0 }} />
+                <a
+                  href={CAFE_INFO.instagramUrl || "https://www.instagram.com/Two_hearts_cafe/"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    color: "var(--color-ink)",
+                    textDecoration: "none",
+                    fontWeight: 600,
+                    transition: "color 0.2s ease"
+                  }}
+                  onMouseEnter={(e) => (e.target.style.color = "#E1306C")}
+                  onMouseLeave={(e) => (e.target.style.color = "var(--color-ink)")}
+                  title="Open Two Hearts Cafe on Instagram"
+                >
+                  @{CAFE_INFO.instagram || "Two_hearts_cafe"}
                 </a>
               </div>
             </div>

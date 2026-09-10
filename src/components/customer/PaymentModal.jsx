@@ -24,7 +24,11 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
   // PhonePe Merchant account for Two Hearts Cafe
   const payeeName = "Two Hearts Cafe";
   const amount = order.total || 0;
-  const transactionNote = `Two Hearts Cafe T${order.tableNumber} ${order.orderNumber || (order.id ? order.id.slice(0, 6) : "101")}`;
+  const isDeliveryOrder = order.orderType === "delivery" || order.orderType === "pickup";
+  const orderLabel = order.orderType === "delivery" ? "Delivery" : order.orderType === "pickup" ? "Pickup" : `Table #${order.tableNumber}`;
+  const transactionNote = isDeliveryOrder
+    ? `Two Hearts ${orderLabel} ${order.orderNumber || (order.id ? order.id.slice(0, 6) : "101")}`
+    : `Two Hearts Cafe T${order.tableNumber} ${order.orderNumber || (order.id ? order.id.slice(0, 6) : "101")}`;
 
   // Standard NPCI UPI URI Schemes with verified merchant handle & MCC 5812 (Restaurant)
   const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}&mc=5812`;
@@ -41,18 +45,22 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
   const handleConfirmOnlinePayment = async () => {
     setIsSubmitting(true);
     try {
-      await updateOrderPayment(order.id, {
-        paymentStatus: "paid_online",
-        paymentMethod: "upi",
-        upiId,
-        utr: utrNumber.trim(),
-        paidAt: new Date().toISOString()
-      });
-      setConfirmedMessage("Online payment submitted! Staff will verify and settle your bill.");
+      if (order.id) {
+        // Table QR order: update existing Firestore doc with payment confirmation
+        await updateOrderPayment(order.id, {
+          paymentStatus: "paid_online",
+          paymentMethod: "upi",
+          upiId,
+          utr: utrNumber.trim(),
+          paidAt: new Date().toISOString()
+        });
+        setConfirmedMessage("Online payment submitted! Staff will verify and settle your bill.");
+      } else {
+        // Delivery checkout: no Firestore doc yet — parent's onPaymentSuccess creates the order.
+        setConfirmedMessage("Payment confirmed! Your order is being placed...");
+      }
+      // Notify parent of success (parent handles navigation, Firebase creation for delivery)
       if (onPaymentSuccess) onPaymentSuccess();
-      setTimeout(() => {
-        onClose();
-      }, 2000);
     } catch (err) {
       console.error("Payment confirmation error:", err);
       alert("Could not update payment status. Please inform your server.");
@@ -70,10 +78,8 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
         paidAt: null
       });
       setConfirmedMessage("Payment at Counter requested! You can pay cash or card at the counter.");
+      // Notify parent of success (parent handles navigation)
       if (onPaymentSuccess) onPaymentSuccess();
-      setTimeout(() => {
-        onClose();
-      }, 2000);
     } catch (err) {
       console.error("Counter request error:", err);
       alert("Could not update payment status.");
@@ -131,7 +137,7 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
               color: "var(--color-ink)",
               margin: "3px 0 0 0"
             }}>
-              Settle Bill • Table #{order.tableNumber}
+              {isDeliveryOrder ? `Pay for ${orderLabel} Order` : `Settle Bill • Table #${order.tableNumber}`}
             </h3>
           </div>
           <button

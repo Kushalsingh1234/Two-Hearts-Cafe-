@@ -273,8 +273,8 @@ export function OnlineOrderProvider({ children }) {
       address: resolvedType === "delivery" ? (resolvedAddress || "Muradnagar, Uttar Pradesh") : "Pick up at Cafe Counter",
       landmark: resolvedLandmark,
       customerNotes: resolvedNotes,
-      paymentStatus: "paid",
-      paymentMethod: paymentDetails.method || "online_upi",
+      paymentStatus: paymentDetails.paymentStatus || "paid",
+      paymentMethod: paymentDetails.paymentMethod || paymentDetails.method || "online_upi",
       paymentId: paymentDetails.transactionId || `PAY-${Math.floor(100000 + Math.random() * 900000)}`,
       etaMinutes: resolvedType === "delivery" ? 35 : 20,
       estimatedTime: resolvedType === "delivery" ? "35 mins" : "20 mins",
@@ -298,7 +298,11 @@ export function OnlineOrderProvider({ children }) {
 
     const createdOrder = await placeOnlineDeliveryOrder(orderPayload);
     setActiveOrder(createdOrder);
-    clearCart();
+    // Only clear cart immediately if payment is already confirmed.
+    // If pending_payment, cart is cleared by CheckoutPage after PaymentModal confirms.
+    if (orderPayload.paymentStatus !== "pending_payment") {
+      clearCart();
+    }
     return createdOrder;
   };
 
@@ -327,6 +331,7 @@ export function OnlineOrderProvider({ children }) {
     setActiveOrder,
     isCartDrawerOpen,
     setIsCartDrawerOpen,
+    clearCart,
     submitOnlineOrder
   };
 

@@ -64,9 +64,8 @@ export default function CheckoutAddressSection({
       setIsModalOpen(true);
     } catch (err) {
       setQuickDetectError(
-        err.message || "Location permission denied. Please add address manually."
+        err.message || "Request to get user location timed out. Please enter your address manually."
       );
-      // Open modal anyway so user can enter address or drag map pin
       setModalInitialCoords(null);
       setEditingAddress(null);
       setIsModalOpen(true);
@@ -176,7 +175,7 @@ export default function CheckoutAddressSection({
       {quickDetectError && (
         <div
           style={{
-            padding: "8px 12px",
+            padding: "9px 14px",
             backgroundColor: "#FEF2F2",
             border: "1px solid #FECACA",
             borderRadius: 8,
@@ -184,11 +183,33 @@ export default function CheckoutAddressSection({
             fontSize: 11.5,
             display: "flex",
             alignItems: "center",
-            gap: 6
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 8
           }}
         >
-          <AlertCircle size={14} style={{ flexShrink: 0 }} />
-          <span>{quickDetectError}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <AlertCircle size={14} style={{ flexShrink: 0 }} />
+            <span>{quickDetectError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleOpenAddModal}
+            style={{
+              padding: "4px 10px",
+              borderRadius: "var(--radius-pill)",
+              backgroundColor: "#991B1B",
+              color: "#FFFFFF",
+              fontSize: 11,
+              fontFamily: "var(--font-serif)",
+              fontWeight: 700,
+              border: "none",
+              cursor: "pointer",
+              boxShadow: "0 2px 6px rgba(153, 27, 27, 0.2)"
+            }}
+          >
+            Enter Address Manually →
+          </button>
         </div>
       )}
 

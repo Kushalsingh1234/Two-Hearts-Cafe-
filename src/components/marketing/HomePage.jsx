@@ -31,8 +31,9 @@ import {
   DISH_PHOTOS,
   getDishPhoto
 } from "./MarketingData";
-import { INITIAL_MENU_ITEMS } from "../../data/seedMenu";
+import { INITIAL_MENU_ITEMS, CAFE_INFO } from "../../data/seedMenu";
 import CafeLogoIcon from "../common/CafeLogoIcon";
+import InstagramIcon from "../common/InstagramIcon";
 
 const POPULAR_CATEGORY_TABS = [
   { id: "all", name: "All Favorites" },
@@ -2516,7 +2517,7 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
               Browse our complete recipe collection or stop by our bistro at Pillar #852, Muradnagar. Once seated at your table, simply scan the physical QR code to order.
             </p>
 
-            <div style={{ display: "flex", justifyContent: "center", gap: 14, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", justifyContent: "center", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
               <button
                 onClick={() => handleNav("menu")}
                 className="btn-pill-black"
@@ -2534,6 +2535,35 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                 <MapPin size={14} />
                 <span>Find Our Location</span>
               </button>
+
+              <a
+                href={CAFE_INFO.instagramUrl || "https://www.instagram.com/Two_hearts_cafe/"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-pill-subtle"
+                style={{
+                  padding: "13px 22px",
+                  fontSize: 13,
+                  textDecoration: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  color: "#E1306C",
+                  borderColor: "rgba(225, 48, 108, 0.35)",
+                  backgroundColor: "rgba(225, 48, 108, 0.05)"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(225, 48, 108, 0.12)";
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(225, 48, 108, 0.05)";
+                  e.currentTarget.style.transform = "none";
+                }}
+              >
+                <InstagramIcon size={15} color="#E1306C" />
+                <span>@{CAFE_INFO.instagram || "Two_hearts_cafe"}</span>
+              </a>
             </div>
           </div>
         </div>

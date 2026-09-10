@@ -2,7 +2,9 @@ export const CAFE_INFO = {
   name: "Two Hearts Cafe",
   tagline: "Daily open from 12 PM - 12 AM",
   address: "Shivam Vihar Colony, Pillar No. 852, Muradnagar, 201206",
-  phone: "9027012158"
+  phone: "9027012158",
+  instagram: "Two_hearts_cafe",
+  instagramUrl: "https://www.instagram.com/Two_hearts_cafe/"
 };
 
 export const INITIAL_CATEGORIES = [

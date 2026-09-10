@@ -18,6 +18,7 @@ import {
 import { useOnlineOrder } from "../../context/OnlineOrderContext";
 import { useCustomerAuth } from "../../context/CustomerAuthContext";
 import CheckoutAddressSection from "./CheckoutAddressSection";
+import PaymentModal from "../customer/PaymentModal";
 
 export default function CheckoutPage({ onNavigate }) {
   const {
@@ -39,6 +40,7 @@ export default function CheckoutPage({ onNavigate }) {
     setDeliveryType,
     customerInfo,
     setCustomerInfo,
+    clearCart,
     submitOnlineOrder,
     DELIVERY_CONFIG,
     calculateDistanceKm,
@@ -147,28 +149,12 @@ export default function CheckoutPage({ onNavigate }) {
     }
   }, [savedAddresses, defaultAddress, deliveryType]);
 
-  // Payment Method: 'upi' | 'card' | 'netbanking'
-  const [paymentTab, setPaymentTab] = useState("upi");
-  const [upiMethod, setUpiMethod] = useState("gpay");
-  const [customUpiId, setCustomUpiId] = useState("");
+  // Pending order state - set after order is placed, shown in PaymentModal
+  const [pendingPaymentOrder, setPendingPaymentOrder] = useState(null);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
-  // Card details
-  const [cardData, setCardData] = useState({
-    number: "",
-    name: "",
-    expiry: "",
-    cvv: ""
-  });
-
-  // Netbanking bank selection
-  const [selectedBank, setSelectedBank] = useState("hdfc");
-
-  // Payment Processing Modal State
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [processingStep, setProcessingStep] = useState(1); // 1 = contacting bank, 2 = authorizing, 3 = success
-
-  // Redirect if cart is empty
-  if (cart.length === 0) {
+  // If cart emptied after order was placed, only show PaymentModal (not "Cart is Empty")
+  if (cart.length === 0 && !pendingPaymentOrder) {
     return (
       <div style={{
         minHeight: "70vh",
@@ -188,6 +174,50 @@ export default function CheckoutPage({ onNavigate }) {
           Return to Menu
         </button>
       </div>
+    );
+  }
+
+  // If order has been placed and PaymentModal should show, render it directly
+  // (This handles an edge case where pendingPaymentOrder is set but cart somehow emptied)
+  if (cart.length === 0 && pendingPaymentOrder) {
+    return (
+      <>
+        <PaymentModal
+          isOpen={true}
+          order={pendingPaymentOrder}
+          onClose={() => {
+            // Closed without paying — no order was created in Firebase, cart is still intact
+            setPendingPaymentOrder(null);
+            onNavigate("cart");
+          }}
+          onPaymentSuccess={async () => {
+            // Payment confirmed — NOW create the real Firebase order
+            try {
+              await submitOnlineOrder(
+                {
+                  method: "upi",
+                  transactionId: `TXN_${Date.now().toString().slice(-8)}`,
+                  userId: pendingPaymentOrder.userId,
+                  customerName: pendingPaymentOrder.customerName,
+                  customerPhone: pendingPaymentOrder.customerPhone,
+                  deliveryAddress: pendingPaymentOrder.deliveryAddress,
+                  address: pendingPaymentOrder.deliveryAddress,
+                  landmark: pendingPaymentOrder.landmark || "",
+                  customerNotes: pendingPaymentOrder.customerNotes || "",
+                  paymentStatus: "paid_online",
+                  paymentMethod: "upi"
+                },
+                { name: pendingPaymentOrder.customerName, phone: pendingPaymentOrder.customerPhone }
+              );
+            } catch (err) {
+              console.error("Order creation after payment failed:", err);
+            }
+            clearCart();
+            setPendingPaymentOrder(null);
+            onNavigate("order-confirmation");
+          }}
+        />
+      </>
     );
   }
 
@@ -227,42 +257,27 @@ export default function CheckoutPage({ onNavigate }) {
     // Save customer info to context/localStorage
     setCustomerInfo(formData);
 
-    // Open Payment Gateway Simulator
-    setIsProcessingPayment(true);
-    setProcessingStep(1);
-
-    setTimeout(() => {
-      setProcessingStep(2);
-    }, 1200);
-
-    setTimeout(() => {
-      setProcessingStep(3);
-    }, 2400);
-
-    setTimeout(async () => {
-      try {
-        await submitOnlineOrder(
-          {
-            method: paymentTab === "upi" ? `UPI (${upiMethod.toUpperCase()})` : paymentTab === "card" ? "Credit/Debit Card" : "Net Banking",
-            transactionId: `TXN_${Date.now().toString().slice(-8)}`,
-            userId: customerUser?.phone || formData.phone.trim(),
-            customerName: formData.name.trim(),
-            customerPhone: formData.phone.trim(),
-            deliveryAddress: formData.address.trim(),
-            address: formData.address.trim(),
-            landmark: formData.landmark?.trim() || "",
-            customerNotes: formData.notes?.trim() || ""
-          },
-          formData
-        );
-        setIsProcessingPayment(false);
-        onNavigate("order-confirmation");
-      } catch (err) {
-        console.error("Order submit failed:", err);
-        setIsProcessingPayment(false);
-        alert("There was an error saving your order. Please check connection.");
-      }
-    }, 3200);
+    // Build a LOCAL preview order — NOT saved to Firebase yet.
+    // The order is only created in Firebase after the user confirms UPI payment.
+    // This prevents unpaid orders from appearing in the admin panel.
+    const previewOrder = {
+      id: null, // null signals PaymentModal that this is a pre-Firebase preview
+      orderType: deliveryType,
+      orderNumber: `THD-${Math.floor(1000 + Math.random() * 9000)}`,
+      tableNumber: deliveryType === "pickup" ? "Takeaway" : "Delivery",
+      total,
+      subtotal,
+      deliveryFee,
+      tax: taxes,
+      items: cart,
+      customerName: formData.name.trim(),
+      customerPhone: formData.phone.trim(),
+      deliveryAddress: formData.address.trim(),
+      landmark: formData.landmark?.trim() || "",
+      customerNotes: formData.notes?.trim() || "",
+      userId: customerUser?.phone || formData.phone.trim(),
+    };
+    setPendingPaymentOrder(previewOrder);
   };
 
   return (
@@ -542,7 +557,7 @@ export default function CheckoutPage({ onNavigate }) {
               )}
             </div>
 
-            {/* 2. Online Payment Gateway Interface (ONLY online payments!) */}
+            {/* 2. Payment Info Banner — real payment happens via UPI PaymentModal */}
             <div className="bistro-card mobile-card-compact" style={{ padding: "clamp(14px, 3vw, 24px)", backgroundColor: "#FFFFFF" }}>
               <div style={{
                 display: "flex",
@@ -598,288 +613,28 @@ export default function CheckoutPage({ onNavigate }) {
                 </div>
               </div>
 
-              {/* Payment Methods Tabs */}
+              {/* Payment Info: Let the user know they'll pay via UPI after reviewing the order */}
               <div style={{
+                backgroundColor: "rgba(22, 163, 74, 0.06)",
+                borderRadius: 10,
+                border: "1px solid rgba(22, 163, 74, 0.2)",
+                padding: "14px 16px",
                 display: "flex",
-                gap: 8,
-                marginBottom: 20,
-                borderBottom: "1px solid var(--border-color)",
-                paddingBottom: 10,
-                overflowX: "auto"
+                flexDirection: "column",
+                gap: 8
               }}>
-                <button
-                  type="button"
-                  onClick={() => setPaymentTab("upi")}
-                  className="touch-target-44"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "8px 16px",
-                    borderRadius: "var(--radius-pill)",
-                    fontSize: 12,
-                    fontFamily: "var(--font-serif)",
-                    fontWeight: paymentTab === "upi" ? 700 : 500,
-                    backgroundColor: paymentTab === "upi" ? "var(--color-ink)" : "var(--bg-app)",
-                    color: paymentTab === "upi" ? "#FFFFFF" : "var(--color-ink)",
-                    border: "1px solid var(--border-color)",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    minHeight: 44
-                  }}
-                >
-                  <Smartphone size={13} />
-                  <span>Instant UPI</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPaymentTab("card")}
-                  className="touch-target-44"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "8px 16px",
-                    borderRadius: "var(--radius-pill)",
-                    fontSize: 12,
-                    fontFamily: "var(--font-serif)",
-                    fontWeight: paymentTab === "card" ? 700 : 500,
-                    backgroundColor: paymentTab === "card" ? "var(--color-ink)" : "var(--bg-app)",
-                    color: paymentTab === "card" ? "#FFFFFF" : "var(--color-ink)",
-                    border: "1px solid var(--border-color)",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    minHeight: 44
-                  }}
-                >
-                  <CreditCard size={13} />
-                  <span>Credit / Debit Card</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPaymentTab("netbanking")}
-                  className="touch-target-44"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "8px 16px",
-                    borderRadius: "var(--radius-pill)",
-                    fontSize: 12,
-                    fontFamily: "var(--font-serif)",
-                    fontWeight: paymentTab === "netbanking" ? 700 : 500,
-                    backgroundColor: paymentTab === "netbanking" ? "var(--color-ink)" : "var(--bg-app)",
-                    color: paymentTab === "netbanking" ? "#FFFFFF" : "var(--color-ink)",
-                    border: "1px solid var(--border-color)",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    minHeight: 44
-                  }}
-                >
-                  <Building2 size={13} />
-                  <span>Net Banking</span>
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "var(--font-serif)", fontSize: 14, fontWeight: 700, color: "#15803d" }}>
+                  <Smartphone size={16} />
+                  <span>Pay via UPI (Google Pay / PhonePe / Paytm)</span>
+                </div>
+                <p style={{ fontSize: 12, color: "#166534", margin: 0, lineHeight: 1.5 }}>
+                  Click <strong>"Pay ₹{total} &amp; Confirm Order"</strong> below. Your order will be placed and a real UPI QR code + deep links will open so you can pay directly from any UPI app.
+                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#15803d", fontWeight: 600 }}>
+                  <ShieldCheck size={13} />
+                  <span>UPI ID: q086839601@ybl • Verified PhonePe Merchant</span>
+                </div>
               </div>
-
-              {/* Tab 1: UPI */}
-              {paymentTab === "upi" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  <span style={{ fontSize: 12, color: "var(--color-ink-soft)" }}>
-                    Choose your UPI payment app or enter any UPI VPA:
-                  </span>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 10 }}>
-                    {[
-                      { id: "gpay", name: "Google Pay" },
-                      { id: "phonepe", name: "PhonePe" },
-                      { id: "paytm", name: "Paytm UPI" },
-                      { id: "bhim", name: "BHIM UPI" }
-                    ].map((app) => (
-                      <div
-                        key={app.id}
-                        onClick={() => setUpiMethod(app.id)}
-                        style={{
-                          padding: "12px 10px",
-                          borderRadius: "var(--radius-sm)",
-                          border: upiMethod === app.id ? "1.5px solid var(--color-bronze)" : "1px solid var(--border-color)",
-                          backgroundColor: upiMethod === app.id ? "var(--color-bronze-light)" : "#FFFFFF",
-                          textAlign: "center",
-                          cursor: "pointer",
-                          fontWeight: upiMethod === app.id ? 700 : 500,
-                          fontSize: 12,
-                          color: upiMethod === app.id ? "var(--color-bronze-dark)" : "var(--color-ink)",
-                          transition: "all 0.2s ease"
-                        }}
-                      >
-                        {app.name}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div style={{ marginTop: 4 }}>
-                    <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--color-ink-soft)", marginBottom: 4 }}>
-                      Or Enter UPI ID:
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. mobile@upi or username@okhdfcbank"
-                      value={customUpiId}
-                      onChange={(e) => setCustomUpiId(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        fontSize: 12,
-                        borderRadius: "var(--radius-sm)",
-                        border: "1px solid var(--border-color)",
-                        backgroundColor: "var(--bg-app)",
-                        outline: "none"
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Tab 2: Credit / Debit Card */}
-              {paymentTab === "card" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--color-ink-soft)", marginBottom: 4 }}>
-                      Card Number
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={19}
-                      placeholder="4532 •••• •••• 8892"
-                      value={cardData.number}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, "").slice(0, 16);
-                        const formatted = val.match(/.{1,4}/g)?.join(" ") || val;
-                        setCardData({ ...cardData, number: formatted });
-                      }}
-                      style={{
-                        width: "100%",
-                        padding: "9px 12px",
-                        fontSize: 13,
-                        letterSpacing: "1px",
-                        borderRadius: "var(--radius-sm)",
-                        border: "1px solid var(--border-color)",
-                        backgroundColor: "var(--bg-app)",
-                        outline: "none"
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    <div>
-                      <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--color-ink-soft)", marginBottom: 4 }}>
-                        Expiry (MM/YY)
-                      </label>
-                      <input
-                        type="text"
-                        maxLength={5}
-                        placeholder="MM/YY"
-                        value={cardData.expiry}
-                        onChange={(e) => {
-                          let v = e.target.value.replace(/\D/g, "").slice(0, 4);
-                          if (v.length >= 3) v = `${v.slice(0, 2)}/${v.slice(2)}`;
-                          setCardData({ ...cardData, expiry: v });
-                        }}
-                        style={{
-                          width: "100%",
-                          padding: "9px 12px",
-                          fontSize: 13,
-                          borderRadius: "var(--radius-sm)",
-                          border: "1px solid var(--border-color)",
-                          backgroundColor: "var(--bg-app)",
-                          outline: "none"
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--color-ink-soft)", marginBottom: 4 }}>
-                        CVV / CVC
-                      </label>
-                      <input
-                        type="password"
-                        maxLength={4}
-                        placeholder="•••"
-                        value={cardData.cvv}
-                        onChange={(e) => setCardData({ ...cardData, cvv: e.target.value.replace(/\D/g, "") })}
-                        style={{
-                          width: "100%",
-                          padding: "9px 12px",
-                          fontSize: 13,
-                          borderRadius: "var(--radius-sm)",
-                          border: "1px solid var(--border-color)",
-                          backgroundColor: "var(--bg-app)",
-                          outline: "none"
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--color-ink-soft)", marginBottom: 4 }}>
-                      Cardholder Name
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Name as printed on card"
-                      value={cardData.name}
-                      onChange={(e) => setCardData({ ...cardData, name: e.target.value })}
-                      style={{
-                        width: "100%",
-                        padding: "9px 12px",
-                        fontSize: 13,
-                        borderRadius: "var(--radius-sm)",
-                        border: "1px solid var(--border-color)",
-                        backgroundColor: "var(--bg-app)",
-                        outline: "none"
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Tab 3: Net Banking */}
-              {paymentTab === "netbanking" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <span style={{ fontSize: 12, color: "var(--color-ink-soft)" }}>Select your retail banking portal:</span>
-                  {[
-                    { id: "hdfc", name: "HDFC Bank" },
-                    { id: "sbi", name: "State Bank of India (SBI)" },
-                    { id: "icici", name: "ICICI Bank" },
-                    { id: "axis", name: "Axis Bank" },
-                    { id: "kotak", name: "Kotak Mahindra Bank" }
-                  ].map((bank) => (
-                    <label
-                      key={bank.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "8px 12px",
-                        borderRadius: "var(--radius-sm)",
-                        backgroundColor: selectedBank === bank.id ? "var(--color-bronze-light)" : "var(--bg-app)",
-                        border: selectedBank === bank.id ? "1px solid var(--color-bronze)" : "1px solid var(--border-color)",
-                        cursor: "pointer",
-                        fontSize: 13,
-                        fontWeight: selectedBank === bank.id ? 700 : 500
-                      }}
-                    >
-                      <input
-                        type="radio"
-                        name="bankSelect"
-                        checked={selectedBank === bank.id}
-                        onChange={() => setSelectedBank(bank.id)}
-                      />
-                      <span>{bank.name}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
 
@@ -1033,6 +788,7 @@ export default function CheckoutPage({ onNavigate }) {
                 <button
                   type="button"
                   onClick={handlePayAndPlaceOrder}
+                  disabled={isPlacingOrder}
                   className="btn-pill-black touch-target-44"
                   style={{
                     width: "100%",
@@ -1043,11 +799,22 @@ export default function CheckoutPage({ onNavigate }) {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: 8
+                    gap: 8,
+                    opacity: isPlacingOrder ? 0.7 : 1,
+                    cursor: isPlacingOrder ? "not-allowed" : "pointer"
                   }}
                 >
-                  <Lock size={14} />
-                  <span>Pay ₹{total} & Confirm Order</span>
+                  {isPlacingOrder ? (
+                    <>
+                      <div style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                      <span>Placing Order...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock size={14} />
+                      <span>Pay ₹{total} &amp; Confirm Order</span>
+                    </>
+                  )}
                 </button>
               )}
 
@@ -1069,71 +836,49 @@ export default function CheckoutPage({ onNavigate }) {
         </div>
       </div>
 
-      {/* Simulated Payment Processing Modal */}
-      {isProcessingPayment && (
-        <div style={{
-          position: "fixed",
-          inset: 0,
-          backgroundColor: "rgba(28, 25, 23, 0.75)",
-          backdropFilter: "blur(8px)",
-          zIndex: 99999,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 20
-        }}>
-          <div className="bistro-card animate-fade-in" style={{
-            maxWidth: 400,
-            width: "100%",
-            backgroundColor: "#FFFFFF",
-            padding: "36px 28px",
-            textAlign: "center",
-            boxShadow: "var(--shadow-float)"
-          }}>
-            {processingStep < 3 ? (
-              <>
-                <div style={{
-                  width: 64,
-                  height: 64,
-                  margin: "0 auto 20px auto",
-                  border: "3px solid rgba(138, 87, 56, 0.2)",
-                  borderTopColor: "var(--color-bronze)",
-                  borderRadius: "50%",
-                  animation: "spin 1s linear infinite"
-                }} />
-                <h3 style={{ fontFamily: "var(--font-serif)", fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
-                  {processingStep === 1 ? "Connecting to Payment Gateway..." : "Authorizing Transaction..."}
-                </h3>
-                <p style={{ fontSize: 13, color: "var(--color-ink-soft)", lineHeight: 1.6 }}>
-                  Securing payment with 256-bit SSL encryption. Please do not refresh or close this window.
-                </p>
-              </>
-            ) : (
-              <>
-                <div style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: "50%",
-                  backgroundColor: "rgba(34, 197, 94, 0.15)",
-                  color: "#16A34A",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  margin: "0 auto 16px auto"
-                }}>
-                  <CheckCircle2 size={36} />
-                </div>
-                <h3 style={{ fontFamily: "var(--font-serif)", fontSize: 22, fontWeight: 700, color: "#16A34A", marginBottom: 6 }}>
-                  Payment Verified!
-                </h3>
-                <p style={{ fontSize: 13, color: "var(--color-ink-soft)" }}>
-                  Generating your official kitchen order ticket...
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Real UPI PaymentModal — opens when user clicks Pay (before Firebase order is created) */}
+      <PaymentModal
+        isOpen={Boolean(pendingPaymentOrder)}
+        order={pendingPaymentOrder}
+        onClose={() => {
+          // Closed without paying — no Firebase order was created, cart intact, user can retry
+          setPendingPaymentOrder(null);
+        }}
+        onPaymentSuccess={async () => {
+          // Payment confirmed — NOW create the real Firebase order
+          try {
+            await submitOnlineOrder(
+              {
+                method: "upi",
+                transactionId: `TXN_${Date.now().toString().slice(-8)}`,
+                userId: pendingPaymentOrder.userId,
+                customerName: pendingPaymentOrder.customerName,
+                customerPhone: pendingPaymentOrder.customerPhone,
+                deliveryAddress: pendingPaymentOrder.deliveryAddress,
+                address: pendingPaymentOrder.deliveryAddress,
+                landmark: pendingPaymentOrder.landmark || "",
+                customerNotes: pendingPaymentOrder.customerNotes || "",
+                paymentStatus: "paid_online",
+                paymentMethod: "upi",
+                orderType: pendingPaymentOrder.orderType
+              },
+              {
+                name: pendingPaymentOrder.customerName,
+                phone: pendingPaymentOrder.customerPhone,
+                address: pendingPaymentOrder.deliveryAddress,
+                landmark: pendingPaymentOrder.landmark || "",
+                notes: pendingPaymentOrder.customerNotes || ""
+              }
+            );
+          } catch (err) {
+            console.error("Order creation after payment failed:", err);
+            alert("Payment received but order save failed. Please contact cafe with your payment details.");
+          }
+          clearCart();
+          setPendingPaymentOrder(null);
+          onNavigate("order-confirmation");
+        }}
+      />
 
       {/* Helper inline keyframe for spin */}
       <style>{`

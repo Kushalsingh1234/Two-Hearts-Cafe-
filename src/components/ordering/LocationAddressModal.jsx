@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   X,
   MapPin,
-  Crosshair,
   Home,
   Building,
   Briefcase,
@@ -10,13 +9,14 @@ import {
   Check,
   AlertCircle,
   Loader2,
-  Navigation,
-  Plus,
-  Minus
+  Lock,
+  ArrowLeft,
+  ChevronRight,
+  Edit2
 } from "lucide-react";
+import ZomatoMapPicker from "./ZomatoMapPicker";
 import {
-  getCurrentCoordinates,
-  reverseGeocode,
+  lookupPincode,
   DEFAULT_CAFE_COORDS
 } from "../../utils/locationService";
 import {
@@ -43,19 +43,46 @@ export default function LocationAddressModal({
 }) {
   if (!isOpen) return null;
 
-  // Map position state (lat, lng, zoom)
+  // Zomato Two-Step Flow: 'map' (pick location on interactive map) | 'details' (enter flat/house & contact)
+  const [step, setStep] = useState(() => (initialAddress ? "details" : "map"));
+
+  // Coordinates confirmed on map
   const [coords, setCoords] = useState(() => {
     if (initialCoords && initialCoords.lat && initialCoords.lng) {
-      return initialCoords;
+      return { lat: Number(initialCoords.lat), lng: Number(initialCoords.lng) };
+    }
+    if (initialAddress?.coords && initialAddress.coords.lat && initialAddress.coords.lng) {
+      return { lat: Number(initialAddress.coords.lat), lng: Number(initialAddress.coords.lng) };
     }
     return { lat: DEFAULT_CAFE_COORDS.lat, lng: DEFAULT_CAFE_COORDS.lng };
   });
-  const [zoom, setZoom] = useState(16);
 
-  // Address details state
-  const [addressType, setAddressType] = useState(initialAddress?.label || "Hostel");
+  // Confirmed full address description from map picker
+  const [confirmedFullAddress, setConfirmedFullAddress] = useState(
+    initialAddress?.fullAddress || initialAddress?.address || "Pillar #852, Muradnagar"
+  );
+
+  // Form fields
+  const [pincode, setPincode] = useState(() => {
+    if (initialAddress?.pincode) return initialAddress.pincode;
+    if (initialAddress?.address) {
+      const match = initialAddress.address.match(/\b\d{6}\b/);
+      if (match) return match[0];
+    }
+    return "201206";
+  });
+
+  // City is strictly locked and read-only. Auto-derived from PIN code or map reverse-geocode.
+  const [city, setCity] = useState(initialAddress?.city || "Muradnagar");
+
+  const [area, setArea] = useState(() => {
+    if (initialAddress?.area) return initialAddress.area;
+    if (initialAddress?.locality) return initialAddress.locality;
+    return "";
+  });
+
+  const [street, setStreet] = useState(initialAddress?.street || "");
   const [roomNumber, setRoomNumber] = useState(initialAddress?.roomNumber || "");
-  const [streetArea, setStreetArea] = useState(initialAddress?.street || initialAddress?.address || "");
   const [landmark, setLandmark] = useState(initialAddress?.landmark || "");
   const [recipientName, setRecipientName] = useState(
     initialAddress?.recipientName || customerUser?.name || ""
@@ -63,136 +90,149 @@ export default function LocationAddressModal({
   const [phone, setPhone] = useState(
     initialAddress?.phone || customerUser?.phone || ""
   );
+  const [addressType, setAddressType] = useState(
+    initialAddress?.label || initialAddress?.tag || "Hostel"
+  );
   const [isDefault, setIsDefault] = useState(
     initialAddress ? Boolean(initialAddress.isDefault) : savedAddressesCount === 0
   );
 
-  // Geocoding and status state
-  const [isLocating, setIsLocating] = useState(false);
-  const [isGeocoding, setIsGeocoding] = useState(false);
-  const [detectedAddress, setDetectedAddress] = useState(initialAddress?.fullAddress || "");
-  const [locationError, setLocationError] = useState("");
+  // Locality options list derived from PIN code lookup
+  const [localityOptions, setLocalityOptions] = useState([]);
+  const [pincodeDetails, setPincodeDetails] = useState(null);
+  const [isPincodeLoading, setIsPincodeLoading] = useState(false);
+  const [pincodeError, setPincodeError] = useState("");
   const [formErrors, setFormErrors] = useState({});
 
-  // Map dragging state
-  const [isDraggingMap, setIsDraggingMap] = useState(false);
-  const dragStartRef = useRef(null);
-  const mapContainerRef = useRef(null);
+  // Calculate distance from cafe origin (Pillar #852, Muradnagar)
+  const currentDistanceKm = calculateDistanceKm(
+    DELIVERY_CONFIG.CAFE_COORDINATES.lat,
+    DELIVERY_CONFIG.CAFE_COORDINATES.lng,
+    coords.lat,
+    coords.lng
+  );
+  const isWithinDeliveryRadius =
+    currentDistanceKm != null
+      ? currentDistanceKm <= DELIVERY_CONFIG.MAX_DELIVERY_RADIUS_KM
+      : true;
 
-  // Perform reverse geocoding for coordinates
-  const fetchAddressForCoords = useCallback(async (lat, lng) => {
-    setIsGeocoding(true);
-    setLocationError("");
+  // Fetch PIN code details via India Post API with instant fallback
+  const fetchPincodeDetails = useCallback(async (pin, currentArea = area) => {
+    if (!pin || pin.length !== 6) {
+      setCity("");
+      setPincodeDetails(null);
+      setLocalityOptions([]);
+      return;
+    }
+    setIsPincodeLoading(true);
+    setPincodeError("");
     try {
-      const geo = await reverseGeocode(lat, lng);
-      setDetectedAddress(geo.formattedAddress || geo.fullAddress);
-      // If user hasn't typed a custom area yet or if it was auto-detected, update streetArea
-      setStreetArea((prev) => {
-        if (!prev || prev.includes("Near Muradnagar") || prev === geo.street) {
-          return geo.formattedAddress;
+      const res = await lookupPincode(pin);
+      if (res.success) {
+        setPincodeDetails(res);
+        const resolvedCity = res.city || res.district || "";
+        setCity(resolvedCity);
+
+        const offices = (res.postOffices || []).map((po) => po.name).filter(Boolean);
+        setLocalityOptions(offices);
+
+        if (offices.length === 1 && !currentArea.trim()) {
+          setArea(offices[0]);
+        } else if (offices.length > 1 && !currentArea.trim()) {
+          setArea(offices[0]);
         }
-        return prev;
-      });
-      if (!landmark && geo.landmark) {
-        setLandmark(geo.landmark);
+      } else {
+        setPincodeError(res.error || "Could not verify PIN code.");
+        setCity("");
+        setLocalityOptions([]);
       }
     } catch (err) {
-      console.warn("Reverse geocode failed:", err);
-      setDetectedAddress(`Location at ${lat.toFixed(4)}°N, ${lng.toFixed(4)}°E`);
+      console.warn("Pincode lookup error:", err);
+      setPincodeError("Unable to verify PIN code right now. You can still enter your address.");
+      setCity("");
+      setLocalityOptions([]);
     } finally {
-      setIsGeocoding(false);
+      setIsPincodeLoading(false);
     }
-  }, [landmark]);
+  }, [area]);
 
-  // Request user's current GPS location
-  const handleDetectLocation = async () => {
-    setIsLocating(true);
-    setLocationError("");
-    try {
-      const pos = await getCurrentCoordinates();
-      setCoords({ lat: pos.lat, lng: pos.lng });
-      setZoom(16);
-      await fetchAddressForCoords(pos.lat, pos.lng);
-    } catch (err) {
-      setLocationError(err.message || "Could not detect your location. Please enter details manually.");
-    } finally {
-      setIsLocating(false);
-    }
-  };
-
-  // If initialCoords passed or if modal just opened without initial coords, auto-detect location once
+  // Initial load hook
   useEffect(() => {
-    if (isOpen) {
-      if (initialCoords && initialCoords.lat && initialCoords.lng) {
-        fetchAddressForCoords(initialCoords.lat, initialCoords.lng);
-      } else if (!initialAddress) {
-        handleDetectLocation();
-      }
+    if (isOpen && pincode && pincode.length === 6) {
+      fetchPincodeDetails(pincode, area);
     }
   }, [isOpen]);
 
-  // Mouse & touch pan handlers for interactive map
-  const handleMouseDown = (e) => {
-    setIsDraggingMap(true);
-    dragStartRef.current = { x: e.clientX, y: e.clientY, lat: coords.lat, lng: coords.lng };
+  // Handler when user confirms location in Step 1 (Map Picker)
+  const handleConfirmMapLocation = (data) => {
+    if (data.coords) {
+      setCoords(data.coords);
+    }
+    if (data.fullAddress) {
+      setConfirmedFullAddress(data.fullAddress);
+    }
+    if (data.area) {
+      setArea(data.area);
+    }
+    if (data.city) {
+      setCity(data.city);
+    }
+    if (data.pincode && data.pincode.length === 6) {
+      setPincode(data.pincode);
+      fetchPincodeDetails(data.pincode, data.area);
+    }
+    if (data.street && !street) {
+      setStreet(data.street);
+    }
+
+    // Advance to Step 2 (Doorstep Details)
+    setStep("details");
   };
 
-  const handleMouseMove = (e) => {
-    if (!isDraggingMap || !dragStartRef.current) return;
-    const dx = e.clientX - dragStartRef.current.x;
-    const dy = e.clientY - dragStartRef.current.y;
-    // Conversion factor based on zoom
-    const factor = 360 / (Math.pow(2, zoom) * 256);
-    const newLng = dragStartRef.current.lng - dx * factor;
-    const newLat = dragStartRef.current.lat + dy * factor;
-    setCoords({ lat: newLat, lng: newLng });
-  };
+  // Handle PIN code typing in Step 2: when < 6 digits, immediately clear locked City
+  const handlePincodeChange = (val) => {
+    const clean = val.replace(/\D/g, "").slice(0, 6);
+    setPincode(clean);
+    if (formErrors.pincode) {
+      setFormErrors((prev) => ({ ...prev, pincode: null }));
+    }
 
-  const handleMouseUp = () => {
-    if (isDraggingMap) {
-      setIsDraggingMap(false);
-      dragStartRef.current = null;
-      fetchAddressForCoords(coords.lat, coords.lng);
+    if (clean.length === 6) {
+      fetchPincodeDetails(clean);
+    } else {
+      setCity("");
+      setPincodeDetails(null);
+      setPincodeError("");
+      setLocalityOptions([]);
     }
   };
 
-  const handleTouchStart = (e) => {
-    if (e.touches.length === 1) {
-      const t = e.touches[0];
-      setIsDraggingMap(true);
-      dragStartRef.current = { x: t.clientX, y: t.clientY, lat: coords.lat, lng: coords.lng };
+  // Handle selecting suggested locality from dropdown or quick-pick chip
+  const handleSelectLocality = (loc) => {
+    if (!loc) return;
+    setArea(loc);
+    if (formErrors.area) {
+      setFormErrors((prev) => ({ ...prev, area: null }));
     }
   };
 
-  const handleTouchMove = (e) => {
-    if (!isDraggingMap || !dragStartRef.current || e.touches.length !== 1) return;
-    const t = e.touches[0];
-    const dx = t.clientX - dragStartRef.current.x;
-    const dy = t.clientY - dragStartRef.current.y;
-    const factor = 360 / (Math.pow(2, zoom) * 256);
-    const newLng = dragStartRef.current.lng - dx * factor;
-    const newLat = dragStartRef.current.lat + dy * factor;
-    setCoords({ lat: newLat, lng: newLng });
-  };
-
-  const handleTouchEnd = () => {
-    if (isDraggingMap) {
-      setIsDraggingMap(false);
-      dragStartRef.current = null;
-      fetchAddressForCoords(coords.lat, coords.lng);
-    }
-  };
-
-  // Handle form submission
+  // Form submission handler
   const handleSubmit = (e) => {
     e.preventDefault();
     const errors = {};
 
+    const cleanPin = pincode.replace(/\D/g, "");
+    if (!cleanPin || cleanPin.length !== 6) {
+      errors.pincode = "Please enter a valid 6-digit PIN code.";
+    }
+    if (!city.trim()) {
+      errors.city = "City is required. Please enter a valid PIN code to auto-detect City.";
+    }
+    if (!area.trim()) {
+      errors.area = "Please specify area or campus locality.";
+    }
     if (!roomNumber.trim()) {
       errors.roomNumber = "Please enter your Room / Flat / House No.";
-    }
-    if (!streetArea.trim()) {
-      errors.streetArea = "Please specify street or hostel/building name.";
     }
     if (!recipientName.trim()) {
       errors.recipientName = "Please enter contact person's name.";
@@ -207,56 +247,49 @@ export default function LocationAddressModal({
       return;
     }
 
-    // Compose complete address string
-    const fullCombined = `${roomNumber.trim()}, ${streetArea.trim()}`;
+    // Clean structured full address assembly without duplicates or jammed text
+    const addressParts = [
+      roomNumber.trim(),
+      street.trim(),
+      area.trim(),
+      city.trim(),
+      cleanPin ? `PIN ${cleanPin}` : ""
+    ].filter(Boolean);
+    const fullCombined = addressParts.join(", ");
 
     const newAddressObj = {
       id: initialAddress?.id || `addr_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       label: addressType,
       tag: addressType,
       roomNumber: roomNumber.trim(),
+      street: street.trim(),
+      area: area.trim(),
+      city: city.trim(),
+      pincode: cleanPin,
+      landmark: landmark.trim(),
       address: fullCombined,
       fullAddress: fullCombined,
-      street: streetArea.trim(),
-      landmark: landmark.trim(),
       recipientName: recipientName.trim(),
       phone: cleanPhone.slice(-10),
       isDefault: Boolean(isDefault),
-      coords: { lat: coords.lat, lng: coords.lng }
+      coords: coords,
+      distanceKm: currentDistanceKm,
+      isDeliverable: isWithinDeliveryRadius,
+      isOutOfDeliveryZone: !isWithinDeliveryRadius,
+      entryMethod: "zomato_map_picker"
     };
 
     onSaveAddress(newAddressObj);
     onClose();
   };
 
-  // Convert lat/lng to static OpenStreetMap tile calculation for smooth background
-  const n = Math.pow(2, zoom);
-  const xTile = Math.floor(((coords.lng + 180) / 360) * n);
-  const latRad = (coords.lat * Math.PI) / 180;
-  const yTile = Math.floor(
-    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n
-  );
-  const osmTileUrl = `https://tile.openstreetmap.org/${zoom}/${xTile}/${yTile}.png`;
-
-  // Calculate distance from cafe origin (Pillar #852, Muradnagar)
-  const currentDistanceKm = calculateDistanceKm(
-    DELIVERY_CONFIG.CAFE_COORDINATES.lat,
-    DELIVERY_CONFIG.CAFE_COORDINATES.lng,
-    coords.lat,
-    coords.lng
-  );
-  const isWithinDeliveryRadius =
-    currentDistanceKm != null
-      ? currentDistanceKm <= DELIVERY_CONFIG.MAX_DELIVERY_RADIUS_KM
-      : true;
-
   return (
     <div
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "rgba(28, 25, 23, 0.75)",
-        backdropFilter: "blur(6px)",
+        backgroundColor: "rgba(28, 25, 23, 0.78)",
+        backdropFilter: "blur(8px)",
         zIndex: 9999,
         display: "flex",
         alignItems: "center",
@@ -271,22 +304,23 @@ export default function LocationAddressModal({
         className="bistro-card"
         style={{
           width: "100%",
-          maxWidth: 580,
+          maxWidth: step === "map" ? 640 : 580,
           maxHeight: "92vh",
           backgroundColor: "#FFFFFF",
           borderRadius: 24,
-          boxShadow: "0 24px 64px -12px rgba(28, 25, 23, 0.35)",
+          boxShadow: "0 28px 68px -12px rgba(28, 25, 23, 0.4)",
           border: "1px solid rgba(138, 87, 56, 0.2)",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          animation: "modalFadeIn 0.22s ease-out"
+          animation: "modalFadeIn 0.22s ease-out",
+          transition: "max-width 0.25s ease"
         }}
       >
         {/* Modal Header */}
         <div
           style={{
-            padding: "18px 24px",
+            padding: "16px 22px 14px 22px",
             borderBottom: "1px solid var(--border-color)",
             display: "flex",
             alignItems: "center",
@@ -295,6 +329,29 @@ export default function LocationAddressModal({
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {step === "details" && (
+              <button
+                type="button"
+                onClick={() => setStep("map")}
+                title="Back to map location picker"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  backgroundColor: "#FFFFFF",
+                  border: "1px solid var(--border-color)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  color: "var(--color-ink)",
+                  marginRight: 2
+                }}
+              >
+                <ArrowLeft size={16} />
+              </button>
+            )}
+
             <div
               style={{
                 width: 34,
@@ -309,6 +366,7 @@ export default function LocationAddressModal({
             >
               <MapPin size={18} />
             </div>
+
             <div>
               <h2
                 style={{
@@ -319,13 +377,20 @@ export default function LocationAddressModal({
                   margin: 0
                 }}
               >
-                {initialAddress ? "Edit Delivery Address" : "Add Delivery Address"}
+                {step === "map"
+                  ? "Set Delivery Location"
+                  : initialAddress
+                  ? "Edit Delivery Address"
+                  : "Complete Address Details"}
               </h2>
               <span style={{ fontSize: 11, color: "var(--color-ink-soft)" }}>
-                Confirm precise pin on map for seamless food delivery
+                {step === "map"
+                  ? "Pan map under fixed pin for exact doorstep placement"
+                  : "Enter flat / room number and contact details"}
               </span>
             </div>
           </div>
+
           <button
             type="button"
             onClick={onClose}
@@ -346,485 +411,399 @@ export default function LocationAddressModal({
           </button>
         </div>
 
-        {/* Scrollable Content */}
+        {/* Scrollable Modal Body */}
         <div
           style={{
-            padding: "20px 24px",
+            padding: "18px 22px",
             overflowY: "auto",
             display: "flex",
             flexDirection: "column",
-            gap: 18
+            gap: 16
           }}
         >
-          {/* Interactive Map Section */}
-          <div
-            style={{
-              position: "relative",
-              borderRadius: 16,
-              overflow: "hidden",
-              border: "1.5px solid rgba(138, 87, 56, 0.25)",
-              boxShadow: "0 4px 16px rgba(74, 53, 39, 0.08)"
-            }}
-          >
-            {/* Map Canvas / Draggable Viewport */}
-            <div
-              ref={mapContainerRef}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-              style={{
-                width: "100%",
-                height: 190,
-                backgroundColor: "#E5E3DF",
-                backgroundImage: `url(${osmTileUrl})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                cursor: isDraggingMap ? "grabbing" : "grab",
-                position: "relative",
-                userSelect: "none"
-              }}
-            >
-              {/* Central Map Pin with Pulse Shadow */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -100%)",
-                  pointerEvents: "none",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center"
-                }}
-              >
-                {/* Pin Tooltip Bubble */}
-                <div
-                  style={{
-                    backgroundColor: "rgba(28, 25, 23, 0.92)",
-                    color: "#FFFFFF",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    letterSpacing: "0.5px",
-                    textTransform: "uppercase",
-                    padding: "3px 8px",
-                    borderRadius: "var(--radius-pill)",
-                    whiteSpace: "nowrap",
-                    marginBottom: 4,
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.3)"
-                  }}
-                >
-                  Order Delivered Here
-                </div>
-                {/* Visual Pin Icon */}
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: "50% 50% 50% 0",
-                    transform: "rotate(-45deg)",
-                    backgroundColor: "var(--color-bronze)",
-                    border: "2px solid #FFFFFF",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    boxShadow: "0 8px 16px rgba(138, 87, 56, 0.45)"
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 12,
-                      height: 12,
-                      borderRadius: "50%",
-                      backgroundColor: "#FFFFFF"
-                    }}
-                  />
-                </div>
-                {/* Pin Ground Shadow */}
-                <div
-                  style={{
-                    width: 14,
-                    height: 6,
-                    borderRadius: "50%",
-                    backgroundColor: "rgba(0,0,0,0.3)",
-                    marginTop: 2,
-                    filter: "blur(1px)"
-                  }}
-                />
-              </div>
-
-              {/* Top Hint Bar */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: 10,
-                  left: 10,
-                  right: 60,
-                  backgroundColor: "rgba(255, 255, 255, 0.94)",
-                  backdropFilter: "blur(6px)",
-                  padding: "6px 12px",
-                  borderRadius: "var(--radius-pill)",
-                  border: "1px solid rgba(138, 87, 56, 0.2)",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "var(--color-ink)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap"
-                }}
-              >
-                {isGeocoding ? (
-                  <>
-                    <Loader2 size={12} className="animate-spin" style={{ color: "var(--color-bronze)" }} />
-                    <span style={{ color: "var(--color-bronze)" }}>Detecting address...</span>
-                  </>
-                ) : (
-                  <>
-                    <MapPin size={12} style={{ color: "var(--color-bronze)", flexShrink: 0 }} />
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {detectedAddress || "Drag map to position pin at your exact doorstep"}
-                    </span>
-                  </>
-                )}
-              </div>
-
-              {/* Map Zoom Controls */}
-              <div
-                style={{
-                  position: "absolute",
-                  right: 10,
-                  top: 10,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 4
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setZoom((z) => Math.min(19, z + 1))}
-                  title="Zoom in"
-                  style={{
-                    width: 28,
-                    height: 28,
-                    backgroundColor: "#FFFFFF",
-                    border: "1px solid rgba(0,0,0,0.15)",
-                    borderRadius: 6,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    boxShadow: "0 2px 6px rgba(0,0,0,0.1)"
-                  }}
-                >
-                  <Plus size={14} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setZoom((z) => Math.max(12, z - 1))}
-                  title="Zoom out"
-                  style={{
-                    width: 28,
-                    height: 28,
-                    backgroundColor: "#FFFFFF",
-                    border: "1px solid rgba(0,0,0,0.15)",
-                    borderRadius: 6,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    boxShadow: "0 2px 6px rgba(0,0,0,0.1)"
-                  }}
-                >
-                  <Minus size={14} />
-                </button>
-              </div>
-
-              {/* Live Delivery Zone Status Pill (Bottom-Left) */}
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: 10,
-                  left: 10,
-                  backgroundColor: isWithinDeliveryRadius
-                    ? "rgba(240, 253, 244, 0.95)"
-                    : "rgba(254, 242, 242, 0.95)",
-                  color: isWithinDeliveryRadius ? "#15803D" : "#B91C1C",
-                  border: isWithinDeliveryRadius
-                    ? "1px solid rgba(34, 197, 94, 0.45)"
-                    : "1px solid rgba(239, 68, 68, 0.45)",
-                  borderRadius: "var(--radius-pill)",
-                  padding: "4px 10px",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  fontFamily: "var(--font-serif)",
-                  backdropFilter: "blur(6px)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-                  pointerEvents: "none",
-                  maxWidth: "calc(100% - 130px)",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis"
-                }}
-              >
-                <span>{isWithinDeliveryRadius ? "✓" : "⚠️"}</span>
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {currentDistanceKm != null ? `${currentDistanceKm} km` : ""}
-                  {" • "}
-                  {isWithinDeliveryRadius
-                    ? "Within 2 km delivery zone"
-                    : "Outside 2 km zone (Pickup only)"}
-                </span>
-              </div>
-
-              {/* "Locate Me" Button Overlay */}
-              <button
-                type="button"
-                onClick={handleDetectLocation}
-                disabled={isLocating}
-                title="Detect current location"
-                style={{
-                  position: "absolute",
-                  bottom: 10,
-                  right: 10,
-                  backgroundColor: "#FFFFFF",
-                  color: "var(--color-bronze)",
-                  border: "1px solid rgba(138, 87, 56, 0.3)",
-                  borderRadius: "var(--radius-pill)",
-                  padding: "6px 12px",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  cursor: "pointer",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
-                }}
-              >
-                {isLocating ? (
-                  <Loader2 size={13} className="animate-spin" />
-                ) : (
-                  <Crosshair size={13} />
-                )}
-                <span>{isLocating ? "Locating..." : "Locate Me"}</span>
-              </button>
-            </div>
-
-            {/* Drag instruction footer */}
-            <div
-              style={{
-                backgroundColor: "#FAF6F0",
-                padding: "6px 14px",
-                fontSize: 11,
-                color: "var(--color-ink-soft)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                borderTop: "1px solid rgba(138, 87, 56, 0.12)"
-              }}
-            >
-              <span>✋ Drag map or tap 'Locate Me' (Cafe origin: Pillar #852, Muradnagar)</span>
-              <span style={{ fontSize: 11, color: isWithinDeliveryRadius ? "#16A34A" : "#DC2626", fontWeight: 700 }}>
-                {currentDistanceKm != null ? `${currentDistanceKm} km away` : `${coords.lat.toFixed(4)}°N, ${coords.lng.toFixed(4)}°E`}
-              </span>
-            </div>
-          </div>
-
-          {/* Location error notice if permission denied */}
-          {locationError && (
-            <div
-              style={{
-                padding: "10px 14px",
-                backgroundColor: "#FEF2F2",
-                border: "1px solid #FCA5A5",
-                borderRadius: 10,
-                color: "#991B1B",
-                fontSize: 12,
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 8
-              }}
-            >
-              <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} />
-              <span>{locationError}</span>
-            </div>
+          {/* STEP 1: ZOMATO-STYLE MAP PICKER */}
+          {step === "map" && (
+            <ZomatoMapPicker
+              initialCoords={coords}
+              onConfirmLocation={handleConfirmMapLocation}
+              onCancel={onClose}
+            />
           )}
 
-          {/* Address Type Selector Chips */}
-          <div>
-            <label
-              style={{
-                display: "block",
-                fontSize: 12,
-                fontWeight: 700,
-                fontFamily: "var(--font-serif)",
-                marginBottom: 8,
-                color: "var(--color-ink)"
-              }}
-            >
-              Save Address As:
-            </label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {ADDRESS_TYPES.map((type) => {
-                const isSelected = addressType === type.id;
-                const IconComponent = type.icon;
-                return (
-                  <button
-                    key={type.id}
-                    type="button"
-                    onClick={() => setAddressType(type.id)}
+          {/* STEP 2: COMPLETE DOORSTEP & FLAT DETAILS */}
+          {step === "details" && (
+            <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Confirmed Location Breadcrumb Bar (Zomato-Style with "Change" button) */}
+              <div
+                style={{
+                  backgroundColor: "#FCFAF7",
+                  borderRadius: 14,
+                  padding: "12px 14px",
+                  border: "1px solid rgba(138, 87, 56, 0.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+                  <div
                     style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      backgroundColor: "var(--color-bronze-light)",
                       display: "flex",
                       alignItems: "center",
-                      gap: 6,
-                      padding: "7px 14px",
-                      borderRadius: "var(--radius-pill)",
-                      border: isSelected
-                        ? "1.5px solid var(--color-bronze)"
-                        : "1px solid var(--border-color)",
-                      backgroundColor: isSelected ? "var(--color-bronze-light)" : "#FFFFFF",
-                      color: isSelected ? "var(--color-bronze-dark)" : "var(--color-ink)",
-                      fontSize: 12,
-                      fontFamily: "var(--font-serif)",
-                      fontWeight: isSelected ? 700 : 500,
-                      cursor: "pointer",
-                      transition: "all 0.15s ease"
+                      justifyContent: "center",
+                      color: "var(--color-bronze)",
+                      flexShrink: 0
                     }}
                   >
-                    <span>{type.emoji}</span>
-                    <span>{type.label}</span>
-                    {isSelected && <Check size={12} style={{ color: "var(--color-bronze-dark)" }} />}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+                    <MapPin size={15} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--color-ink)" }}>
+                      {area || "Confirmed Location"}, {city}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "var(--color-ink-soft)",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis"
+                      }}
+                    >
+                      {confirmedFullAddress}
+                    </div>
+                  </div>
+                </div>
 
-          {/* Form Fields Grid */}
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {/* House / Flat / Room / Floor No. */}
-            <div>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  fontFamily: "var(--font-serif)",
-                  marginBottom: 6,
-                  color: "var(--color-ink)"
-                }}
-              >
-                Room / Flat / House / Floor No. *
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Room 304, Ganga Hostel OR Flat 4B, Shivalik Tower"
-                value={roomNumber}
-                onChange={(e) => {
-                  setRoomNumber(e.target.value);
-                  if (formErrors.roomNumber) {
-                    setFormErrors((prev) => ({ ...prev, roomNumber: null }));
-                  }
-                }}
-                style={{
-                  width: "100%",
-                  padding: "10px 14px",
-                  fontSize: 13,
-                  borderRadius: "var(--radius-sm)",
-                  border: `1px solid ${formErrors.roomNumber ? "#DC2626" : "var(--border-color)"}`,
-                  backgroundColor: "var(--bg-app)",
-                  outline: "none"
-                }}
-              />
-              {formErrors.roomNumber && (
-                <span style={{ color: "#DC2626", fontSize: 11, marginTop: 4, display: "block" }}>
-                  {formErrors.roomNumber}
-                </span>
-              )}
-            </div>
+                <button
+                  type="button"
+                  onClick={() => setStep("map")}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    padding: "5px 10px",
+                    borderRadius: "var(--radius-pill)",
+                    backgroundColor: "#FFFFFF",
+                    border: "1px solid var(--border-color)",
+                    color: "var(--color-bronze)",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    boxShadow: "0 2px 5px rgba(0,0,0,0.06)"
+                  }}
+                >
+                  <Edit2 size={11} />
+                  <span>Change on Map</span>
+                </button>
+              </div>
 
-            {/* Street / Campus / Locality */}
-            <div>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  fontFamily: "var(--font-serif)",
-                  marginBottom: 6,
-                  color: "var(--color-ink)"
-                }}
-              >
-                Area / Street / Campus Locality *
-              </label>
-              <textarea
-                rows={2}
-                placeholder="e.g. KIET Campus, Delhi-Meerut Road OR Shivam Vihar, Muradnagar"
-                value={streetArea}
-                onChange={(e) => {
-                  setStreetArea(e.target.value);
-                  if (formErrors.streetArea) {
-                    setFormErrors((prev) => ({ ...prev, streetArea: null }));
-                  }
-                }}
-                style={{
-                  width: "100%",
-                  padding: "10px 14px",
-                  fontSize: 13,
-                  borderRadius: "var(--radius-sm)",
-                  border: `1px solid ${formErrors.streetArea ? "#DC2626" : "var(--border-color)"}`,
-                  backgroundColor: "var(--bg-app)",
-                  outline: "none",
-                  resize: "vertical"
-                }}
-              />
-              {formErrors.streetArea && (
-                <span style={{ color: "#DC2626", fontSize: 11, marginTop: 4, display: "block" }}>
-                  {formErrors.streetArea}
-                </span>
-              )}
-            </div>
+              {/* Address Type Selector Chips */}
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    fontFamily: "var(--font-serif)",
+                    marginBottom: 8,
+                    color: "var(--color-ink)"
+                  }}
+                >
+                  Save Address As:
+                </label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {ADDRESS_TYPES.map((type) => {
+                    const isSelected = addressType === type.id;
+                    return (
+                      <button
+                        key={type.id}
+                        type="button"
+                        onClick={() => setAddressType(type.id)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "7px 14px",
+                          borderRadius: "var(--radius-pill)",
+                          border: isSelected
+                            ? "1.5px solid var(--color-bronze)"
+                            : "1px solid var(--border-color)",
+                          backgroundColor: isSelected ? "var(--color-bronze-light)" : "#FFFFFF",
+                          color: isSelected ? "var(--color-bronze-dark)" : "var(--color-ink)",
+                          fontSize: 12,
+                          fontFamily: "var(--font-serif)",
+                          fontWeight: isSelected ? 700 : 500,
+                          cursor: "pointer",
+                          transition: "all 0.15s ease"
+                        }}
+                      >
+                        <span>{type.emoji}</span>
+                        <span>{type.label}</span>
+                        {isSelected && <Check size={12} style={{ color: "var(--color-bronze-dark)" }} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-            {/* Landmark */}
-            <div>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  fontFamily: "var(--font-serif)",
-                  marginBottom: 6,
-                  color: "var(--color-ink)"
-                }}
-              >
-                Nearby Landmark (Optional)
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Opposite Pillar 852, Near College Main Gate, Beside Bank ATM"
-                value={landmark}
-                onChange={(e) => setLandmark(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "10px 14px",
-                  fontSize: 13,
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid var(--border-color)",
-                  backgroundColor: "var(--bg-app)",
-                  outline: "none"
-                }}
-              />
-            </div>
+              {/* Row 1: PIN Code (Anchor) & City (Strictly Locked / Read-Only) */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                {/* PIN Code (Anchor) */}
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <label
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        fontFamily: "var(--font-serif)",
+                        color: "var(--color-ink)",
+                        margin: 0
+                      }}
+                    >
+                      PIN Code *
+                    </label>
+                    {isPincodeLoading && (
+                      <span style={{ fontSize: 11, color: "var(--color-bronze)", display: "flex", alignItems: "center", gap: 4 }}>
+                        <Loader2 size={11} className="animate-spin" />
+                        <span>Verifying PIN...</span>
+                      </span>
+                    )}
+                    {pincodeDetails && !isPincodeLoading && (
+                      <span style={{ fontSize: 11, color: "#16A34A", fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}>
+                        <Check size={12} />
+                        <span>Verified PIN</span>
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="e.g. 201206"
+                    value={pincode}
+                    onChange={(e) => handlePincodeChange(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      letterSpacing: "0.5px",
+                      borderRadius: "var(--radius-sm)",
+                      border: `1px solid ${formErrors.pincode || pincodeError ? "#DC2626" : pincodeDetails ? "#16A34A" : "var(--border-color)"}`,
+                      backgroundColor: "var(--bg-app)",
+                      outline: "none"
+                    }}
+                  />
+                  {formErrors.pincode && (
+                    <span style={{ color: "#DC2626", fontSize: 11, marginTop: 4, display: "block" }}>
+                      {formErrors.pincode}
+                    </span>
+                  )}
+                  {pincodeError && (
+                    <span style={{ color: "#DC2626", fontSize: 11, marginTop: 4, display: "block" }}>
+                      {pincodeError}
+                    </span>
+                  )}
+                </div>
 
-            {/* Recipient Name & Phone */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+                {/* City / Town (STRICTLY LOCKED / READ-ONLY) */}
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <label
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        fontFamily: "var(--font-serif)",
+                        color: "var(--color-ink)",
+                        margin: 0
+                      }}
+                    >
+                      City / Town *
+                    </label>
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        fontWeight: 600,
+                        color: "var(--color-ink-soft)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 3,
+                        backgroundColor: "rgba(138, 87, 56, 0.08)",
+                        padding: "2px 6px",
+                        borderRadius: 4
+                      }}
+                      title="City is locked and automatically determined from your PIN code"
+                    >
+                      <Lock size={10} />
+                      <span>Auto-filled</span>
+                    </span>
+                  </div>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type="text"
+                      readOnly={true}
+                      tabIndex={-1}
+                      placeholder={
+                        pincode.length === 6 && isPincodeLoading
+                          ? "Fetching city..."
+                          : !pincode || pincode.length < 6
+                          ? "Enter PIN code first"
+                          : "City"
+                      }
+                      value={city}
+                      style={{
+                        width: "100%",
+                        padding: "10px 32px 10px 14px",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        borderRadius: "var(--radius-sm)",
+                        border: `1px solid ${formErrors.city ? "#DC2626" : "var(--border-color)"}`,
+                        backgroundColor: "#F6F4F0",
+                        color: city ? "var(--color-ink)" : "#A8A29E",
+                        cursor: "not-allowed",
+                        outline: "none",
+                        boxShadow: "inset 0 1px 2px rgba(0,0,0,0.03)"
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: "absolute",
+                        right: 10,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        color: "var(--color-ink-soft)",
+                        pointerEvents: "none",
+                        display: "flex",
+                        alignItems: "center"
+                      }}
+                    >
+                      <Lock size={14} style={{ opacity: 0.6 }} />
+                    </div>
+                  </div>
+                  {formErrors.city ? (
+                    <span style={{ color: "#DC2626", fontSize: 11, marginTop: 4, display: "block" }}>
+                      {formErrors.city}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 10.5, color: "var(--color-ink-soft)", marginTop: 4, display: "block" }}>
+                      🔒 Locked — automatically determined from 6-digit PIN code
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Row 2: Area / Locality (Editable + Dropdown & Quick-Pick Chips) */}
+              <div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <label
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      fontFamily: "var(--font-serif)",
+                      color: "var(--color-ink)",
+                      margin: 0
+                    }}
+                  >
+                    Area / Campus Locality *
+                  </label>
+                  {localityOptions.length > 1 && (
+                    <span style={{ fontSize: 11, color: "var(--color-ink-soft)" }}>
+                      {localityOptions.length} postal localities found
+                    </span>
+                  )}
+                </div>
+
+                {localityOptions.length > 1 && (
+                  <div style={{ marginBottom: 8 }}>
+                    <select
+                      value={localityOptions.includes(area) ? area : ""}
+                      onChange={(e) => handleSelectLocality(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        border: "1px solid #BBF7D0",
+                        backgroundColor: "#F0FDF4",
+                        color: "#166534",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        outline: "none",
+                        cursor: "pointer"
+                      }}
+                    >
+                      <option value="">-- Choose suggested locality from PIN {pincode} --</option>
+                      {localityOptions.map((loc, idx) => (
+                        <option key={idx} value={loc}>
+                          {loc}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <input
+                  type="text"
+                  placeholder="e.g. Shivam Vihar, KIET Campus, Duhai"
+                  value={area}
+                  onChange={(e) => {
+                    setArea(e.target.value);
+                    if (formErrors.area) {
+                      setFormErrors((prev) => ({ ...prev, area: null }));
+                    }
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    fontSize: 13,
+                    borderRadius: "var(--radius-sm)",
+                    border: `1px solid ${formErrors.area ? "#DC2626" : "var(--border-color)"}`,
+                    backgroundColor: "var(--bg-app)",
+                    outline: "none"
+                  }}
+                />
+                {formErrors.area && (
+                  <span style={{ color: "#DC2626", fontSize: 11, marginTop: 4, display: "block" }}>
+                    {formErrors.area}
+                  </span>
+                )}
+
+                {/* Quick-Pick Chips */}
+                {localityOptions.length > 0 && (
+                  <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 5, alignItems: "center" }}>
+                    <span style={{ fontSize: 11, color: "var(--color-ink-soft)", marginRight: 2 }}>
+                      Quick pick:
+                    </span>
+                    {localityOptions.slice(0, 6).map((loc, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleSelectLocality(loc)}
+                        style={{
+                          padding: "3px 8px",
+                          borderRadius: "var(--radius-pill)",
+                          backgroundColor: area === loc ? "var(--color-ink)" : "#F5F2EB",
+                          color: area === loc ? "#FFFFFF" : "var(--color-ink)",
+                          border: "1px solid var(--border-color)",
+                          fontSize: 11,
+                          cursor: "pointer",
+                          transition: "all 0.15s ease"
+                        }}
+                      >
+                        {loc}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Row 3: Street / Detailed Directions (Optional) */}
               <div>
                 <label
                   style={{
@@ -836,35 +815,26 @@ export default function LocationAddressModal({
                     color: "var(--color-ink)"
                   }}
                 >
-                  Contact Person *
+                  Street / Detailed Directions (Optional)
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Aarav Sharma"
-                  value={recipientName}
-                  onChange={(e) => {
-                    setRecipientName(e.target.value);
-                    if (formErrors.recipientName) {
-                      setFormErrors((prev) => ({ ...prev, recipientName: null }));
-                    }
-                  }}
+                  placeholder="e.g. Delhi-Meerut Road, Near Water Tank, Hostel Lane 4"
+                  value={street}
+                  onChange={(e) => setStreet(e.target.value)}
                   style={{
                     width: "100%",
                     padding: "10px 14px",
                     fontSize: 13,
                     borderRadius: "var(--radius-sm)",
-                    border: `1px solid ${formErrors.recipientName ? "#DC2626" : "var(--border-color)"}`,
+                    border: "1px solid var(--border-color)",
                     backgroundColor: "var(--bg-app)",
                     outline: "none"
                   }}
                 />
-                {formErrors.recipientName && (
-                  <span style={{ color: "#DC2626", fontSize: 11, marginTop: 4, display: "block" }}>
-                    {formErrors.recipientName}
-                  </span>
-                )}
               </div>
 
+              {/* Row 4: Room / Flat / House / Floor No. * */}
               <div>
                 <label
                   style={{
@@ -876,17 +846,16 @@ export default function LocationAddressModal({
                     color: "var(--color-ink)"
                   }}
                 >
-                  10-Digit Phone Number *
+                  Room / Flat / House / Floor No. *
                 </label>
                 <input
-                  type="tel"
-                  maxLength={10}
-                  placeholder="9876543210"
-                  value={phone}
+                  type="text"
+                  placeholder="e.g. Room 304, Ganga Hostel OR Flat 4B, Shivalik Tower"
+                  value={roomNumber}
                   onChange={(e) => {
-                    setPhone(e.target.value.replace(/\D/g, ""));
-                    if (formErrors.phone) {
-                      setFormErrors((prev) => ({ ...prev, phone: null }));
+                    setRoomNumber(e.target.value);
+                    if (formErrors.roomNumber) {
+                      setFormErrors((prev) => ({ ...prev, roomNumber: null }));
                     }
                   }}
                   style={{
@@ -894,93 +863,251 @@ export default function LocationAddressModal({
                     padding: "10px 14px",
                     fontSize: 13,
                     borderRadius: "var(--radius-sm)",
-                    border: `1px solid ${formErrors.phone ? "#DC2626" : "var(--border-color)"}`,
+                    border: `1px solid ${formErrors.roomNumber ? "#DC2626" : "var(--border-color)"}`,
                     backgroundColor: "var(--bg-app)",
                     outline: "none"
                   }}
                 />
-                {formErrors.phone && (
+                {formErrors.roomNumber && (
                   <span style={{ color: "#DC2626", fontSize: 11, marginTop: 4, display: "block" }}>
-                    {formErrors.phone}
+                    {formErrors.roomNumber}
                   </span>
                 )}
               </div>
-            </div>
 
-            {/* Set as Default Address Checkbox */}
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                fontSize: 12,
-                color: "var(--color-ink)",
-                cursor: "pointer",
-                marginTop: 2
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={isDefault}
-                onChange={(e) => setIsDefault(e.target.checked)}
-                style={{ accentColor: "var(--color-bronze)", width: 16, height: 16 }}
-              />
-              <span style={{ fontWeight: 600 }}>Save as primary / default delivery address</span>
-            </label>
+              {/* Row 5: Nearby Landmark (Optional) */}
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    fontFamily: "var(--font-serif)",
+                    marginBottom: 6,
+                    color: "var(--color-ink)"
+                  }}
+                >
+                  Nearby Landmark (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Opposite Pillar 852, Near College Main Gate, Beside Bank ATM"
+                  value={landmark}
+                  onChange={(e) => setLandmark(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    fontSize: 13,
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--border-color)",
+                    backgroundColor: "var(--bg-app)",
+                    outline: "none"
+                  }}
+                />
+              </div>
 
-            {/* Out-of-zone friendly notice */}
-            {!isWithinDeliveryRadius && (
-              <div
+              {/* Row 6: Recipient Name & 10-Digit Phone */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      fontFamily: "var(--font-serif)",
+                      marginBottom: 6,
+                      color: "var(--color-ink)"
+                    }}
+                  >
+                    Contact Person *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Aarav Sharma"
+                    value={recipientName}
+                    onChange={(e) => {
+                      setRecipientName(e.target.value);
+                      if (formErrors.recipientName) {
+                        setFormErrors((prev) => ({ ...prev, recipientName: null }));
+                      }
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      fontSize: 13,
+                      borderRadius: "var(--radius-sm)",
+                      border: `1px solid ${formErrors.recipientName ? "#DC2626" : "var(--border-color)"}`,
+                      backgroundColor: "var(--bg-app)",
+                      outline: "none"
+                    }}
+                  />
+                  {formErrors.recipientName && (
+                    <span style={{ color: "#DC2626", fontSize: 11, marginTop: 4, display: "block" }}>
+                      {formErrors.recipientName}
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      fontFamily: "var(--font-serif)",
+                      marginBottom: 6,
+                      color: "var(--color-ink)"
+                    }}
+                  >
+                    10-Digit Phone Number *
+                  </label>
+                  <input
+                    type="tel"
+                    maxLength={10}
+                    placeholder="9876543210"
+                    value={phone}
+                    onChange={(e) => {
+                      setPhone(e.target.value.replace(/\D/g, ""));
+                      if (formErrors.phone) {
+                        setFormErrors((prev) => ({ ...prev, phone: null }));
+                      }
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      fontSize: 13,
+                      borderRadius: "var(--radius-sm)",
+                      border: `1px solid ${formErrors.phone ? "#DC2626" : "var(--border-color)"}`,
+                      backgroundColor: "var(--bg-app)",
+                      outline: "none"
+                    }}
+                  />
+                  {formErrors.phone && (
+                    <span style={{ color: "#DC2626", fontSize: 11, marginTop: 4, display: "block" }}>
+                      {formErrors.phone}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Set as Default Address Checkbox */}
+              <label
                 style={{
-                  padding: "8px 12px",
-                  backgroundColor: "#FFFBEB",
-                  border: "1px solid #FCD34D",
-                  borderRadius: 8,
-                  fontSize: 11.5,
-                  color: "#92400E",
-                  lineHeight: 1.4,
                   display: "flex",
                   alignItems: "center",
-                  gap: 6
+                  gap: 8,
+                  fontSize: 12,
+                  color: "var(--color-ink)",
+                  cursor: "pointer",
+                  marginTop: 2
                 }}
               >
-                <AlertCircle size={14} style={{ color: "#D97706", flexShrink: 0 }} />
-                <span>
-                  This location is <strong>{currentDistanceKm} km away</strong> (outside our 2 km delivery zone). You can still save this address and use it for <strong>Pickup / Takeaway</strong> orders!
-                </span>
-              </div>
-            )}
+                <input
+                  type="checkbox"
+                  checked={isDefault}
+                  onChange={(e) => setIsDefault(e.target.checked)}
+                  style={{ accentColor: "var(--color-bronze)", width: 16, height: 16 }}
+                />
+                <span style={{ fontWeight: 600 }}>Save as primary / default delivery address</span>
+              </label>
 
-            {/* Form Action Buttons */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "flex-end",
-                gap: 12,
-                marginTop: 8,
-                paddingTop: 14,
-                borderTop: "1px solid var(--border-color)"
-              }}
-            >
-              <button
-                type="button"
-                onClick={onClose}
-                className="btn-pill-outline"
-                style={{ padding: "10px 20px", fontSize: 12 }}
+              {/* Real-time 2 KM Delivery Zone Status Badge */}
+              {currentDistanceKm != null && (
+                <div
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    backgroundColor: isWithinDeliveryRadius ? "rgba(240, 253, 244, 0.95)" : "rgba(254, 242, 242, 0.95)",
+                    border: isWithinDeliveryRadius ? "1px solid rgba(34, 197, 94, 0.45)" : "1px solid rgba(239, 68, 68, 0.45)",
+                    color: isWithinDeliveryRadius ? "#15803D" : "#B91C1C",
+                    fontSize: 12,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 6
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>{isWithinDeliveryRadius ? "✓" : "⚠️"}</span>
+                    <span style={{ fontWeight: 700 }}>
+                      {isWithinDeliveryRadius
+                        ? `Within 2 km delivery zone (${currentDistanceKm} km from cafe at Pillar #852)`
+                        : `Outside 2 km delivery zone (${currentDistanceKm} km from cafe)`}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 11, fontStyle: "italic" }}>
+                    {isWithinDeliveryRadius ? "Eligible for Doorstep Delivery" : "Available for Pickup orders"}
+                  </span>
+                </div>
+              )}
+
+              {/* Out-of-zone friendly notice */}
+              {!isWithinDeliveryRadius && (
+                <div
+                  style={{
+                    padding: "8px 12px",
+                    backgroundColor: "#FFFBEB",
+                    border: "1px solid #FCD34D",
+                    borderRadius: 8,
+                    fontSize: 11.5,
+                    color: "#92400E",
+                    lineHeight: 1.4,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6
+                  }}
+                >
+                  <AlertCircle size={14} style={{ color: "#D97706", flexShrink: 0 }} />
+                  <span>
+                    This location is <strong>{currentDistanceKm} km away</strong> (outside our 2 km delivery zone). You can still save this address and use it for <strong>Pickup / Takeaway</strong> orders!
+                  </span>
+                </div>
+              )}
+
+              {/* Form Action Buttons */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  marginTop: 8,
+                  paddingTop: 14,
+                  borderTop: "1px solid var(--border-color)"
+                }}
               >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn-pill-black"
-                style={{ padding: "11px 24px", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}
-              >
-                <Check size={14} />
-                <span>Save & Deliver Here</span>
-              </button>
-            </div>
-          </form>
+                <button
+                  type="button"
+                  onClick={() => setStep("map")}
+                  className="btn-pill-outline"
+                  style={{ padding: "10px 18px", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  <ArrowLeft size={14} />
+                  <span>Back to Map</span>
+                </button>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="btn-pill-outline"
+                    style={{ padding: "10px 18px", fontSize: 12 }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-pill-black"
+                    style={{ padding: "11px 24px", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}
+                  >
+                    <Check size={14} />
+                    <span>Save & Deliver Here</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </div>

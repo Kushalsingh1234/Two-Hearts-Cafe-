@@ -16,7 +16,6 @@ import {
   ExternalLink,
   Copy,
   Check,
-  Ban,
   AlertCircle
 } from "lucide-react";
 import { printReceipt } from "../../utils/receiptGenerator";
@@ -727,35 +726,6 @@ export default function OrderDetailsModal({
               <MessageSquare size={13} />
               <span>WhatsApp</span>
             </a>
-
-            {/* Cancel Button if In Progress */}
-            {isInProgress && stepIndex <= 2 && onCancelOrder && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  if (window.confirm("Are you sure you want to cancel this order?")) {
-                    onCancelOrder(e, order);
-                    onClose();
-                  }
-                }}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                  padding: "8px 14px",
-                  backgroundColor: "#FEF2F2",
-                  border: "1px solid #FECACA",
-                  borderRadius: "var(--radius-pill)",
-                  color: "#DC2626",
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                  cursor: "pointer"
-                }}
-              >
-                <Ban size={13} />
-                <span>Cancel Order</span>
-              </button>
-            )}
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

@@ -21,16 +21,9 @@ import {
   CreditCard,
   Shield,
   Smartphone,
-  X,
   ChefHat,
   Store,
-  Phone,
-  MessageSquare,
-  Navigation,
-  ExternalLink,
-  Copy,
-  CheckCircle2,
-  Ban
+  CheckCircle2
 } from "lucide-react";
 import CafeLogoIcon from "../common/CafeLogoIcon";
 import { useCustomerAuth } from "../../context/CustomerAuthContext";
@@ -38,6 +31,7 @@ import { getCustomerOrders, updateOnlineOrder } from "../../firebase/services";
 import { printReceipt } from "../../utils/receiptGenerator";
 import OrderDetailsModal from "./OrderDetailsModal";
 import OrderFeedbackModal from "./OrderFeedbackModal";
+import LocationAddressModal from "../ordering/LocationAddressModal";
 
 export default function UserProfilePage({ setPage, initialTab = "orders" }) {
   const {
@@ -73,7 +67,6 @@ export default function UserProfilePage({ setPage, initialTab = "orders" }) {
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [activeOrderDetails, setActiveOrderDetails] = useState(null);
   const [activeFeedbackOrder, setActiveFeedbackOrder] = useState(null);
-  const [copiedOrderId, setCopiedOrderId] = useState(null);
 
   // Profile Edit State
   const [editName, setEditName] = useState(customerUser?.name || "");
@@ -83,16 +76,7 @@ export default function UserProfilePage({ setPage, initialTab = "orders" }) {
 
   // Address Modal State
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
-  const [editingAddressId, setEditingAddressId] = useState(null);
-  const [addressForm, setAddressForm] = useState({
-    label: "Hostel",
-    recipientName: "",
-    phone: "",
-    address: "",
-    landmark: "",
-    isDefault: false
-  });
-  const [addressError, setAddressError] = useState("");
+  const [editingAddress, setEditingAddress] = useState(null);
 
   // Payment method state
   const [isAddUpiOpen, setIsAddUpiOpen] = useState(false);
@@ -257,53 +241,25 @@ export default function UserProfilePage({ setPage, initialTab = "orders" }) {
 
   // Open Address Modal for New
   const handleOpenNewAddress = () => {
-    setEditingAddressId(null);
-    setAddressForm({
-      label: "Hostel",
-      recipientName: customerUser?.name || "",
-      phone: customerUser?.phone || "",
-      address: "",
-      landmark: "",
-      isDefault: savedAddresses.length === 0
-    });
-    setAddressError("");
+    setEditingAddress(null);
     setIsAddressModalOpen(true);
   };
 
   // Open Address Modal for Edit
   const handleOpenEditAddress = (addr) => {
-    setEditingAddressId(addr.id);
-    setAddressForm({
-      label: addr.label || "Home",
-      recipientName: addr.recipientName || customerUser?.name || "",
-      phone: addr.phone || customerUser?.phone || "",
-      address: addr.address || "",
-      landmark: addr.landmark || "",
-      isDefault: Boolean(addr.isDefault)
-    });
-    setAddressError("");
+    setEditingAddress(addr);
     setIsAddressModalOpen(true);
   };
 
-  // Save Address submission
-  const handleSaveAddress = (e) => {
-    e.preventDefault();
-    if (!addressForm.address.trim()) {
-      setAddressError("Please enter a street or hostel address.");
-      return;
-    }
-    if (!addressForm.recipientName.trim()) {
-      setAddressError("Please enter recipient name.");
-      return;
-    }
-
-    if (editingAddressId) {
-      updateAddress(editingAddressId, addressForm);
+  // Save Address submission from LocationAddressModal
+  const handleSaveModalAddress = (newAddr) => {
+    if (editingAddress && editingAddress.id) {
+      updateAddress(editingAddress.id, newAddr);
     } else {
-      addAddress(addressForm);
+      addAddress(newAddr);
     }
-
     setIsAddressModalOpen(false);
+    setEditingAddress(null);
   };
 
   // Add new UPI
@@ -828,31 +784,6 @@ export default function UserProfilePage({ setPage, initialTab = "orders" }) {
                               </div>
 
                               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                {stepInfo.idx <= 2 && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleCancelOrder(e, ord);
-                                    }}
-                                    style={{
-                                      backgroundColor: "transparent",
-                                      border: "none",
-                                      color: "#DC2626",
-                                      fontSize: 11.5,
-                                      fontWeight: 600,
-                                      cursor: "pointer",
-                                      padding: "4px 8px",
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: 4
-                                    }}
-                                  >
-                                    <Ban size={12} />
-                                    <span>Cancel</span>
-                                  </button>
-                                )}
-
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -1818,179 +1749,20 @@ export default function UserProfilePage({ setPage, initialTab = "orders" }) {
         )}
       </div>
 
-      {/* MODAL: ADD / EDIT ADDRESS */}
+      {/* MODAL: ADD / EDIT ADDRESS (UNIFIED WITH MAP & PIN LOOKUP) */}
       {isAddressModalOpen && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 110,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 16,
-            backgroundColor: "rgba(28, 25, 23, 0.65)",
-            backdropFilter: "blur(6px)"
+        <LocationAddressModal
+          isOpen={isAddressModalOpen}
+          onClose={() => {
+            setIsAddressModalOpen(false);
+            setEditingAddress(null);
           }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsAddressModalOpen(false);
-          }}
-        >
-          <div
-            className="animate-fade-in"
-            style={{
-              width: "100%",
-              maxWidth: 480,
-              backgroundColor: "#FAF7F2",
-              borderRadius: 20,
-              border: "1px solid var(--border-color)",
-              boxShadow: "0 20px 45px rgba(28, 25, 23, 0.2)",
-              padding: "28px 24px",
-              position: "relative"
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setIsAddressModalOpen(false)}
-              style={{
-                position: "absolute",
-                top: 16,
-                right: 16,
-                width: 32,
-                height: 32,
-                borderRadius: "50%",
-                backgroundColor: "#FFFFFF",
-                border: "1px solid var(--border-color)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "var(--color-ink-soft)",
-                cursor: "pointer"
-              }}
-            >
-              <X size={16} />
-            </button>
-
-            <h3 style={{ fontFamily: "var(--font-serif)", fontSize: 22, marginBottom: 4 }}>
-              {editingAddressId ? "Edit Delivery Address" : "Add New Delivery Address"}
-            </h3>
-            <p style={{ fontSize: 13, color: "#78716C", margin: "0 0 20px 0" }}>
-              Save hostel room, campus department, or home details for fast checkout.
-            </p>
-
-            {addressError && (
-              <div style={{ padding: "8px 12px", backgroundColor: "#FEF2F2", color: "#DC2626", fontSize: 12, borderRadius: 6, marginBottom: 14 }}>
-                {addressError}
-              </div>
-            )}
-
-            <form onSubmit={handleSaveAddress}>
-              {/* Category label selector */}
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", fontSize: 11, fontFamily: "var(--font-serif)", textTransform: "uppercase", fontWeight: 700, color: "var(--color-bronze)", marginBottom: 6 }}>
-                  Address Type
-                </label>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {["Hostel", "Home", "Work", "Other"].map((lbl) => (
-                    <button
-                      key={lbl}
-                      type="button"
-                      onClick={() => setAddressForm({ ...addressForm, label: lbl })}
-                      style={{
-                        flex: 1,
-                        padding: "8px",
-                        borderRadius: "var(--radius-pill)",
-                        backgroundColor: addressForm.label === lbl ? "var(--color-ink)" : "#FFFFFF",
-                        color: addressForm.label === lbl ? "#FFFFFF" : "var(--color-ink)",
-                        border: `1px solid ${addressForm.label === lbl ? "var(--color-ink)" : "var(--border-color)"}`,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        cursor: "pointer"
-                      }}
-                    >
-                      {lbl}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Recipient Name & Phone */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
-                <div>
-                  <label style={{ display: "block", fontSize: 11, fontFamily: "var(--font-serif)", textTransform: "uppercase", fontWeight: 700, color: "var(--color-bronze)", marginBottom: 4 }}>
-                    Recipient Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={addressForm.recipientName}
-                    onChange={(e) => setAddressForm({ ...addressForm, recipientName: e.target.value })}
-                    placeholder="e.g. your full name"
-                    style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border-color)", backgroundColor: "#FFFFFF", fontSize: 13, boxSizing: "border-box" }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: 11, fontFamily: "var(--font-serif)", textTransform: "uppercase", fontWeight: 700, color: "var(--color-bronze)", marginBottom: 4 }}>
-                    Contact Phone
-                  </label>
-                  <input
-                    type="tel"
-                    value={addressForm.phone}
-                    onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
-                    placeholder="10-digit number"
-                    style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border-color)", backgroundColor: "#FFFFFF", fontSize: 13, boxSizing: "border-box" }}
-                  />
-                </div>
-              </div>
-
-              {/* Address details */}
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ display: "block", fontSize: 11, fontFamily: "var(--font-serif)", textTransform: "uppercase", fontWeight: 700, color: "var(--color-bronze)", marginBottom: 4 }}>
-                  Full Street Address / Hostel & Room Number *
-                </label>
-                <textarea
-                  rows={2}
-                  value={addressForm.address}
-                  onChange={(e) => setAddressForm({ ...addressForm, address: e.target.value })}
-                  placeholder="e.g. Flat/House/Room No., Building/Hostel name, Street, Area"
-                  style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border-color)", backgroundColor: "#FFFFFF", fontSize: 13, boxSizing: "border-box", fontFamily: "inherit" }}
-                />
-              </div>
-
-              {/* Landmark */}
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", fontSize: 11, fontFamily: "var(--font-serif)", textTransform: "uppercase", fontWeight: 700, color: "var(--color-bronze)", marginBottom: 4 }}>
-                  Landmark (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={addressForm.landmark}
-                  onChange={(e) => setAddressForm({ ...addressForm, landmark: e.target.value })}
-                  placeholder="e.g. Near main gate, tower 3, or prominent landmark"
-                  style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid var(--border-color)", backgroundColor: "#FFFFFF", fontSize: 13, boxSizing: "border-box" }}
-                />
-              </div>
-
-              {/* Default checkbox */}
-              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--color-ink)", marginBottom: 20, cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={addressForm.isDefault}
-                  onChange={(e) => setAddressForm({ ...addressForm, isDefault: e.target.checked })}
-                  style={{ width: 16, height: 16, accentColor: "var(--color-ink)" }}
-                />
-                <span>Set as my default delivery address</span>
-              </label>
-
-              <button
-                type="submit"
-                className="btn-pill-black"
-                style={{ width: "100%", padding: "12px", fontSize: 13, justifyContent: "center" }}
-              >
-                <span>{editingAddressId ? "Update Address" : "Save Address"}</span>
-              </button>
-            </form>
-          </div>
-        </div>
+          onSaveAddress={handleSaveModalAddress}
+          initialAddress={editingAddress}
+          initialCoords={editingAddress?.coords || null}
+          customerUser={customerUser}
+          savedAddressesCount={savedAddresses.length}
+        />
       )}
 
       {/* Modal: Order Details */}
@@ -1999,7 +1771,6 @@ export default function UserProfilePage({ setPage, initialTab = "orders" }) {
           order={activeOrderDetails}
           onClose={() => setActiveOrderDetails(null)}
           onOpenFeedback={(orderToRate) => setActiveFeedbackOrder(orderToRate)}
-          onCancelOrder={handleCancelOrder}
           onNavigate={(p) => {
             setActiveOrderDetails(null);
             setPage(p);

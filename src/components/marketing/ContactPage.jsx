@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { MapPin, Send, CheckCircle2, ChevronDown, Navigation } from "lucide-react";
 import CafeLogoIcon from "../common/CafeLogoIcon";
+import InstagramIcon from "../common/InstagramIcon";
 import { CAFE_INFO, FAQS } from "./MarketingData";
 
 export default function ContactPage() {
@@ -126,7 +127,7 @@ export default function ContactPage() {
 
                 <div style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
                   gap: 16,
                   paddingTop: 18,
                   borderTop: "1px solid var(--border-color)"
@@ -148,6 +149,34 @@ export default function ContactPage() {
                       }}
                     >
                       +91 {CAFE_INFO.phone}
+                    </a>
+                  </div>
+
+                  <div>
+                    <span style={{ fontSize: 11, color: "var(--color-ink-soft)", textTransform: "uppercase", letterSpacing: 0.8 }}>
+                      Instagram
+                    </span>
+                    <a
+                      href={CAFE_INFO.instagramUrl || "https://www.instagram.com/Two_hearts_cafe/"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontFamily: "var(--font-serif)",
+                        fontSize: 15,
+                        fontWeight: 700,
+                        color: "var(--color-ink)",
+                        textDecoration: "none",
+                        marginTop: 4,
+                        transition: "color 0.2s ease"
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = "#E1306C")}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-ink)")}
+                    >
+                      <InstagramIcon size={16} color="#E1306C" />
+                      <span>@{CAFE_INFO.instagram || "Two_hearts_cafe"}</span>
                     </a>
                   </div>
 

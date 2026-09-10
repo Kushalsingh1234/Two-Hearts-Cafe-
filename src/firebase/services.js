@@ -340,7 +340,7 @@ export const placeOnlineDeliveryOrder = async (payload) => {
     deliveryAddress: payload.deliveryAddress || "",
     landmark: payload.landmark || "",
     customerNotes: payload.customerNotes || "",
-    paymentStatus: "paid",
+    paymentStatus: payload.paymentStatus || "paid",
     paymentMethod: payload.paymentMethod || "online_gateway",
     paymentId: payload.paymentId || "",
     etaMinutes: payload.etaMinutes || 35,

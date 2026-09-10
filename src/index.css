@@ -378,10 +378,10 @@ html {
   align-items: center;
   justifyContent: space-between;
   padding: 12px 24px;
-  background-color: #FFFFFF;
+  background: linear-gradient(155deg, #183727 0%, #10271B 100%);
   border-radius: var(--radius-pill);
-  border: 1px solid rgba(180, 130, 90, 0.25);
-  box-shadow: 0 4px 16px rgba(74, 53, 39, 0.04);
+  border: 1px solid rgba(110, 185, 140, 0.25);
+  box-shadow: 0 8px 24px rgba(5, 18, 11, 0.25);
   gap: 16px;
 }
 .story-tabs-wrapper {

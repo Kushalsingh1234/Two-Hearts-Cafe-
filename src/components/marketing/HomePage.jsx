@@ -1286,7 +1286,7 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                 onMouseLeave={() => setIsPaused(false)}
                 style={{ display: "flex", flexDirection: "column", gap: 20 }}
               >
-                {/* Main Spotlight Card */}
+                {/* Main Spotlight Card in rich luxury dark green */}
                 <div
                   key={currentStory.id}
                   className="story-fade-in cafe-story-spotlight-card"
@@ -1295,23 +1295,23 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                     gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
                     gap: "clamp(32px, 5vw, 56px)",
                     alignItems: "center",
-                    background: "linear-gradient(155deg, #FFFFFF 0%, #FCFAF7 60%, #F6EFE6 100%)",
+                    background: "linear-gradient(155deg, #1C3B2B 0%, #122B1E 50%, #0A1C13 100%)",
                     borderRadius: "28px",
-                    border: "1px solid rgba(180, 130, 90, 0.28)",
+                    border: "1.5px solid rgba(110, 185, 140, 0.25)",
                     padding: "clamp(24px, 4vw, 44px)",
-                    boxShadow: "0 24px 64px -16px rgba(74, 53, 39, 0.09), 0 2px 6px rgba(74, 53, 39, 0.02)",
+                    boxShadow: "0 24px 64px -16px rgba(5, 18, 11, 0.45), 0 2px 8px rgba(5, 18, 11, 0.2)",
                     position: "relative",
                     overflow: "hidden"
                   }}
                 >
-                  {/* Top golden hairline accent */}
+                  {/* Top emerald hairline accent */}
                   <div style={{
                     position: "absolute",
                     top: 0,
                     left: 0,
                     right: 0,
                     height: 3,
-                    background: "linear-gradient(90deg, transparent 0%, rgba(180, 130, 90, 0.6) 50%, transparent 100%)"
+                    background: "linear-gradient(90deg, transparent 0%, rgba(138, 222, 172, 0.7) 50%, transparent 100%)"
                   }} />
 
                   {/* Photo Column (Left) */}
@@ -1321,8 +1321,9 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                       position: "relative",
                       borderRadius: "22px",
                       overflow: "hidden",
-                      boxShadow: "0 16px 36px -8px rgba(74, 53, 39, 0.16)",
-                      backgroundColor: "#EFE8DC"
+                      boxShadow: "0 16px 40px -8px rgba(0, 0, 0, 0.5)",
+                      backgroundColor: "#0C1E15",
+                      border: "1px solid rgba(255, 255, 255, 0.12)"
                     }}
                   >
                     <img
@@ -1342,18 +1343,18 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                       onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1.0)")}
                     />
 
-                    {/* Premium Badge (No Emoji) */}
+                    {/* Premium Badge */}
                     <div
                       className="cafe-story-photo-badge"
                       style={{
                         position: "absolute",
                         top: 18,
                         left: 18,
-                        backgroundColor: "rgba(255, 255, 255, 0.92)",
+                        backgroundColor: "rgba(10, 24, 16, 0.88)",
                         backdropFilter: "blur(12px)",
                         borderRadius: "var(--radius-pill)",
                         padding: "6px 14px",
-                        border: "1px solid rgba(180, 130, 90, 0.3)",
+                        border: "1px solid rgba(138, 222, 172, 0.35)",
                         display: "flex",
                         alignItems: "center",
                         gap: 6,
@@ -1362,14 +1363,14 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                         fontWeight: 700,
                         letterSpacing: "1.2px",
                         textTransform: "uppercase",
-                        color: "var(--color-bronze)",
-                        boxShadow: "0 6px 18px rgba(0,0,0,0.08)"
+                        color: "#E2F4EA",
+                        boxShadow: "0 6px 18px rgba(0,0,0,0.25)"
                       }}
                     >
                       {isPrivateCorner ? (
-                        <Sparkles size={12} style={{ color: "var(--color-bronze)" }} />
+                        <Sparkles size={12} style={{ color: "#8AE6B0" }} />
                       ) : (
-                        <Heart size={12} style={{ color: "var(--color-bronze)" }} />
+                        <Heart size={12} style={{ color: "#8AE6B0" }} />
                       )}
                       <span>{currentStory.badgeText}</span>
                     </div>
@@ -1387,7 +1388,7 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                         position: "absolute",
                         bottom: 18,
                         right: 18,
-                        backgroundColor: "rgba(28, 25, 23, 0.82)",
+                        backgroundColor: "rgba(10, 20, 14, 0.82)",
                         backdropFilter: "blur(8px)",
                         color: "#FFFFFF",
                         border: "1px solid rgba(255, 255, 255, 0.2)",
@@ -1420,13 +1421,13 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                         fontWeight: 700,
                         letterSpacing: "2px",
                         textTransform: "uppercase",
-                        color: "var(--color-bronze)"
+                        color: "#7DD19F"
                       }}>
                         {currentStory.eyebrow}
                       </span>
                       <span style={{
                         fontSize: 11,
-                        color: "var(--color-bronze)",
+                        color: "rgba(255, 255, 255, 0.65)",
                         fontWeight: 600,
                         fontFamily: "var(--font-serif)"
                       }}>
@@ -1439,8 +1440,8 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                       style={{
                         fontFamily: "var(--font-serif)",
                         fontSize: "clamp(24px, 3.2vw, 34px)",
-                        fontWeight: 600,
-                        color: "var(--color-ink)",
+                        fontWeight: 700,
+                        color: "#FFFFFF",
                         lineHeight: 1.25,
                         marginBottom: 10
                       }}
@@ -1453,7 +1454,7 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                         fontFamily: "var(--font-serif)",
                         fontStyle: "italic",
                         fontSize: 15,
-                        color: "var(--color-bronze)",
+                        color: "#CBE3D3",
                         lineHeight: 1.5,
                         marginBottom: 16
                       }}
@@ -1465,7 +1466,7 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                         className={`story-description-para ${isStoryExpanded ? "is-expanded" : ""}`}
                         style={{
                           fontSize: 14,
-                          color: "var(--color-ink-soft)",
+                          color: "rgba(255, 255, 255, 0.88)",
                           lineHeight: 1.75
                         }}
                       >
@@ -1476,13 +1477,18 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                         onClick={() => setIsStoryExpanded((prev) => !prev)}
                         className="story-view-more-toggle"
                         title={isStoryExpanded ? "Show fewer lines" : "Read complete story description"}
+                        style={{
+                          color: "#8AE6B0",
+                          fontWeight: 600
+                        }}
                       >
                         <span>{isStoryExpanded ? "View Less" : "View More"}</span>
                         <ChevronDown
                           size={13}
                           style={{
                             transition: "transform 0.2s ease",
-                            transform: isStoryExpanded ? "rotate(180deg)" : "rotate(0)"
+                            transform: isStoryExpanded ? "rotate(180deg)" : "rotate(0)",
+                            color: "#8AE6B0"
                           }}
                         />
                       </button>
@@ -1494,26 +1500,75 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                       <button
                         type="button"
                         onClick={() => handleNav("menu")}
-                        className="btn-pill-black cafe-story-action-btn"
-                        style={{ padding: "12px 26px", fontSize: 12 }}
+                        className="cafe-story-action-btn"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 8,
+                          padding: "12px 26px",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
+                          borderRadius: "var(--radius-pill)",
+                          backgroundColor: "#FFFFFF",
+                          color: "#0F2318",
+                          border: "1px solid #FFFFFF",
+                          boxShadow: "0 6px 18px rgba(0, 0, 0, 0.3)",
+                          cursor: "pointer",
+                          transition: "all 0.22s ease"
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = "#EAF5EE";
+                          e.currentTarget.style.transform = "translateY(-1px)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = "#FFFFFF";
+                          e.currentTarget.style.transform = "translateY(0)";
+                        }}
                       >
-                        <span>View Our Menu</span>
-                        <ArrowRight size={13} />
+                        <span style={{ color: "#0F2318" }}>View Our Menu</span>
+                        <ArrowRight size={13} style={{ color: "#0F2318" }} />
                       </button>
                       <button
                         type="button"
                         onClick={() => setIsGalleryOpen(true)}
-                        className="btn-pill-outline cafe-story-action-btn"
-                        style={{ padding: "11px 20px", fontSize: 12 }}
+                        className="cafe-story-action-btn"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 8,
+                          padding: "11px 22px",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          letterSpacing: "0.06em",
+                          borderRadius: "var(--radius-pill)",
+                          backgroundColor: "rgba(255, 255, 255, 0.12)",
+                          backdropFilter: "blur(8px)",
+                          border: "1.5px solid rgba(255, 255, 255, 0.35)",
+                          color: "#FFFFFF",
+                          cursor: "pointer",
+                          transition: "all 0.22s ease"
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+                          e.currentTarget.style.transform = "translateY(-1px)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.12)";
+                          e.currentTarget.style.transform = "translateY(0)";
+                        }}
                       >
-                        <Eye size={13} style={{ color: "var(--color-bronze)" }} />
-                        <span>Open Gallery</span>
+                        <Eye size={13} style={{ color: "#8AE6B0" }} />
+                        <span style={{ color: "#FFFFFF" }}>Open Gallery</span>
                       </button>
                       <span
                         className="cafe-story-location-note"
                         style={{
                           fontSize: 12,
-                          color: "var(--color-bronze)",
+                          color: "#8AE6B0",
                           fontWeight: 600,
                           fontFamily: "var(--font-serif)"
                         }}
@@ -1524,8 +1579,12 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                   </div>
                 </div>
 
-                {/* Professional Auto-Rotation Navigation & Control Bar */}
-                <div className="story-control-bar">
+                {/* Professional Auto-Rotation Navigation & Control Bar in matching dark green */}
+                <div className="story-control-bar" style={{
+                  background: "linear-gradient(155deg, #183727 0%, #10271B 100%)",
+                  border: "1px solid rgba(110, 185, 140, 0.25)",
+                  boxShadow: "0 8px 24px rgba(5, 18, 11, 0.25)"
+                }}>
                   {/* Story Selectors with Progress Bar */}
                   <div className="story-tabs-wrapper">
                     {CAFE_STORIES.map((story, idx) => {
@@ -1545,9 +1604,9 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                             gap: 6,
                             padding: "8px 16px",
                             borderRadius: "var(--radius-pill)",
-                            border: isActive ? "1px solid var(--color-bronze)" : "1px solid rgba(180, 130, 90, 0.2)",
-                            backgroundColor: isActive ? "var(--bg-app)" : "#FFFFFF",
-                            color: isActive ? "var(--color-ink)" : "var(--color-ink-soft)",
+                            border: isActive ? "1.5px solid #52A26F" : "1px solid rgba(255, 255, 255, 0.15)",
+                            backgroundColor: isActive ? "rgba(82, 162, 111, 0.2)" : "rgba(255, 255, 255, 0.05)",
+                            color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)",
                             fontFamily: "var(--font-serif)",
                             fontSize: 12,
                             fontWeight: isActive ? 700 : 500,
@@ -1557,7 +1616,7 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                             whiteSpace: "nowrap"
                           }}
                         >
-                          <span style={{ fontSize: 10, color: "var(--color-bronze)", fontWeight: 700 }}>
+                          <span style={{ fontSize: 10, color: "#8AE6B0", fontWeight: 700 }}>
                             0{idx + 1}
                           </span>
                           <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -1573,7 +1632,7 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                                 bottom: 0,
                                 left: 0,
                                 height: 2,
-                                backgroundColor: "var(--color-bronze)"
+                                backgroundColor: "#52A26F"
                               }}
                             />
                           )}
@@ -1594,14 +1653,14 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                           width: 32,
                           height: 32,
                           borderRadius: "50%",
-                          backgroundColor: "var(--bg-app)",
-                          border: "1px solid rgba(180, 130, 90, 0.3)",
+                          backgroundColor: "rgba(255, 255, 255, 0.08)",
+                          border: "1px solid rgba(255, 255, 255, 0.2)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          color: "var(--color-ink)",
+                          color: "#FFFFFF",
                           cursor: "pointer",
-                          boxShadow: "0 1px 4px rgba(28, 25, 23, 0.05)",
+                          boxShadow: "0 1px 4px rgba(0, 0, 0, 0.2)",
                           transition: "all 0.2s ease"
                         }}
                       >
@@ -1615,14 +1674,14 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                           width: 32,
                           height: 32,
                           borderRadius: "50%",
-                          backgroundColor: "var(--bg-app)",
-                          border: "1px solid rgba(180, 130, 90, 0.3)",
+                          backgroundColor: "rgba(255, 255, 255, 0.08)",
+                          border: "1px solid rgba(255, 255, 255, 0.2)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          color: "var(--color-ink)",
+                          color: "#FFFFFF",
                           cursor: "pointer",
-                          boxShadow: "0 1px 4px rgba(28, 25, 23, 0.05)",
+                          boxShadow: "0 1px 4px rgba(0, 0, 0, 0.2)",
                           transition: "all 0.2s ease"
                         }}
                       >
@@ -1631,7 +1690,7 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
 
                       <span style={{
                         fontSize: 10.5,
-                        color: "var(--color-bronze)",
+                        color: "#8AE6B0",
                         fontStyle: "italic",
                         fontFamily: "var(--font-serif)",
                         marginLeft: 4
@@ -1648,16 +1707,18 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                       style={{
                         fontSize: 11,
                         fontWeight: 700,
-                        backgroundColor: "#FFFFFF",
+                        backgroundColor: "rgba(255, 255, 255, 0.1)",
+                        border: "1px solid rgba(255, 255, 255, 0.22)",
+                        color: "#FFFFFF",
                         padding: "7px 16px",
                         display: "inline-flex",
                         alignItems: "center",
                         gap: 5,
-                        boxShadow: "0 1px 4px rgba(28, 25, 23, 0.04)"
+                        boxShadow: "0 1px 4px rgba(0, 0, 0, 0.15)"
                       }}
                     >
                       <span>View Gallery</span>
-                      <ArrowRight size={11} />
+                      <ArrowRight size={11} style={{ color: "#8AE6B0" }} />
                     </button>
                   </div>
                 </div>

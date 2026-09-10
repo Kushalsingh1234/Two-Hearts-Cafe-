@@ -16,21 +16,33 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
   const [paymentType, setPaymentType] = useState("online"); // 'online' | 'counter'
   const [utrNumber, setUtrNumber] = useState("");
   const [isCopied, setIsCopied] = useState(false);
+  const [isCopiedPhone, setIsCopiedPhone] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmedMessage, setConfirmedMessage] = useState(null);
 
   const upiId = "twohearts@ptaxis";
-  const payeeName = "Two Hearts Cafe";
+  // Verified name registered on bank account for twohearts@ptaxis
+  const payeeName = "Anirudh Tyagi";
+  const payeePhone = "9027012158";
   const amount = order.total || 0;
   const transactionNote = `Table ${order.tableNumber} Order ${order.orderNumber || (order.id ? order.id.slice(0, 6) : "101")}`;
 
-  // Standard NPCI UPI URI Scheme (auto-opens GPay, PhonePe, Paytm, CRED on mobile with amount pre-filled)
-  const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+  // Standard NPCI UPI URI Schemes with verified payee name
+  const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}&mc=5812`;
+  const paytmUri = `paytmmp://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR`;
+  const phonepeUri = `phonepe://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR`;
+  const gpayUri = `tez://upi/pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR`;
 
   const handleCopyUpi = () => {
     navigator.clipboard.writeText(upiId);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleCopyPhone = () => {
+    navigator.clipboard.writeText(payeePhone);
+    setIsCopiedPhone(true);
+    setTimeout(() => setIsCopiedPhone(false), 2000);
   };
 
   const handleConfirmOnlinePayment = async () => {
@@ -265,7 +277,7 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
 
             {/* TAB 1: PAY ONLINE (UPI to twohearts@ptaxis) */}
             {paymentType === "online" ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {/* 1-Click Launch Button for Mobile */}
                 <a
                   href={upiUri}
@@ -274,7 +286,7 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
                     alignItems: "center",
                     justifyContent: "center",
                     gap: 8,
-                    padding: "13px 18px",
+                    padding: "12px 18px",
                     borderRadius: "var(--radius-pill)",
                     backgroundColor: "var(--color-bronze)",
                     color: "#ffffff",
@@ -289,20 +301,57 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
                   }}
                 >
                   <Smartphone size={16} />
-                  <span>Open GPay / PhonePe / Paytm (Rs.{amount})</span>
+                  <span>Open Any UPI App (Rs.{amount})</span>
                 </a>
 
-                {/* Subtext */}
-                <div style={{ textAlign: "center", fontSize: 11, fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--color-bronze)" }}>
-                  Clicking above will pre-fill Rs.{amount} in your UPI payment app automatically.
+                {/* Direct App Launchers */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <a
+                    href={paytmUri}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "8px 12px",
+                      borderRadius: "var(--radius-pill)",
+                      backgroundColor: "#00BAF2",
+                      color: "#FFFFFF",
+                      fontFamily: "var(--font-serif)",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      textAlign: "center"
+                    }}
+                  >
+                    Open in Paytm
+                  </a>
+                  <a
+                    href={phonepeUri}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "8px 12px",
+                      borderRadius: "var(--radius-pill)",
+                      backgroundColor: "#5f259f",
+                      color: "#FFFFFF",
+                      fontFamily: "var(--font-serif)",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      textAlign: "center"
+                    }}
+                  >
+                    Open in PhonePe
+                  </a>
                 </div>
 
-                {/* Dynamic QR Code for Desktop or scanning from another device */}
+                {/* Dynamic QR Code */}
                 <div style={{
                   backgroundColor: "#fff",
                   borderRadius: 6,
                   border: "1.2px solid var(--color-border-frame)",
-                  padding: 16,
+                  padding: 14,
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
@@ -313,40 +362,85 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
                   </div>
 
                   <div style={{
-                    padding: 10,
+                    padding: 8,
                     backgroundColor: "#fff",
                     borderRadius: 4,
                     border: "1px solid var(--color-border-frame)"
                   }}>
                     <QRCodeSVG
                       value={upiUri}
-                      size={160}
+                      size={150}
                       level="H"
                       includeMargin={false}
                     />
                   </div>
 
-                  {/* UPI ID Pill */}
-                  <div style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    backgroundColor: "#FAF7F2",
-                    padding: "4px 10px",
-                    borderRadius: "var(--radius-pill)",
-                    border: "1px solid var(--color-border-frame)",
-                    fontSize: 12,
-                    fontFamily: "monospace"
-                  }}>
-                    <span>UPI ID: <strong>{upiId}</strong></span>
-                    <button
-                      type="button"
-                      onClick={handleCopyUpi}
-                      style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-bronze)", display: "flex", alignItems: "center" }}
-                      title="Copy UPI ID"
-                    >
-                      {isCopied ? <Check size={13} color="#15803d" /> : <Copy size={13} />}
-                    </button>
+                  {/* Copy Pills for UPI ID & Mobile */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
+                    {/* UPI ID Pill */}
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      backgroundColor: "#FAF7F2",
+                      padding: "5px 12px",
+                      borderRadius: "var(--radius-pill)",
+                      border: "1px solid var(--color-border-frame)",
+                      fontSize: 12,
+                      fontFamily: "monospace"
+                    }}>
+                      <span>UPI: <strong>{upiId}</strong></span>
+                      <button
+                        type="button"
+                        onClick={handleCopyUpi}
+                        style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-bronze)", display: "flex", alignItems: "center" }}
+                        title="Copy UPI ID"
+                      >
+                        {isCopied ? <Check size={13} color="#15803d" /> : <Copy size={13} />}
+                      </button>
+                    </div>
+
+                    {/* Mobile Number Pill */}
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      backgroundColor: "#FAF7F2",
+                      padding: "5px 12px",
+                      borderRadius: "var(--radius-pill)",
+                      border: "1px solid var(--color-border-frame)",
+                      fontSize: 12,
+                      fontFamily: "monospace"
+                    }}>
+                      <span>Paytm No: <strong>{payeePhone}</strong></span>
+                      <button
+                        type="button"
+                        onClick={handleCopyPhone}
+                        style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-bronze)", display: "flex", alignItems: "center" }}
+                        title="Copy Phone Number"
+                      >
+                        {isCopiedPhone ? <Check size={13} color="#15803d" /> : <Copy size={13} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Helpful Guidance Notice for Paytm Alert */}
+                <div style={{
+                  backgroundColor: "#FFFBEB",
+                  border: "1px solid #FDE68A",
+                  borderRadius: 6,
+                  padding: "10px 12px",
+                  fontSize: 11.5,
+                  fontFamily: "var(--font-serif)",
+                  color: "#92400E",
+                  lineHeight: 1.45
+                }}>
+                  <div style={{ fontWeight: 700, marginBottom: 2 }}>
+                    💡 Seeing a "UPI Risk Policy" alert in Paytm?
+                  </div>
+                  <div>
+                    Because this is an in-cafe direct payment, tap <strong>"Pay via Scanning QR"</strong> or <strong>"Pay via Mobile Number"</strong> and pay to <strong>9027012158</strong> ({payeeName}) to complete instantly without blocks.
                   </div>
                 </div>
 

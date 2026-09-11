@@ -507,8 +507,8 @@ export const updateOrderPayment = async (orderId, paymentData) => {
   const isOnlinePaid = paymentData.paymentStatus === "paid_online" || paymentData.paymentMethod === "upi";
 
   const updatePayload = {
-    paymentStatus: paymentData.paymentStatus, // 'paid_online' | 'pay_at_counter' | 'unpaid'
-    paymentMethod: paymentData.paymentMethod, // 'upi' | 'counter'
+    paymentStatus: paymentData.paymentStatus || (isOnlinePaid ? "paid_online" : "unpaid"),
+    paymentMethod: paymentData.paymentMethod || (isOnlinePaid ? "upi" : "counter"),
     paymentDetails: {
       upiId: paymentData.upiId || "Q327979600@ybl",
       utr: paymentData.utr || "",
@@ -518,15 +518,22 @@ export const updateOrderPayment = async (orderId, paymentData) => {
     // Automatic bill settlement when paid online from the scanner
     ...(isOnlinePaid ? {
       status: "settled",
-      settledAt: paymentData.paidAt || updatedAt,
-      settledBy: "Customer Online UPI",
-      settledMethod: "upi_online"
+      settledAt: paymentData.settledAt || paymentData.paidAt || updatedAt,
+      settledBy: paymentData.settledBy || "Customer Online UPI",
+      settledMethod: paymentData.settledMethod || "upi_online"
     } : {})
   };
 
   try {
     const docRef = doc(db, ORDERS_COLLECTION, orderId);
     await updateDoc(docRef, updatePayload);
+    // Also update local cache for immediate zero-latency cross-tab reactivity
+    const orders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+    const updated = orders.map((ord) =>
+      ord.id === orderId ? { ...ord, ...updatePayload } : ord
+    );
+    setLocalData(LOCAL_STORAGE_ORDERS_KEY, updated);
+    window.dispatchEvent(new CustomEvent("twohearts_new_order"));
   } catch (err) {
     console.warn("Firestore updateOrderPayment fallback to local:", err);
     const orders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);

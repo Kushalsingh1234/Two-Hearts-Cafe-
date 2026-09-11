@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import confetti from "canvas-confetti";
-import { Edit3, ChevronRight, Utensils, MapPin, Clock } from "lucide-react";
+import { Edit3, ChevronRight, Utensils, MapPin, Clock, CheckCircle2 } from "lucide-react";
 import MenuCategoryBar from "./MenuCategoryBar";
 import MenuItemCard from "./MenuItemCard";
 import CartDrawer from "./CartDrawer";
@@ -208,6 +208,22 @@ export default function CustomerView({
     return ageMs < 45 * 60 * 1000;
   });
 
+  // Check if this table customer has a recently settled bill in this session
+  const customerSettledOrders = orders.filter((ord) => {
+    if (String(ord.tableNumber) !== String(tableNumber)) return false;
+    if (ord.status !== "settled") return false;
+    let isAllowed = sessionOrderIds.includes(ord.id);
+    if (!isAllowed) {
+      try {
+        const lastSettledId = localStorage.getItem(`twohearts_table_${tableNumber}_last_settled_id`);
+        if (lastSettledId === ord.id) isAllowed = true;
+      } catch {}
+    }
+    if (!isAllowed) return false;
+    const settledTime = ord.settledAt ? new Date(ord.settledAt).getTime() : (ord.timestamp || 0);
+    return (Date.now() - settledTime) < 30 * 60 * 1000;
+  });
+
   return (
     <div style={{
       width: "100%",
@@ -242,6 +258,34 @@ export default function CustomerView({
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, textDecoration: "underline" }}>
             <span>Track & Pay Bill</span>
+            <ChevronRight size={13} />
+          </div>
+        </div>
+      ) : customerSettledOrders.length > 0 ? (
+        <div
+          onClick={() => setIsTrackerOpen(true)}
+          style={{
+            marginBottom: 12,
+            backgroundColor: "#14532d",
+            color: "#f0fdf4",
+            borderRadius: "var(--radius-sm)",
+            padding: "9px 12px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            cursor: "pointer",
+            border: "1.5px solid #22c55e",
+            boxShadow: "var(--shadow-sm)"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5 }}>
+            <CheckCircle2 size={16} color="#86efac" />
+            <span>
+              <strong>Table #{tableNumber} Bill Settled!</strong> (Rs.{customerSettledOrders[0].total}) • View Invoice & Review
+            </span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11.5, textDecoration: "underline", color: "#86efac" }}>
+            <span>Invoice</span>
             <ChevronRight size={13} />
           </div>
         </div>

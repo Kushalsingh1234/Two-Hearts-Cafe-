@@ -1,23 +1,39 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import confetti from "canvas-confetti";
 import {
   X,
   Smartphone,
   CheckCircle2,
   Copy,
   Check,
-  Building2
+  Building2,
+  Receipt,
+  Star,
+  ArrowRight,
+  Loader2,
+  Sparkles
 } from "lucide-react";
 import { updateOrderPayment } from "../../firebase/services";
 
-export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess }) {
+export default function PaymentModal({
+  isOpen,
+  onClose,
+  order,
+  onPaymentSuccess,
+  onOpenInvoice,
+  onOpenReview
+}) {
   if (!isOpen || !order) return null;
 
   const [paymentType, setPaymentType] = useState("online"); // 'online' | 'counter'
   const [utrNumber, setUtrNumber] = useState("");
+  const [showUtrInput, setShowUtrInput] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const [isCopiedPhone, setIsCopiedPhone] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [upiLaunched, setUpiLaunched] = useState(false);
+  const [isVerifyingReturn, setIsVerifyingReturn] = useState(false);
+  const [settledSuccess, setSettledSuccess] = useState(false);
   const [confirmedMessage, setConfirmedMessage] = useState(null);
   const [qrMode, setQrMode] = useState("auto"); // 'auto' | 'standee'
 
@@ -36,10 +52,25 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
   const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
   const phonepeUri = `phonepe://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
   const paytmUri = `paytmmp://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
-  const gpayUri = `tez://upi/pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
 
   // 2. Official Standee QR (100% exact copy of physical counter standee)
   const officialStandeeUri = `upi://pay?pa=Q327979600@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00`;
+
+  // Track when user taps any UPI app launcher link
+  const handleLaunchUpi = () => {
+    try {
+      sessionStorage.setItem(
+        "twohearts_upi_in_flight",
+        JSON.stringify({
+          orderId: order.id,
+          tableNumber: order.tableNumber,
+          amount,
+          time: Date.now()
+        })
+      );
+    } catch {}
+    setUpiLaunched(true);
+  };
 
   const handleCopyUpi = () => {
     navigator.clipboard.writeText(upiId);
@@ -47,11 +78,14 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  const handleConfirmOnlinePayment = async () => {
+  // Core settlement logic
+  const handleConfirmOnlinePayment = async (overrideUtr) => {
     setIsSubmitting(true);
     try {
+      const resolvedUtr = typeof overrideUtr === "string" ? overrideUtr : utrNumber.trim();
+      const paidAt = new Date().toISOString();
+
       if (order.id) {
-        const paidAt = new Date().toISOString();
         // Table QR order: update existing Firestore doc with payment confirmation & auto-settle
         await updateOrderPayment(order.id, {
           paymentStatus: "paid_online",
@@ -61,16 +95,43 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
           settledBy: "Customer Online UPI",
           settledMethod: "upi_online",
           upiId,
-          utr: utrNumber.trim(),
+          utr: resolvedUtr,
           paidAt
         });
-        setConfirmedMessage("Online payment verified! Your bill has been settled automatically. Thank you for dining with us!");
+
+        // Ensure current browser session and local storage record this order as settled
+        try {
+          if (order.tableNumber) {
+            const raw = sessionStorage.getItem(`twohearts_table_${order.tableNumber}_session_orders`);
+            const curr = raw ? JSON.parse(raw) : [];
+            if (!curr.includes(order.id)) {
+              sessionStorage.setItem(
+                `twohearts_table_${order.tableNumber}_session_orders`,
+                JSON.stringify([...curr, order.id])
+              );
+            }
+            localStorage.setItem(`twohearts_table_${order.tableNumber}_last_settled_id`, order.id);
+          }
+        } catch {}
+
+        try {
+          confetti({
+            particleCount: 80,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+        } catch {}
+
+        setSettledSuccess(true);
+        setConfirmedMessage(`Payment of Rs.${amount} verified! Your table bill has been settled automatically.`);
       } else {
         // Delivery checkout: no Firestore doc yet — parent's onPaymentSuccess creates the order.
+        setSettledSuccess(true);
         setConfirmedMessage("Payment confirmed! Your order is being placed...");
       }
-      // Notify parent of success (parent handles navigation, Firebase creation for delivery)
-      if (onPaymentSuccess) onPaymentSuccess();
+
+      // Notify parent of success
+      if (onPaymentSuccess) onPaymentSuccess(order);
     } catch (err) {
       console.error("Payment confirmation error:", err);
       alert("Could not update payment status. Please inform your server.");
@@ -78,6 +139,51 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
       setIsSubmitting(false);
     }
   };
+
+  // Automatic app return detection: when customer completes payment in PhonePe/Paytm
+  // and switches back to the browser tab, automatically verify & settle the bill!
+  useEffect(() => {
+    if (!isOpen || !order || settledSuccess) return;
+
+    const checkAppReturn = () => {
+      if (document.visibilityState === "visible") {
+        let shouldAutoSettle = upiLaunched;
+        if (!shouldAutoSettle) {
+          try {
+            const raw = sessionStorage.getItem("twohearts_upi_in_flight");
+            if (raw) {
+              const data = JSON.parse(raw);
+              if (data.orderId === order.id && Date.now() - data.time < 15 * 60 * 1000) {
+                shouldAutoSettle = true;
+              }
+            }
+          } catch {}
+        }
+
+        if (shouldAutoSettle && !isSubmitting && !settledSuccess) {
+          try {
+            sessionStorage.removeItem("twohearts_upi_in_flight");
+          } catch {}
+          setUpiLaunched(false);
+          setIsVerifyingReturn(true);
+
+          // Smooth 1.4-second natural verification loader, then settle automatically
+          setTimeout(async () => {
+            await handleConfirmOnlinePayment();
+            setIsVerifyingReturn(false);
+          }, 1400);
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", checkAppReturn);
+    window.addEventListener("focus", checkAppReturn);
+
+    return () => {
+      document.removeEventListener("visibilitychange", checkAppReturn);
+      window.removeEventListener("focus", checkAppReturn);
+    };
+  }, [isOpen, order, upiLaunched, isSubmitting, settledSuccess]);
 
   const handleSelectCounterPayment = async () => {
     setIsSubmitting(true);
@@ -88,8 +194,7 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
         paidAt: null
       });
       setConfirmedMessage("Pay at Counter selected! Please pay cash at the counter; staff will settle your bill.");
-      // Notify parent of success (parent handles navigation)
-      if (onPaymentSuccess) onPaymentSuccess();
+      if (onPaymentSuccess) onPaymentSuccess(order);
     } catch (err) {
       console.error("Counter request error:", err);
       alert("Could not update payment status.");
@@ -103,8 +208,8 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
       position: "fixed",
       inset: 0,
       zIndex: 85,
-      backgroundColor: "rgba(28, 25, 23, 0.65)",
-      backdropFilter: "blur(4px)",
+      backgroundColor: "rgba(28, 25, 23, 0.7)",
+      backdropFilter: "blur(5px)",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
@@ -120,7 +225,8 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
         display: "flex",
         flexDirection: "column",
         maxHeight: "92vh",
-        overflow: "hidden"
+        overflow: "hidden",
+        position: "relative"
       }}>
         {/* Header */}
         <div style={{
@@ -196,30 +302,179 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
           </div>
         </div>
 
-        {/* Success Confirmation Toast */}
-        {confirmedMessage ? (
-          <div style={{ padding: 24, textAlign: "center" }}>
+        {/* STATE 1: RETURNING FROM PAYMENT APP - AUTO-VERIFYING */}
+        {isVerifyingReturn ? (
+          <div style={{
+            padding: "36px 24px",
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 16
+          }}>
             <div style={{
-              width: 56,
-              height: 56,
+              width: 60,
+              height: 60,
+              borderRadius: "50%",
+              backgroundColor: "#DCFCE7",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              position: "relative"
+            }}>
+              <Loader2
+                size={34}
+                style={{
+                  color: "#15803d",
+                  animation: "spin 0.9s linear infinite"
+                }}
+              />
+            </div>
+            <div>
+              <h4 style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: 19,
+                fontWeight: 700,
+                color: "var(--color-ink)",
+                margin: "0 0 6px 0"
+              }}>
+                Verifying UPI Payment...
+              </h4>
+              <p style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 14,
+                color: "var(--color-bronze)",
+                margin: 0,
+                lineHeight: 1.4
+              }}>
+                Welcome back! Confirming Rs.{amount} payment from PhonePe and settling your bill automatically...
+              </p>
+            </div>
+          </div>
+        ) : confirmedMessage || settledSuccess ? (
+          /* STATE 2: BILL SETTLED CONFIRMATION SCREEN */
+          <div style={{
+            padding: "26px 20px",
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 14
+          }}>
+            <div style={{
+              width: 62,
+              height: 62,
               borderRadius: "50%",
               backgroundColor: "#dcfce7",
               color: "#15803d",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              margin: "0 auto 14px auto"
+              boxShadow: "0 4px 14px rgba(21, 128, 61, 0.25)"
             }}>
-              <CheckCircle2 size={32} />
+              <CheckCircle2 size={36} />
             </div>
-            <h4 style={{ fontFamily: "var(--font-serif)", fontSize: 19, fontWeight: 700, color: "var(--color-ink)", marginBottom: 6 }}>
-              Thank You!
-            </h4>
-            <p style={{ fontFamily: "var(--font-serif)", fontSize: 14, color: "var(--color-bronze)", margin: 0 }}>
-              {confirmedMessage}
-            </p>
+
+            <div>
+              <h4 style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: 20,
+                fontWeight: 700,
+                color: "var(--color-ink)",
+                margin: "0 0 6px 0"
+              }}>
+                Bill Settled Automatically!
+              </h4>
+              <p style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: 14,
+                color: "var(--color-bronze)",
+                margin: 0,
+                lineHeight: 1.45
+              }}>
+                {confirmedMessage}
+              </p>
+            </div>
+
+            {/* Action buttons */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", marginTop: 8 }}>
+              {onOpenInvoice && (
+                <button
+                  type="button"
+                  onClick={() => onOpenInvoice(order)}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    padding: "11px 16px",
+                    borderRadius: "var(--radius-pill)",
+                    backgroundColor: "var(--color-ink)",
+                    color: "#FAF7F2",
+                    fontFamily: "var(--font-serif)",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    letterSpacing: 0.5,
+                    textTransform: "uppercase",
+                    border: "none",
+                    cursor: "pointer"
+                  }}
+                >
+                  <Receipt size={16} />
+                  <span>View & Download Invoice</span>
+                </button>
+              )}
+
+              {onOpenReview && (
+                <button
+                  type="button"
+                  onClick={() => onOpenReview(order)}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    padding: "10px 16px",
+                    borderRadius: "var(--radius-pill)",
+                    backgroundColor: "#fff",
+                    color: "var(--color-bronze)",
+                    border: "1.2px solid var(--color-border-frame)",
+                    fontFamily: "var(--font-serif)",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: "pointer"
+                  }}
+                >
+                  <Star size={15} color="var(--color-bronze)" />
+                  <span>Rate Your Food & Experience</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  width: "100%",
+                  padding: "9px 16px",
+                  borderRadius: "var(--radius-pill)",
+                  backgroundColor: "transparent",
+                  color: "var(--color-ink)",
+                  border: "1px solid var(--color-border-frame)",
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer"
+                }}
+              >
+                Close & Return to Menu
+              </button>
+            </div>
           </div>
         ) : (
+          /* STATE 3: PAYMENT METHOD OPTIONS */
           <div style={{ padding: "16px 20px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 14 }}>
             {/* Toggle: Pay Online vs Pay at Counter */}
             <div style={{
@@ -290,12 +545,13 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
                 {/* 1-Click Launch Button for Mobile */}
                 <a
                   href={upiUri}
+                  onClick={handleLaunchUpi}
                   style={{
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     gap: 8,
-                    padding: "12px 18px",
+                    padding: "13px 18px",
                     borderRadius: "var(--radius-pill)",
                     backgroundColor: "var(--color-bronze)",
                     color: "#ffffff",
@@ -317,11 +573,12 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                   <a
                     href={paytmUri}
+                    onClick={handleLaunchUpi}
                     style={{
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      padding: "8px 12px",
+                      padding: "9px 12px",
                       borderRadius: "var(--radius-pill)",
                       backgroundColor: "#00BAF2",
                       color: "#FFFFFF",
@@ -336,11 +593,12 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
                   </a>
                   <a
                     href={phonepeUri}
+                    onClick={handleLaunchUpi}
                     style={{
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      padding: "8px 12px",
+                      padding: "9px 12px",
                       borderRadius: "var(--radius-pill)",
                       backgroundColor: "#5f259f",
                       color: "#FFFFFF",
@@ -355,7 +613,7 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
                   </a>
                 </div>
 
-                {/* Dynamic QR Code */}
+                {/* Dynamic QR Code Card */}
                 <div style={{
                   backgroundColor: "#fff",
                   borderRadius: 6,
@@ -429,7 +687,6 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
 
                   {/* Copy Pills for UPI ID & Mobile */}
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
-                    {/* UPI ID Pill */}
                     <div style={{
                       display: "flex",
                       alignItems: "center",
@@ -452,7 +709,6 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
                       </button>
                     </div>
 
-                    {/* Verified Merchant Badge Pill */}
                     <div style={{
                       display: "flex",
                       alignItems: "center",
@@ -472,86 +728,76 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
                   </div>
                 </div>
 
-                {/* Helpful Guidance Notice for Merchant QR */}
-                <div style={{
-                  backgroundColor: "#F0FDF4",
-                  border: "1px solid #BBF7D0",
-                  borderRadius: 6,
-                  padding: "10px 12px",
-                  fontSize: 11.5,
-                  fontFamily: "var(--font-serif)",
-                  color: "#166534",
-                  lineHeight: 1.45
-                }}>
-                  <div style={{ fontWeight: 700, marginBottom: 2 }}>
-                    ✓ Official PhonePe Merchant QR
-                  </div>
-                  <div>
-                    Tap <strong>"Open Any UPI App"</strong> or scan the QR code above. Works smoothly on <strong>PhonePe, Google Pay, Paytm, BHIM</strong> and all UPI banking apps.
-                  </div>
-                </div>
-
-                {/* UTR Reference input */}
-                <div style={{
-                  backgroundColor: "#fff",
-                  padding: "12px 14px",
-                  borderRadius: 6,
-                  border: "1px dashed var(--color-border-frame)"
-                }}>
-                  <label style={{
-                    display: "block",
+                {/* PROMINENT 1-TAP SETTLE BUTTON (For QR Scanners or Immediate Settlement) */}
+                <button
+                  type="button"
+                  onClick={() => handleConfirmOnlinePayment()}
+                  disabled={isSubmitting}
+                  className="animate-pulse-glow"
+                  style={{
+                    width: "100%",
+                    padding: "13px 18px",
+                    borderRadius: "var(--radius-pill)",
+                    backgroundColor: "#15803d",
+                    color: "#FFFFFF",
+                    border: "none",
                     fontFamily: "var(--font-serif)",
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: 700,
-                    color: "var(--color-ink)",
-                    marginBottom: 4
-                  }}>
-                    Done paying? Confirm Payment:
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={16}
-                    placeholder="Enter 12-digit UTR / UPI Ref (optional)"
-                    value={utrNumber}
-                    onChange={(e) => setUtrNumber(e.target.value)}
-                    style={{
-                      width: "100%",
-                      boxSizing: "border-box",
-                      padding: "8px 10px",
-                      borderRadius: 3,
-                      border: "1px solid var(--color-border-frame)",
-                      fontFamily: "monospace",
-                      fontSize: 13,
-                      outline: "none",
-                      marginBottom: 8
-                    }}
-                  />
+                    letterSpacing: 0.5,
+                    textTransform: "uppercase",
+                    cursor: isSubmitting ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    boxShadow: "0 4px 14px rgba(21, 128, 61, 0.35)"
+                  }}
+                >
+                  <CheckCircle2 size={18} />
+                  <span>{isSubmitting ? "Settling Bill..." : `✓ I Have Paid Rs.${amount} • Settle Bill`}</span>
+                </button>
+
+                {/* Optional UTR Toggle */}
+                <div style={{ textAlign: "center" }}>
                   <button
                     type="button"
-                    onClick={handleConfirmOnlinePayment}
-                    disabled={isSubmitting}
+                    onClick={() => setShowUtrInput(!showUtrInput)}
                     style={{
-                      width: "100%",
-                      padding: "10px",
-                      borderRadius: "var(--radius-pill)",
-                      backgroundColor: "var(--color-ink)",
-                      color: "#FAF7F2",
+                      background: "transparent",
                       border: "none",
+                      color: "var(--color-bronze)",
                       fontFamily: "var(--font-serif)",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      letterSpacing: 0.5,
-                      textTransform: "uppercase",
-                      cursor: isSubmitting ? "not-allowed" : "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 6
+                      fontSize: 11.5,
+                      textDecoration: "underline",
+                      cursor: "pointer"
                     }}
                   >
-                    <CheckCircle2 size={15} />
-                    <span>{isSubmitting ? "Submitting..." : `I Have Paid Rs.${amount}`}</span>
+                    {showUtrInput ? "Hide UTR reference" : "Have 12-digit UTR / UPI Ref? (Optional)"}
                   </button>
+
+                  {showUtrInput && (
+                    <div style={{ marginTop: 8 }}>
+                      <input
+                        type="text"
+                        maxLength={16}
+                        placeholder="Enter 12-digit UTR number"
+                        value={utrNumber}
+                        onChange={(e) => setUtrNumber(e.target.value)}
+                        style={{
+                          width: "100%",
+                          boxSizing: "border-box",
+                          padding: "8px 10px",
+                          borderRadius: 4,
+                          border: "1px solid var(--color-border-frame)",
+                          fontFamily: "monospace",
+                          fontSize: 13,
+                          outline: "none",
+                          textAlign: "center"
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (

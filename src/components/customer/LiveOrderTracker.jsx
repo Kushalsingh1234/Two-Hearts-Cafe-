@@ -46,7 +46,14 @@ export default function LiveOrderTracker({ isOpen, onClose, orders, tableNumber 
     }
 
     if (ord.status === "settled") {
-      if (!sessionOrderIds.includes(ord.id)) return false;
+      let isAllowed = sessionOrderIds.includes(ord.id);
+      if (!isAllowed) {
+        try {
+          const lastSettledId = localStorage.getItem(`twohearts_table_${tableNumber}_last_settled_id`);
+          if (lastSettledId === ord.id) isAllowed = true;
+        } catch {}
+      }
+      if (!isAllowed) return false;
       const settledTime = ord.settledAt ? new Date(ord.settledAt).getTime() : (ord.timestamp || 0);
       const settledAgeMs = Date.now() - settledTime;
       return settledAgeMs < 30 * 60 * 1000;
@@ -480,6 +487,21 @@ export default function LiveOrderTracker({ isOpen, onClose, orders, tableNumber 
         isOpen={Boolean(activePaymentOrder)}
         order={activePaymentOrder}
         onClose={() => setActivePaymentOrder(null)}
+        onPaymentSuccess={(settledOrd) => {
+          if (settledOrd?.id) {
+            try {
+              localStorage.setItem(`twohearts_table_${tableNumber}_last_settled_id`, settledOrd.id);
+            } catch {}
+          }
+        }}
+        onOpenInvoice={(ord) => {
+          setActivePaymentOrder(null);
+          setActiveInvoiceOrder(ord || activePaymentOrder);
+        }}
+        onOpenReview={(ord) => {
+          setActivePaymentOrder(null);
+          setActiveReviewOrder(ord || activePaymentOrder);
+        }}
       />
 
       {/* Digital Paperless Invoice Modal */}

@@ -177,7 +177,7 @@ export default function CartDrawer({ isOpen, onClose, onNavigate }) {
                 {meetsMinSubtotal ? (
                   <>
                     <Sparkles size={13} color="#16A34A" />
-                    <span>Delivery Unlocked + FREE Delivery 🎉</span>
+                    <span>Doorstep Delivery Unlocked 🎉</span>
                   </>
                 ) : (
                   <>

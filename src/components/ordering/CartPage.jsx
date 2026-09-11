@@ -52,8 +52,8 @@ export default function CartPage({ onNavigate }) {
   const amountNeededForDelivery = Math.max(0, minDeliverySubtotal - subtotal);
   const deliveryProgress = Math.min(100, Math.round((subtotal / minDeliverySubtotal) * 100));
 
-  const amountNeededForFreeDelivery = Math.max(0, FREE_DELIVERY_THRESHOLD - subtotal);
-  const freeDeliveryProgress = Math.min(100, Math.round((subtotal / FREE_DELIVERY_THRESHOLD) * 100));
+  const amountNeededForFreeDelivery = FREE_DELIVERY_THRESHOLD ? Math.max(0, FREE_DELIVERY_THRESHOLD - subtotal) : 0;
+  const freeDeliveryProgress = FREE_DELIVERY_THRESHOLD ? Math.min(100, Math.round((subtotal / FREE_DELIVERY_THRESHOLD) * 100)) : 0;
 
   if (cart.length === 0) {
     return (
@@ -367,7 +367,7 @@ export default function CartPage({ onNavigate }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#166534" }}>
                   <Sparkles size={15} color="#16A34A" />
                   <span>
-                    Congratulations! Subtotal ₹{subtotal} unlocks Doorstep Delivery + FREE Delivery 🎉
+                    Congratulations! Subtotal ₹{subtotal} unlocks Doorstep Delivery 🎉
                   </span>
                 </div>
                 <span style={{ fontSize: 12, color: "#166534", fontFamily: "var(--font-serif)", fontWeight: 700 }}>

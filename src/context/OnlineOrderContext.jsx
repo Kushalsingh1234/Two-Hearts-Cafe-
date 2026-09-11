@@ -232,11 +232,14 @@ export function OnlineOrderProvider({ children }) {
     return cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
   }, [cart]);
 
-  // Delivery fee rules: Free above MIN_DELIVERY_SUBTOTAL or pickup; else standard fee
+  // Delivery fee rules: Standard delivery fee applies to delivery orders; pickup is free
   const FREE_DELIVERY_THRESHOLD = DELIVERY_CONFIG.FREE_DELIVERY_THRESHOLD;
   const deliveryFee = useMemo(() => {
     if (deliveryType === "pickup" || cart.length === 0) return 0;
-    return subtotal >= DELIVERY_CONFIG.FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_CONFIG.STANDARD_DELIVERY_FEE;
+    if (DELIVERY_CONFIG.FREE_DELIVERY_THRESHOLD && subtotal >= DELIVERY_CONFIG.FREE_DELIVERY_THRESHOLD) {
+      return 0;
+    }
+    return DELIVERY_CONFIG.STANDARD_DELIVERY_FEE;
   }, [deliveryType, subtotal, cart.length]);
 
   const taxes = useMemo(() => {

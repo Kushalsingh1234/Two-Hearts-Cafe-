@@ -241,7 +241,7 @@ export default function SiteFooter({ setPage }) {
 
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
             <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}>
-              French Bistro Aesthetics • Authentic Comfort Taste
+              European Cafe Aesthetics • Authentic Comfort Taste
             </span>
             <a
               href="/?admin=true"

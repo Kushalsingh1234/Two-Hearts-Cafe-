@@ -18,8 +18,8 @@ export const DELIVERY_CONFIG = {
   // Rule 2: Minimum required item subtotal (before delivery fee & taxes) for delivery orders
   MIN_DELIVERY_SUBTOTAL: 299,
 
-  // Free delivery threshold: null (all delivery orders incur standard delivery fee)
-  FREE_DELIVERY_THRESHOLD: null,
+  // Free delivery threshold (subtotal >= ₹299 gets free delivery)
+  FREE_DELIVERY_THRESHOLD: 299,
 
   // Standard delivery partner fee when subtotal is below free threshold (or general fee)
   STANDARD_DELIVERY_FEE: 30,

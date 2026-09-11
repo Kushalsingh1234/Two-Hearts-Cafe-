@@ -1280,7 +1280,7 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
           {/* Single Story Spotlight Preview Card (Changes Automatically) */}
           {(() => {
             const currentStory = CAFE_STORIES[activeStoryIdx] || CAFE_STORIES[0];
-            const isPrivateCorner = currentStory.id === "private-corner";
+            const isHorizontal = currentStory.orientation === "horizontal";
 
             return (
               <div
@@ -1289,371 +1289,791 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                 style={{ display: "flex", flexDirection: "column", gap: 20 }}
               >
                 {/* Main Spotlight Card in rich luxury dark green */}
-                <div
-                  key={currentStory.id}
-                  className="story-fade-in cafe-story-spotlight-card"
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-                    gap: "clamp(32px, 5vw, 56px)",
-                    alignItems: "center",
-                    background: "linear-gradient(155deg, #1C3B2B 0%, #122B1E 50%, #0A1C13 100%)",
-                    borderRadius: "28px",
-                    border: "1.5px solid rgba(110, 185, 140, 0.25)",
-                    padding: "clamp(24px, 4vw, 44px)",
-                    boxShadow: "0 24px 64px -16px rgba(5, 18, 11, 0.45), 0 2px 8px rgba(5, 18, 11, 0.2)",
-                    position: "relative",
-                    overflow: "hidden"
-                  }}
-                >
-                  {/* Top emerald hairline accent */}
-                  <div style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: 3,
-                    background: "linear-gradient(90deg, transparent 0%, rgba(138, 222, 172, 0.7) 50%, transparent 100%)"
-                  }} />
-
-                  {/* Photo Column (Left) */}
+                {isHorizontal ? (
                   <div
-                    className="cafe-story-photo-wrapper"
+                    key={currentStory.id}
+                    className="story-fade-in cafe-story-spotlight-card cafe-story-spotlight-horizontal"
                     style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "clamp(20px, 3vw, 28px)",
+                      background: "linear-gradient(155deg, #1C3B2B 0%, #122B1E 50%, #0A1C13 100%)",
+                      borderRadius: "28px",
+                      border: "1.5px solid rgba(110, 185, 140, 0.25)",
+                      padding: "clamp(20px, 3.5vw, 36px)",
+                      boxShadow: "0 24px 64px -16px rgba(5, 18, 11, 0.45), 0 2px 8px rgba(5, 18, 11, 0.2)",
                       position: "relative",
-                      borderRadius: "22px",
-                      overflow: "hidden",
-                      boxShadow: "0 16px 40px -8px rgba(0, 0, 0, 0.5)",
-                      backgroundColor: "#0C1E15",
-                      border: "1px solid rgba(255, 255, 255, 0.12)"
+                      overflow: "hidden"
                     }}
                   >
-                    <img
-                      src={currentStory.image}
-                      alt={currentStory.alt}
-                      loading="eager"
-                      className="cafe-story-image"
-                      style={{
-                        width: "100%",
-                        height: "clamp(440px, 46vw, 540px)",
-                        objectFit: "cover",
-                        objectPosition: isPrivateCorner ? "center bottom" : "center center",
-                        display: "block",
-                        transition: "transform 0.5s ease"
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.025)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1.0)")}
-                    />
+                    {/* Top emerald hairline accent */}
+                    <div style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: 3,
+                      background: "linear-gradient(90deg, transparent 0%, rgba(138, 222, 172, 0.7) 50%, transparent 100%)"
+                    }} />
 
-                    {/* Premium Badge */}
+                    {/* Full Photo Showcase (Top) - Natural horizontal aspect ratio */}
                     <div
-                      className="cafe-story-photo-badge"
+                      className="cafe-story-photo-wrapper cafe-story-photo-horizontal"
                       style={{
-                        position: "absolute",
-                        top: 18,
-                        left: 18,
-                        backgroundColor: "rgba(10, 24, 16, 0.88)",
-                        backdropFilter: "blur(12px)",
-                        borderRadius: "var(--radius-pill)",
-                        padding: "6px 14px",
-                        border: "1px solid rgba(138, 222, 172, 0.35)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        fontSize: 11,
-                        fontFamily: "var(--font-serif)",
-                        fontWeight: 700,
-                        letterSpacing: "1.2px",
-                        textTransform: "uppercase",
-                        color: "#E2F4EA",
-                        boxShadow: "0 6px 18px rgba(0,0,0,0.25)"
+                        position: "relative",
+                        borderRadius: "22px",
+                        overflow: "hidden",
+                        boxShadow: "0 16px 40px -8px rgba(0, 0, 0, 0.5)",
+                        backgroundColor: "#0C1E15",
+                        border: "1px solid rgba(255, 255, 255, 0.12)",
+                        width: "100%",
+                        aspectRatio: "16 / 9",
+                        maxHeight: "clamp(340px, 48vw, 560px)"
                       }}
                     >
-                      {isPrivateCorner ? (
+                      <img
+                        src={currentStory.image}
+                        alt={currentStory.alt}
+                        loading="eager"
+                        className="cafe-story-image cafe-story-image-horizontal"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          objectPosition: "center center",
+                          display: "block",
+                          transition: "transform 0.5s ease"
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.02)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1.0)")}
+                      />
+
+                      {/* Premium Badge */}
+                      <div
+                        className="cafe-story-photo-badge"
+                        style={{
+                          position: "absolute",
+                          top: 18,
+                          left: 18,
+                          backgroundColor: "rgba(10, 24, 16, 0.88)",
+                          backdropFilter: "blur(12px)",
+                          borderRadius: "var(--radius-pill)",
+                          padding: "6px 14px",
+                          border: "1px solid rgba(138, 222, 172, 0.35)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 11,
+                          fontFamily: "var(--font-serif)",
+                          fontWeight: 700,
+                          letterSpacing: "1.2px",
+                          textTransform: "uppercase",
+                          color: "#E2F4EA",
+                          boxShadow: "0 6px 18px rgba(0,0,0,0.25)"
+                        }}
+                      >
                         <Sparkles size={12} style={{ color: "#8AE6B0" }} />
-                      ) : (
-                        <Heart size={12} style={{ color: "#8AE6B0" }} />
-                      )}
-                      <span>{currentStory.badgeText}</span>
+                        <span>{currentStory.badgeText}</span>
+                      </div>
+
+                      {/* Floating Prev / Next Arrow Controls Directly on Photo */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveStoryIdx((prev) => (prev - 1 + CAFE_STORIES.length) % CAFE_STORIES.length);
+                        }}
+                        aria-label="Previous space"
+                        style={{
+                          position: "absolute",
+                          left: 14,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          width: 38,
+                          height: 38,
+                          borderRadius: "50%",
+                          backgroundColor: "rgba(10, 24, 16, 0.75)",
+                          backdropFilter: "blur(8px)",
+                          border: "1px solid rgba(255, 255, 255, 0.25)",
+                          color: "#FFFFFF",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
+                          transition: "all 0.2s ease",
+                          zIndex: 3
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = "rgba(10, 24, 16, 0.95)";
+                          e.currentTarget.style.transform = "translateY(-50%) scale(1.08)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = "rgba(10, 24, 16, 0.75)";
+                          e.currentTarget.style.transform = "translateY(-50%) scale(1.0)";
+                        }}
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveStoryIdx((prev) => (prev + 1) % CAFE_STORIES.length);
+                        }}
+                        aria-label="Next space"
+                        style={{
+                          position: "absolute",
+                          right: 14,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          width: 38,
+                          height: 38,
+                          borderRadius: "50%",
+                          backgroundColor: "rgba(10, 24, 16, 0.75)",
+                          backdropFilter: "blur(8px)",
+                          border: "1px solid rgba(255, 255, 255, 0.25)",
+                          color: "#FFFFFF",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
+                          transition: "all 0.2s ease",
+                          zIndex: 3
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = "rgba(10, 24, 16, 0.95)";
+                          e.currentTarget.style.transform = "translateY(-50%) scale(1.08)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = "rgba(10, 24, 16, 0.75)";
+                          e.currentTarget.style.transform = "translateY(-50%) scale(1.0)";
+                        }}
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+
+                      {/* Quick Expand to Gallery Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsGalleryOpen(true);
+                        }}
+                        title="View in full gallery"
+                        className="cafe-story-fullview-btn"
+                        style={{
+                          position: "absolute",
+                          bottom: 18,
+                          right: 18,
+                          backgroundColor: "rgba(10, 20, 14, 0.82)",
+                          backdropFilter: "blur(8px)",
+                          color: "#FFFFFF",
+                          border: "1px solid rgba(255, 255, 255, 0.2)",
+                          borderRadius: "var(--radius-pill)",
+                          padding: "6px 14px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 11,
+                          cursor: "pointer",
+                          transition: "all 0.2s ease"
+                        }}
+                      >
+                        <Maximize2 size={12} />
+                        <span>Full View</span>
+                      </button>
                     </div>
 
-                    {/* Quick Expand to Gallery Button */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsGalleryOpen(true);
-                      }}
-                      title="View in full gallery"
-                      className="cafe-story-fullview-btn"
-                      style={{
-                        position: "absolute",
-                        bottom: 18,
-                        right: 18,
-                        backgroundColor: "rgba(10, 20, 14, 0.82)",
-                        backdropFilter: "blur(8px)",
-                        color: "#FFFFFF",
-                        border: "1px solid rgba(255, 255, 255, 0.2)",
-                        borderRadius: "var(--radius-pill)",
-                        padding: "6px 12px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        fontSize: 11,
-                        cursor: "pointer",
-                        transition: "all 0.2s ease"
-                      }}
-                    >
-                      <Maximize2 size={12} />
-                      <span>Full View</span>
-                    </button>
-                  </div>
-
-                  {/* Narrative & Cool Toggles Column (Right) */}
-                  <div className="cafe-story-narrative-col">
+                    {/* Streamlined Details Bar (No bulky story paragraphs for horizontal & big photos) */}
                     <div style={{
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      marginBottom: 8
+                      flexWrap: "wrap",
+                      gap: 16
                     }}>
-                      <span style={{
-                        fontFamily: "var(--font-serif)",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        letterSpacing: "2px",
-                        textTransform: "uppercase",
-                        color: "#7DD19F"
-                      }}>
-                        {currentStory.eyebrow}
-                      </span>
-                      <span style={{
-                        fontSize: 11,
-                        color: "rgba(255, 255, 255, 0.65)",
-                        fontWeight: 600,
-                        fontFamily: "var(--font-serif)"
-                      }}>
-                        Space {String(activeStoryIdx + 1).padStart(2, "0")} / {String(CAFE_STORIES.length).padStart(2, "0")}
-                      </span>
-                    </div>
-
-                    <h3
-                      className="cafe-story-title"
-                      style={{
-                        fontFamily: "var(--font-serif)",
-                        fontSize: "clamp(24px, 3.2vw, 34px)",
-                        fontWeight: 700,
-                        color: "#FFFFFF",
-                        lineHeight: 1.25,
-                        marginBottom: 10
-                      }}
-                    >
-                      {currentStory.title}
-                    </h3>
-                    <p
-                      className="cafe-story-quote"
-                      style={{
-                        fontFamily: "var(--font-serif)",
-                        fontStyle: "italic",
-                        fontSize: 15,
-                        color: "#CBE3D3",
-                        lineHeight: 1.5,
-                        marginBottom: 16
-                      }}
-                    >
-                      "{currentStory.quote}"
-                    </p>
-                    <div className="story-description-wrapper">
-                      <p
-                        className={`story-description-para ${isStoryExpanded ? "is-expanded" : ""}`}
-                        style={{
-                          fontSize: 14,
-                          color: "rgba(255, 255, 255, 0.88)",
-                          lineHeight: 1.75
-                        }}
-                      >
-                        {currentStory.description}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => setIsStoryExpanded((prev) => !prev)}
-                        className="story-view-more-toggle"
-                        title={isStoryExpanded ? "Show fewer lines" : "Read complete story description"}
-                        style={{
-                          color: "#8AE6B0",
-                          fontWeight: 600
-                        }}
-                      >
-                        <span>{isStoryExpanded ? "View Less" : "View More"}</span>
-                        <ChevronDown
-                          size={13}
+                      <div style={{ maxWidth: 680 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                          <span style={{
+                            fontFamily: "var(--font-serif)",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            letterSpacing: "2px",
+                            textTransform: "uppercase",
+                            color: "#7DD19F"
+                          }}>
+                            {currentStory.eyebrow}
+                          </span>
+                          <span style={{ color: "rgba(255, 255, 255, 0.35)" }}>•</span>
+                          <span style={{
+                            fontSize: 11,
+                            color: "rgba(255, 255, 255, 0.65)",
+                            fontWeight: 600,
+                            fontFamily: "var(--font-serif)"
+                          }}>
+                            Space {String(activeStoryIdx + 1).padStart(2, "0")} / {String(CAFE_STORIES.length).padStart(2, "0")}
+                          </span>
+                        </div>
+                        <h3
+                          className="cafe-story-title"
                           style={{
-                            transition: "transform 0.2s ease",
-                            transform: isStoryExpanded ? "rotate(180deg)" : "rotate(0)",
-                            color: "#8AE6B0"
+                            fontFamily: "var(--font-serif)",
+                            fontSize: "clamp(22px, 2.8vw, 32px)",
+                            fontWeight: 700,
+                            color: "#FFFFFF",
+                            lineHeight: 1.25,
+                            marginBottom: 6
                           }}
-                        />
-                      </button>
-                    </div>
+                        >
+                          {currentStory.title}
+                        </h3>
+                        <p
+                          className="cafe-story-quote"
+                          style={{
+                            fontFamily: "var(--font-serif)",
+                            fontStyle: "italic",
+                            fontSize: 14,
+                            color: "#CBE3D3",
+                            lineHeight: 1.5,
+                            margin: 0
+                          }}
+                        >
+                          "{currentStory.quote}"
+                        </p>
+                      </div>
 
-
-                    {/* Action buttons */}
-                    <div className="cafe-story-actions-row" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-                      <button
-                        type="button"
-                        onClick={() => handleNav("menu")}
-                        className="cafe-story-action-btn"
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 8,
-                          padding: "12px 26px",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          letterSpacing: "0.08em",
-                          textTransform: "uppercase",
-                          borderRadius: "var(--radius-pill)",
-                          backgroundColor: "#FFFFFF",
-                          color: "#0F2318",
-                          border: "1px solid #FFFFFF",
-                          boxShadow: "0 6px 18px rgba(0, 0, 0, 0.3)",
-                          cursor: "pointer",
-                          transition: "all 0.22s ease"
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = "#EAF5EE";
-                          e.currentTarget.style.transform = "translateY(-1px)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = "#FFFFFF";
-                          e.currentTarget.style.transform = "translateY(0)";
-                        }}
-                      >
-                        <span style={{ color: "#0F2318" }}>View Our Menu</span>
-                        <ArrowRight size={13} style={{ color: "#0F2318" }} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsGalleryOpen(true)}
-                        className="cafe-story-action-btn"
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 8,
-                          padding: "11px 22px",
-                          fontSize: 12,
-                          fontWeight: 600,
-                          letterSpacing: "0.06em",
-                          borderRadius: "var(--radius-pill)",
-                          backgroundColor: "rgba(255, 255, 255, 0.12)",
-                          backdropFilter: "blur(8px)",
-                          border: "1.5px solid rgba(255, 255, 255, 0.35)",
-                          color: "#FFFFFF",
-                          cursor: "pointer",
-                          transition: "all 0.22s ease"
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
-                          e.currentTarget.style.transform = "translateY(-1px)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.12)";
-                          e.currentTarget.style.transform = "translateY(0)";
-                        }}
-                      >
-                        <Eye size={13} style={{ color: "#8AE6B0" }} />
-                        <span style={{ color: "#FFFFFF" }}>Open Gallery</span>
-                      </button>
-                      <span
-                        className="cafe-story-location-note"
-                        style={{
-                          fontSize: 12,
-                          color: "#8AE6B0",
-                          fontWeight: 600,
-                          fontFamily: "var(--font-serif)"
-                        }}
-                      >
-                        {currentStory.locationNote}
-                      </span>
+                      {/* Action buttons */}
+                      <div className="cafe-story-actions-row" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleNav("menu")}
+                          className="cafe-story-action-btn"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 8,
+                            padding: "11px 22px",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            letterSpacing: "0.08em",
+                            textTransform: "uppercase",
+                            borderRadius: "var(--radius-pill)",
+                            backgroundColor: "#FFFFFF",
+                            color: "#0F2318",
+                            border: "1px solid #FFFFFF",
+                            boxShadow: "0 6px 18px rgba(0, 0, 0, 0.3)",
+                            cursor: "pointer",
+                            transition: "all 0.22s ease"
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = "#EAF5EE";
+                            e.currentTarget.style.transform = "translateY(-1px)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = "#FFFFFF";
+                            e.currentTarget.style.transform = "translateY(0)";
+                          }}
+                        >
+                          <span style={{ color: "#0F2318" }}>View Menu</span>
+                          <ArrowRight size={13} style={{ color: "#0F2318" }} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsGalleryOpen(true)}
+                          className="cafe-story-action-btn"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 8,
+                            padding: "10px 20px",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            letterSpacing: "0.06em",
+                            borderRadius: "var(--radius-pill)",
+                            backgroundColor: "rgba(255, 255, 255, 0.12)",
+                            backdropFilter: "blur(8px)",
+                            border: "1.5px solid rgba(255, 255, 255, 0.35)",
+                            color: "#FFFFFF",
+                            cursor: "pointer",
+                            transition: "all 0.22s ease"
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+                            e.currentTarget.style.transform = "translateY(-1px)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.12)";
+                            e.currentTarget.style.transform = "translateY(0)";
+                          }}
+                        >
+                          <Eye size={13} style={{ color: "#8AE6B0" }} />
+                          <span style={{ color: "#FFFFFF" }}>Gallery ({CAFE_STORIES.length})</span>
+                        </button>
+                        <span
+                          className="cafe-story-location-note"
+                          style={{
+                            fontSize: 12,
+                            color: "#8AE6B0",
+                            fontWeight: 600,
+                            fontFamily: "var(--font-serif)"
+                          }}
+                        >
+                          {currentStory.locationNote}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  /* Vertical Card - Space available for story description & details */
+                  <div
+                    key={currentStory.id}
+                    className="story-fade-in cafe-story-spotlight-card cafe-story-spotlight-vertical"
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                      gap: "clamp(32px, 5vw, 56px)",
+                      alignItems: "center",
+                      background: "linear-gradient(155deg, #1C3B2B 0%, #122B1E 50%, #0A1C13 100%)",
+                      borderRadius: "28px",
+                      border: "1.5px solid rgba(110, 185, 140, 0.25)",
+                      padding: "clamp(24px, 4vw, 44px)",
+                      boxShadow: "0 24px 64px -16px rgba(5, 18, 11, 0.45), 0 2px 8px rgba(5, 18, 11, 0.2)",
+                      position: "relative",
+                      overflow: "hidden"
+                    }}
+                  >
+                    {/* Top emerald hairline accent */}
+                    <div style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: 3,
+                      background: "linear-gradient(90deg, transparent 0%, rgba(138, 222, 172, 0.7) 50%, transparent 100%)"
+                    }} />
 
-                {/* Professional Auto-Rotation Navigation & Control Bar in matching dark green */}
+                    {/* Photo Column (Left) - Vertical portrait aspect ratio */}
+                    <div
+                      className="cafe-story-photo-wrapper cafe-story-photo-vertical"
+                      style={{
+                        position: "relative",
+                        borderRadius: "22px",
+                        overflow: "hidden",
+                        boxShadow: "0 16px 40px -8px rgba(0, 0, 0, 0.5)",
+                        backgroundColor: "#0C1E15",
+                        border: "1px solid rgba(255, 255, 255, 0.12)",
+                        aspectRatio: "3 / 4",
+                        maxHeight: "clamp(440px, 46vw, 540px)",
+                        width: "100%"
+                      }}
+                    >
+                      <img
+                        src={currentStory.image}
+                        alt={currentStory.alt}
+                        loading="eager"
+                        className="cafe-story-image cafe-story-image-vertical"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          objectPosition: "center center",
+                          display: "block",
+                          transition: "transform 0.5s ease"
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.025)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1.0)")}
+                      />
+
+                      {/* Premium Badge */}
+                      <div
+                        className="cafe-story-photo-badge"
+                        style={{
+                          position: "absolute",
+                          top: 18,
+                          left: 18,
+                          backgroundColor: "rgba(10, 24, 16, 0.88)",
+                          backdropFilter: "blur(12px)",
+                          borderRadius: "var(--radius-pill)",
+                          padding: "6px 14px",
+                          border: "1px solid rgba(138, 222, 172, 0.35)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 11,
+                          fontFamily: "var(--font-serif)",
+                          fontWeight: 700,
+                          letterSpacing: "1.2px",
+                          textTransform: "uppercase",
+                          color: "#E2F4EA",
+                          boxShadow: "0 6px 18px rgba(0,0,0,0.25)"
+                        }}
+                      >
+                        <Sparkles size={12} style={{ color: "#8AE6B0" }} />
+                        <span>{currentStory.badgeText}</span>
+                      </div>
+
+                      {/* Floating Prev / Next Arrow Controls Directly on Photo */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveStoryIdx((prev) => (prev - 1 + CAFE_STORIES.length) % CAFE_STORIES.length);
+                        }}
+                        aria-label="Previous space"
+                        style={{
+                          position: "absolute",
+                          left: 14,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          width: 38,
+                          height: 38,
+                          borderRadius: "50%",
+                          backgroundColor: "rgba(10, 24, 16, 0.75)",
+                          backdropFilter: "blur(8px)",
+                          border: "1px solid rgba(255, 255, 255, 0.25)",
+                          color: "#FFFFFF",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
+                          transition: "all 0.2s ease",
+                          zIndex: 3
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = "rgba(10, 24, 16, 0.95)";
+                          e.currentTarget.style.transform = "translateY(-50%) scale(1.08)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = "rgba(10, 24, 16, 0.75)";
+                          e.currentTarget.style.transform = "translateY(-50%) scale(1.0)";
+                        }}
+                      >
+                        <ChevronLeft size={18} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveStoryIdx((prev) => (prev + 1) % CAFE_STORIES.length);
+                        }}
+                        aria-label="Next space"
+                        style={{
+                          position: "absolute",
+                          right: 14,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          width: 38,
+                          height: 38,
+                          borderRadius: "50%",
+                          backgroundColor: "rgba(10, 24, 16, 0.75)",
+                          backdropFilter: "blur(8px)",
+                          border: "1px solid rgba(255, 255, 255, 0.25)",
+                          color: "#FFFFFF",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
+                          transition: "all 0.2s ease",
+                          zIndex: 3
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = "rgba(10, 24, 16, 0.95)";
+                          e.currentTarget.style.transform = "translateY(-50%) scale(1.08)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = "rgba(10, 24, 16, 0.75)";
+                          e.currentTarget.style.transform = "translateY(-50%) scale(1.0)";
+                        }}
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+
+                      {/* Quick Expand to Gallery Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsGalleryOpen(true);
+                        }}
+                        title="View in full gallery"
+                        className="cafe-story-fullview-btn"
+                        style={{
+                          position: "absolute",
+                          bottom: 18,
+                          right: 18,
+                          backgroundColor: "rgba(10, 20, 14, 0.82)",
+                          backdropFilter: "blur(8px)",
+                          color: "#FFFFFF",
+                          border: "1px solid rgba(255, 255, 255, 0.2)",
+                          borderRadius: "var(--radius-pill)",
+                          padding: "6px 12px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 11,
+                          cursor: "pointer",
+                          transition: "all 0.2s ease"
+                        }}
+                      >
+                        <Maximize2 size={12} />
+                        <span>Full View</span>
+                      </button>
+                    </div>
+
+                    {/* Narrative Column (Right) - Space available so write full story */}
+                    <div className="cafe-story-narrative-col">
+                      <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 8
+                      }}>
+                        <span style={{
+                          fontFamily: "var(--font-serif)",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          letterSpacing: "2px",
+                          textTransform: "uppercase",
+                          color: "#7DD19F"
+                        }}>
+                          {currentStory.eyebrow}
+                        </span>
+                        <span style={{
+                          fontSize: 11,
+                          color: "rgba(255, 255, 255, 0.65)",
+                          fontWeight: 600,
+                          fontFamily: "var(--font-serif)"
+                        }}>
+                          Space {String(activeStoryIdx + 1).padStart(2, "0")} / {String(CAFE_STORIES.length).padStart(2, "0")}
+                        </span>
+                      </div>
+
+                      <h3
+                        className="cafe-story-title"
+                        style={{
+                          fontFamily: "var(--font-serif)",
+                          fontSize: "clamp(24px, 3.2vw, 34px)",
+                          fontWeight: 700,
+                          color: "#FFFFFF",
+                          lineHeight: 1.25,
+                          marginBottom: 10
+                        }}
+                      >
+                        {currentStory.title}
+                      </h3>
+                      <p
+                        className="cafe-story-quote"
+                        style={{
+                          fontFamily: "var(--font-serif)",
+                          fontStyle: "italic",
+                          fontSize: 15,
+                          color: "#CBE3D3",
+                          lineHeight: 1.5,
+                          marginBottom: 16
+                        }}
+                      >
+                        "{currentStory.quote}"
+                      </p>
+                      <div className="story-description-wrapper">
+                        <p
+                          className={`story-description-para ${isStoryExpanded ? "is-expanded" : ""}`}
+                          style={{
+                            fontSize: 14,
+                            color: "rgba(255, 255, 255, 0.88)",
+                            lineHeight: 1.75
+                          }}
+                        >
+                          {currentStory.description}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setIsStoryExpanded((prev) => !prev)}
+                          className="story-view-more-toggle"
+                          title={isStoryExpanded ? "Show fewer lines" : "Read complete story description"}
+                          style={{
+                            color: "#8AE6B0",
+                            fontWeight: 600
+                          }}
+                        >
+                          <span>{isStoryExpanded ? "View Less" : "View More"}</span>
+                          <ChevronDown
+                            size={13}
+                            style={{
+                              transition: "transform 0.2s ease",
+                              transform: isStoryExpanded ? "rotate(180deg)" : "rotate(0)",
+                              color: "#8AE6B0"
+                            }}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="cafe-story-actions-row" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleNav("menu")}
+                          className="cafe-story-action-btn"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 8,
+                            padding: "12px 26px",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            letterSpacing: "0.08em",
+                            textTransform: "uppercase",
+                            borderRadius: "var(--radius-pill)",
+                            backgroundColor: "#FFFFFF",
+                            color: "#0F2318",
+                            border: "1px solid #FFFFFF",
+                            boxShadow: "0 6px 18px rgba(0, 0, 0, 0.3)",
+                            cursor: "pointer",
+                            transition: "all 0.22s ease"
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = "#EAF5EE";
+                            e.currentTarget.style.transform = "translateY(-1px)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = "#FFFFFF";
+                            e.currentTarget.style.transform = "translateY(0)";
+                          }}
+                        >
+                          <span style={{ color: "#0F2318" }}>View Our Menu</span>
+                          <ArrowRight size={13} style={{ color: "#0F2318" }} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsGalleryOpen(true)}
+                          className="cafe-story-action-btn"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 8,
+                            padding: "11px 22px",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            letterSpacing: "0.06em",
+                            borderRadius: "var(--radius-pill)",
+                            backgroundColor: "rgba(255, 255, 255, 0.12)",
+                            backdropFilter: "blur(8px)",
+                            border: "1.5px solid rgba(255, 255, 255, 0.35)",
+                            color: "#FFFFFF",
+                            cursor: "pointer",
+                            transition: "all 0.22s ease"
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+                            e.currentTarget.style.transform = "translateY(-1px)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.12)";
+                            e.currentTarget.style.transform = "translateY(0)";
+                          }}
+                        >
+                          <Eye size={13} style={{ color: "#8AE6B0" }} />
+                          <span style={{ color: "#FFFFFF" }}>Open Gallery</span>
+                        </button>
+                        <span
+                          className="cafe-story-location-note"
+                          style={{
+                            fontSize: 12,
+                            color: "#8AE6B0",
+                            fontWeight: 600,
+                            fontFamily: "var(--font-serif)"
+                          }}
+                        >
+                          {currentStory.locationNote}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Sleek Pagination Dots & Navigation Control Bar */}
                 <div className="story-control-bar" style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: 16,
+                  padding: "12px 24px",
                   background: "linear-gradient(155deg, #183727 0%, #10271B 100%)",
+                  borderRadius: "var(--radius-pill)",
                   border: "1px solid rgba(110, 185, 140, 0.25)",
                   boxShadow: "0 8px 24px rgba(5, 18, 11, 0.25)"
                 }}>
-                  {/* Story Selectors with Progress Bar */}
-                  <div className="story-tabs-wrapper">
+                  {/* Space Title & Counter */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{
+                      fontSize: 12,
+                      fontFamily: "var(--font-serif)",
+                      fontWeight: 700,
+                      color: "#8AE6B0",
+                      letterSpacing: "1px"
+                    }}>
+                      Space {String(activeStoryIdx + 1).padStart(2, "0")} / {String(CAFE_STORIES.length).padStart(2, "0")}
+                    </span>
+                    <span style={{ color: "rgba(255, 255, 255, 0.3)" }}>•</span>
+                    <span style={{
+                      fontSize: 13,
+                      fontFamily: "var(--font-serif)",
+                      fontWeight: 600,
+                      color: "#FFFFFF"
+                    }}>
+                      {currentStory.tabLabel || currentStory.title}
+                    </span>
+                  </div>
+
+                  {/* Sleek Minimalist Pagination Dots */}
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "4px 8px"
+                  }}>
                     {CAFE_STORIES.map((story, idx) => {
                       const isActive = activeStoryIdx === idx;
-                      const displayTitle = idx === 0 ? "A Private Corner" : "Celebration Lounge";
                       return (
                         <button
                           key={story.id}
                           type="button"
                           onClick={() => setActiveStoryIdx(idx)}
-                          className="story-tab-btn"
+                          title={`Space ${idx + 1}: ${story.tabLabel || story.title}`}
                           style={{
-                            position: "relative",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 6,
-                            padding: "8px 16px",
-                            borderRadius: "var(--radius-pill)",
-                            border: isActive ? "1.5px solid #52A26F" : "1px solid rgba(255, 255, 255, 0.15)",
-                            backgroundColor: isActive ? "rgba(82, 162, 111, 0.2)" : "rgba(255, 255, 255, 0.05)",
-                            color: isActive ? "#FFFFFF" : "rgba(255, 255, 255, 0.7)",
-                            fontFamily: "var(--font-serif)",
-                            fontSize: 12,
-                            fontWeight: isActive ? 700 : 500,
+                            width: isActive ? 28 : 8,
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: isActive ? "#52A26F" : "rgba(255, 255, 255, 0.25)",
+                            border: "none",
                             cursor: "pointer",
-                            transition: "all 0.25s ease",
-                            overflow: "hidden",
-                            whiteSpace: "nowrap"
+                            padding: 0,
+                            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                            boxShadow: isActive ? "0 0 10px rgba(82, 162, 111, 0.6)" : "none"
                           }}
-                        >
-                          <span style={{ fontSize: 10, color: "#8AE6B0", fontWeight: 700 }}>
-                            0{idx + 1}
-                          </span>
-                          <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {displayTitle}
-                          </span>
-
-                          {/* Live rotation progress bar indicator on active tab */}
-                          {isActive && !isPaused && (
-                            <div
-                              className="progress-timer-bar"
-                              style={{
-                                position: "absolute",
-                                bottom: 0,
-                                left: 0,
-                                height: 2,
-                                backgroundColor: "#52A26F"
-                              }}
-                            />
-                          )}
-                        </button>
+                        />
                       );
                     })}
                   </div>
 
-                  {/* Actions & Arrows Wrapper */}
-                  <div className="story-actions-wrapper">
-                    {/* Previous / Next Arrow Controls */}
-                    <div className="story-nav-arrows" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  {/* Previous / Next Arrow Controls & Gallery Trigger */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <button
                         type="button"
                         onClick={() => setActiveStoryIdx((prev) => (prev - 1 + CAFE_STORIES.length) % CAFE_STORIES.length)}
                         aria-label="Previous space"
                         style={{
-                          width: 32,
-                          height: 32,
+                          width: 34,
+                          height: 34,
                           borderRadius: "50%",
                           backgroundColor: "rgba(255, 255, 255, 0.08)",
                           border: "1px solid rgba(255, 255, 255, 0.2)",
@@ -1662,19 +2082,27 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                           justifyContent: "center",
                           color: "#FFFFFF",
                           cursor: "pointer",
-                          boxShadow: "0 1px 4px rgba(0, 0, 0, 0.2)",
+                          boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
                           transition: "all 0.2s ease"
                         }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = "rgba(82, 162, 111, 0.3)";
+                          e.currentTarget.style.transform = "scale(1.06)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.08)";
+                          e.currentTarget.style.transform = "scale(1.0)";
+                        }}
                       >
-                        <ChevronLeft size={15} />
+                        <ChevronLeft size={16} />
                       </button>
                       <button
                         type="button"
                         onClick={() => setActiveStoryIdx((prev) => (prev + 1) % CAFE_STORIES.length)}
                         aria-label="Next space"
                         style={{
-                          width: 32,
-                          height: 32,
+                          width: 34,
+                          height: 34,
                           borderRadius: "50%",
                           backgroundColor: "rgba(255, 255, 255, 0.08)",
                           border: "1px solid rgba(255, 255, 255, 0.2)",
@@ -1683,25 +2111,22 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                           justifyContent: "center",
                           color: "#FFFFFF",
                           cursor: "pointer",
-                          boxShadow: "0 1px 4px rgba(0, 0, 0, 0.2)",
+                          boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
                           transition: "all 0.2s ease"
                         }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = "rgba(82, 162, 111, 0.3)";
+                          e.currentTarget.style.transform = "scale(1.06)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.08)";
+                          e.currentTarget.style.transform = "scale(1.0)";
+                        }}
                       >
-                        <ChevronRight size={15} />
+                        <ChevronRight size={16} />
                       </button>
-
-                      <span style={{
-                        fontSize: 10.5,
-                        color: "#8AE6B0",
-                        fontStyle: "italic",
-                        fontFamily: "var(--font-serif)",
-                        marginLeft: 4
-                      }}>
-                        {isPaused ? "Paused" : "Auto-advancing"}
-                      </span>
                     </div>
 
-                    {/* View Gallery Trigger */}
                     <button
                       type="button"
                       onClick={() => setIsGalleryOpen(true)}
@@ -1712,15 +2137,16 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                         backgroundColor: "rgba(255, 255, 255, 0.1)",
                         border: "1px solid rgba(255, 255, 255, 0.22)",
                         color: "#FFFFFF",
-                        padding: "7px 16px",
+                        padding: "8px 18px",
                         display: "inline-flex",
                         alignItems: "center",
-                        gap: 5,
-                        boxShadow: "0 1px 4px rgba(0, 0, 0, 0.15)"
+                        gap: 6,
+                        boxShadow: "0 1px 4px rgba(0, 0, 0, 0.15)",
+                        cursor: "pointer"
                       }}
                     >
-                      <span>View Gallery</span>
-                      <ArrowRight size={11} style={{ color: "#8AE6B0" }} />
+                      <span>View Gallery ({CAFE_STORIES.length})</span>
+                      <ArrowRight size={12} style={{ color: "#8AE6B0" }} />
                     </button>
                   </div>
                 </div>
@@ -1818,10 +2244,129 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                   </button>
                 </div>
 
-                {/* Modal Body: Both Stories Displayed In Full View */}
+                {/* Modal Body: All 5 Spaces Displayed In Full View */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 36 }}>
                   {CAFE_STORIES.map((story) => {
+                    const isHorizontal = story.orientation === "horizontal";
                     const isPrivateCorner = story.id === "private-corner";
+
+                    if (isHorizontal) {
+                      return (
+                        <div
+                          key={story.id}
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 18,
+                            background: "linear-gradient(155deg, #FFFFFF 0%, #FCFAF7 60%, #F6EFE6 100%)",
+                            borderRadius: "24px",
+                            border: "1px solid rgba(180, 130, 90, 0.28)",
+                            padding: "clamp(16px, 3vw, 28px)",
+                            boxShadow: "0 14px 36px rgba(74, 53, 39, 0.05)"
+                          }}
+                        >
+                          {/* Photo - Horizontal Aspect Ratio with Full View */}
+                          <div style={{
+                            position: "relative",
+                            borderRadius: "18px",
+                            overflow: "hidden",
+                            boxShadow: "0 12px 28px rgba(74, 53, 39, 0.12)",
+                            backgroundColor: "#EFE8DC",
+                            width: "100%",
+                            aspectRatio: "16 / 9",
+                            maxHeight: "clamp(260px, 42vw, 440px)"
+                          }}>
+                            <img
+                              src={story.image}
+                              alt={story.alt}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                                objectPosition: "center center",
+                                display: "block"
+                              }}
+                            />
+                            <div style={{
+                              position: "absolute",
+                              top: 16,
+                              left: 16,
+                              backgroundColor: "rgba(255, 255, 255, 0.94)",
+                              backdropFilter: "blur(12px)",
+                              borderRadius: "var(--radius-pill)",
+                              padding: "6px 14px",
+                              border: "1px solid rgba(180, 130, 90, 0.3)",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
+                              fontSize: 11,
+                              fontFamily: "var(--font-serif)",
+                              fontWeight: 700,
+                              letterSpacing: "1.2px",
+                              textTransform: "uppercase",
+                              color: "var(--color-bronze)"
+                            }}>
+                              <Sparkles size={12} style={{ color: "var(--color-bronze)" }} />
+                              <span>{story.badgeText}</span>
+                            </div>
+                          </div>
+
+                          {/* Streamlined Details without bulky story paragraph */}
+                          <div style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            flexWrap: "wrap",
+                            gap: 12
+                          }}>
+                            <div>
+                              <span style={{
+                                fontFamily: "var(--font-serif)",
+                                fontSize: 11,
+                                fontWeight: 700,
+                                letterSpacing: "2px",
+                                textTransform: "uppercase",
+                                color: "var(--color-bronze)",
+                                display: "block",
+                                marginBottom: 4
+                              }}>
+                                {story.eyebrow}
+                              </span>
+                              <h4 style={{
+                                fontFamily: "var(--font-serif)",
+                                fontSize: "clamp(20px, 2.6vw, 26px)",
+                                fontWeight: 600,
+                                color: "var(--color-ink)",
+                                lineHeight: 1.25,
+                                marginBottom: 6
+                              }}>
+                                {story.title}
+                              </h4>
+                              <p style={{
+                                fontFamily: "var(--font-serif)",
+                                fontStyle: "italic",
+                                fontSize: 14,
+                                color: "var(--color-bronze)",
+                                lineHeight: 1.5,
+                                margin: 0
+                              }}>
+                                "{story.quote}"
+                              </p>
+                            </div>
+
+                            <span style={{
+                              fontSize: 12,
+                              color: "var(--color-bronze)",
+                              fontWeight: 600,
+                              fontFamily: "var(--font-serif)"
+                            }}>
+                              {story.locationNote}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div
                         key={story.id}
@@ -1837,22 +2382,25 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                           boxShadow: "0 14px 36px rgba(74, 53, 39, 0.05)"
                         }}
                       >
-                        {/* Photo */}
+                        {/* Photo - Vertical tall aspect ratio */}
                         <div style={{
                           position: "relative",
                           borderRadius: "20px",
                           overflow: "hidden",
                           boxShadow: "0 12px 28px rgba(74, 53, 39, 0.12)",
-                          backgroundColor: "#EFE8DC"
+                          backgroundColor: "#EFE8DC",
+                          aspectRatio: "3 / 4",
+                          maxHeight: "clamp(380px, 40vw, 480px)",
+                          width: "100%"
                         }}>
                           <img
                             src={story.image}
                             alt={story.alt}
                             style={{
                               width: "100%",
-                              height: "clamp(380px, 40vw, 480px)",
+                              height: "100%",
                               objectFit: "cover",
-                              objectPosition: isPrivateCorner ? "center bottom" : "center center",
+                              objectPosition: "center center",
                               display: "block"
                             }}
                           />
@@ -1884,7 +2432,7 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                           </div>
                         </div>
 
-                        {/* Details & Toggles */}
+                        {/* Details & Story - Space available for story description */}
                         <div>
                           <span style={{
                             fontFamily: "var(--font-serif)",
@@ -1926,7 +2474,6 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                           }}>
                             {story.description}
                           </p>
-
 
                           <span style={{
                             fontSize: 12,

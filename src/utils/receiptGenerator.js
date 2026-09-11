@@ -1,6 +1,6 @@
 /**
  * Two Hearts Cafe - Branded Receipt & PDF Generator
- * Generates an elegant French-bistro styled invoice/receipt with printable CSS & PDF saving.
+ * Generates an elegant European-cafe styled invoice/receipt with printable CSS & PDF saving.
  */
 
 export function generateReceiptHtml(order) {
@@ -194,7 +194,7 @@ export function generateReceiptHtml(order) {
   <div class="receipt-card">
     <div class="header">
       <div class="brand-script">Two Hearts Cafe</div>
-      <div class="brand-sub">Boutique French Bistro & Pure Vegetarian Kitchen</div>
+      <div class="brand-sub">Boutique European Cafe & Pure Vegetarian Kitchen</div>
       <div class="cafe-meta">
         Shivam Vihar, Near Pillar 852, Muradnagar, Ghaziabad<br/>
         Phone: +91 93103 40889 • GSTIN: 09AABCT2024H1Z5

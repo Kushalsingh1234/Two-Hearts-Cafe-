@@ -436,42 +436,189 @@ export const TRUST_FEATURES = [
 
 export const CAFE_STORIES = [
   {
-    id: "private-corner",
-    tag: "Intimate Nook",
-    eyebrow: "A Haven for Two",
-    title: "A Private Corner for Special Ones",
-    subtitle: "Beneath a cascading canopy of blush wisteria blossoms",
-    quote: "A secluded table where warm amber light, floral whispers, and deep conversations linger.",
-    description: "Tucked gently away in an intimate corner of Two Hearts Café, this secluded sanctuary was created for the moments that truly matter. Shaded by a dreamlike canopy of pink wisteria blossoms, lit by the warm glow of blooming floral lamps, and adorned with framed wall art reminding us that we are always \"Better Together.\" Whether sharing quiet secrets, deep late-evening conversations, an anniversary date, or a peaceful study session over handcrafted pasta and hot coffee, this private nook is where two hearts find their rhythm away from the campus rush.",
-    highlights: [
-      { id: "canopy", label: "Blossom Canopy", detail: "Cascading wisteria ceiling creating an ethereal garden atmosphere", icon: "Flower2" },
-      { id: "lighting", label: "Amber Illumination", detail: "Warm floral floor lamps tuned for gentle late-evening conversations", icon: "Flame" },
-      { id: "table", label: "Table for Two", detail: "Bespoke marble bistro table flanked by handwoven armchairs", icon: "Coffee" },
-      { id: "peace", label: "Acoustic Peace", detail: "Secluded away from counter traffic for undisturbed moments", icon: "Sparkles" }
-    ],
-    image: "/images/cafe_story_private_corner.jpg",
-    alt: "A private corner for special ones at Two Hearts Cafe",
-    badgeText: "Table for Two • Intimate Nook",
-    locationNote: "Muradnagar • Near Pillar 852"
-  },
-  {
     id: "heart-lounge",
+    tabLabel: "Heart Lounge",
     tag: "Signature Landmark",
     eyebrow: "Celebrations & Gatherings",
     title: "Where Every Celebration Blossoms",
     subtitle: "Our iconic floral heart wall and illuminated neon lounge",
     quote: "Muradnagar's favorite photo backdrop for birthdays, reunions, and joyful laughter.",
-    description: "Our centerpiece floral heart installation—handcrafted with hundreds of golden-orange and blush roses set against acoustic wood paneling—is the vibrant soul of Two Hearts Café. Bathed in the warm glow of our signature neon emblem and surrounded by blooming ornamental trees and plush velvet booth seating, this is the beloved gathering spot for college birthdays, reunion feasts, project celebrations, and joyful group memories. Here, every shared meal turns into a lasting celebration.",
-    highlights: [
-      { id: "heart_wall", label: "Rose Heart Wall", detail: "Centerpiece sculpture handcrafted with golden & blush silk roses", icon: "Heart" },
-      { id: "neon", label: "Signature Neon Spot", detail: "Backlit neon emblem framed for portraits, reels, and stories", icon: "Camera" },
-      { id: "booths", label: "Velvet Booth Seating", detail: "Plush banquettes accommodating group lunches and celebration dinners", icon: "Users" },
-      { id: "parties", label: "Party Ready", detail: "Pre-bookable for birthdays, campus reunions, and team parties", icon: "Gift" }
-    ],
-    image: "/images/cafe_story_heart_lounge.jpg",
+    orientation: "horizontal",
+    hasStory: false,
+    image: "/images/cafe_ambience_1_heart_lounge.jpg",
     alt: "Signature floral heart wall and celebration lounge at Two Hearts Cafe",
-    badgeText: "Celebration Lounge • Group Gatherings",
-    locationNote: "Spacious Group & Birthday Seating"
+    badgeText: "Celebration Lounge • Signature Heart",
+    locationNote: "Central Lounge • Near Pillar 852"
+  },
+  {
+    id: "dining-canopy",
+    tabLabel: "Dining Canopy",
+    tag: "Floral Grandeur",
+    eyebrow: "The Main Dining Hall",
+    title: "Under an Ethereal Canopy of Wisteria",
+    subtitle: "Lush floral ceilings and ambient booth dining",
+    quote: "Dine under a dreamlike garden canopy where every evening feels like a celebration.",
+    orientation: "horizontal",
+    hasStory: false,
+    image: "/images/cafe_ambience_2_dining_canopy.jpg",
+    alt: "Grand dining hall with cascading wisteria flowers and booths at Two Hearts Cafe",
+    badgeText: "Grand Dining • Blossom Canopy",
+    locationNote: "Main Dining Sanctuary"
+  },
+  {
+    id: "welcome-counter",
+    tabLabel: "Welcome Counter",
+    tag: "Warm Hospitality",
+    eyebrow: "Front Reception & Barista Bar",
+    title: "Heartfelt Welcomes & Fresh Aromas",
+    subtitle: "Where your Two Hearts experience begins with a smile",
+    quote: "From the moment you step in, feel the warmth of genuine hospitality and freshly brewed coffee.",
+    orientation: "horizontal",
+    hasStory: false,
+    image: "/images/cafe_ambience_3_welcome_counter.jpg",
+    alt: "Welcoming reception and barista counter at Two Hearts Cafe",
+    badgeText: "Reception • Barista Counter",
+    locationNote: "Front Entrance • Pillar 852"
+  },
+  {
+    id: "wall-decor",
+    tabLabel: "Wall Art Decor",
+    tag: "Bistro Aesthetics",
+    eyebrow: "Artisanal Details",
+    title: "European Classic Whispers & Amber Glow",
+    subtitle: "Classic wall paneling, circular medallion murals & romantic sconces",
+    quote: "Subtle elegance and vintage charm in every handcrafted architectural detail.",
+    orientation: "horizontal",
+    hasStory: false,
+    image: "/images/cafe_ambience_4_wall_decor.png",
+    alt: "Classic European architectural wall paneling and sconces at Two Hearts Cafe",
+    badgeText: "Artisanal Wall • Vintage Glow",
+    locationNote: "European Cafe Gallery Wall"
+  },
+  {
+    id: "private-corner",
+    tabLabel: "Private Nook",
+    tag: "Intimate Haven",
+    eyebrow: "Quiet Corner",
+    title: "The Wisteria Alcove for Two",
+    subtitle: "Wisteria blooms, cane armchairs, and private late-evening conversations",
+    quote: "Far from the noise, tucked into soft shadows where two hearts can truly speak.",
+    description: "Tucked gently away in an intimate corner of Two Hearts Café, this secluded sanctuary was created for the moments that truly matter. Shaded by a dreamlike canopy of pink wisteria blossoms, lit by the warm glow of classic sconces, and set with handcrafted yellow rattan armchairs around a marble cafe table. Whether sharing quiet secrets, deep late-evening conversations, an anniversary date, or a peaceful study session over handcrafted pasta and hot coffee, this private nook is where two hearts find their rhythm away from the campus rush.",
+    orientation: "vertical",
+    hasStory: true,
+    highlights: [
+      { id: "canopy", label: "Pink Wisteria", detail: "Overhead canopy of delicate floral vines creating a secluded nook", icon: "Flower2" },
+      { id: "sconces", label: "Amber Sconce", detail: "Warm golden wall lamps casting soft, flattering shadows", icon: "Sparkles" },
+      { id: "table", label: "Table for Two", detail: "Bespoke marble table flanked by handwoven armchairs", icon: "Coffee" },
+      { id: "vibe", label: "Whisper Intimacy", detail: "Acoustically quiet zone ideal for couples and heartfelt conversations", icon: "Heart" }
+    ],
+    image: "/images/cafe_ambience_5_intimate_nook.jpg",
+    alt: "Private secluded wisteria corner table for two at Two Hearts Cafe",
+    badgeText: "Quiet Alcove • Floral Canopy",
+    locationNote: "Mezzanine Corner • Pillar 852"
+  },
+  {
+    id: "amber-sconces",
+    tabLabel: "Amber Sconces",
+    tag: "Warm Illumination",
+    eyebrow: "Moody Evenings",
+    title: "Candlelight Radiance & Architectural Elegance",
+    subtitle: "Handcrafted vintage fixtures washing warm cream walls in amber light",
+    quote: "Every shadow and amber flicker creates an atmosphere of timeless European romance.",
+    orientation: "horizontal",
+    hasStory: false,
+    image: "/images/cafe_ambience_6_amber_sconces.png",
+    alt: "Warm amber sconces illuminating circular murals at Two Hearts Cafe",
+    badgeText: "Vintage Fixtures • Amber Glow",
+    locationNote: "Main Dining Hall"
+  },
+  {
+    id: "banquet-vista",
+    tabLabel: "Banquet Vista",
+    tag: "European Vista",
+    eyebrow: "Grand Seating",
+    title: "The Crimson Velvet Banquette & Gallery Vista",
+    subtitle: "Plush banquette seating, grand gold-framed mirrors, and cafe perspective",
+    quote: "An expansive perspective where European grandeur meets intimate comfort.",
+    description: "Our elevated dining banquette combines deep burgundy cushioned booth seating with a captivating view across the entire cafe. Surrounded by gold-framed gallery mirrors that catch the glow of fairy lights and illuminated floral installations, this vibrant space is designed for group gatherings, student celebrations, and unforgettable evenings with good friends.",
+    orientation: "vertical",
+    hasStory: true,
+    highlights: [
+      { id: "banquette", label: "Burgundy Booth", detail: "Plush padded banquette seating stretching along the perimeter", icon: "Heart" },
+      { id: "mirrors", label: "Gilded Mirrors", detail: "Grand framed mirrors reflecting warm ambient light across the hall", icon: "Sparkles" },
+      { id: "group_dining", label: "Social Banquets", detail: "Spacious table setups comfortably accommodating 4 to 8 guests", icon: "Coffee" },
+      { id: "ambience", label: "Floral Vantage", detail: "Direct view of the cascading wisteria ceiling installation", icon: "Flower2" }
+    ],
+    image: "/images/cafe_ambience_7_banquet_vista.jpg",
+    alt: "Crimson banquet seating and gallery mirror vista at Two Hearts Cafe",
+    badgeText: "Group Banquette • Gallery Vista",
+    locationNote: "North Dining Wing • Pillar 852"
+  },
+  {
+    id: "memory-nook",
+    tabLabel: "Memory Nook",
+    tag: "Romantic Corner",
+    eyebrow: "Photogenic Charm",
+    title: "The 'Better Together' Memory Corner",
+    subtitle: "Illuminated neon romance, botanical art frames, and golden petal lamps",
+    quote: "A picture-perfect corner dedicated to friendship, laughter, and lasting memories.",
+    description: "Adorned with our iconic illuminated \"Better Together\" sign and an artfully curated wall of framed travel photography and quotes, this charming date corner is Muradnagar's favorite spot for couple portraits and quiet confessions. Flanked by a radiant golden floor lamp blooming with glowing butterfly petals and rustic woven rattan cafe chairs, it offers a picture-perfect setting for memories that endure.",
+    orientation: "vertical",
+    hasStory: true,
+    highlights: [
+      { id: "neon_sign", label: "'Better Together'", detail: "Warm golden neon script sign for iconic keepsake photos", icon: "Sparkles" },
+      { id: "art_frames", label: "Gallery Frame Wall", detail: "Curated collection of European cafe photography and art prints", icon: "Camera" },
+      { id: "petal_lamp", label: "Butterfly Floor Lamp", detail: "Sculptural floral lighting casting dreamy golden highlights", icon: "Flower2" },
+      { id: "intimate_table", label: "Intimate Round Table", detail: "Charming mini marble cafe table for two", icon: "Heart" }
+    ],
+    image: "/images/cafe_ambience_8_memory_wall.jpg",
+    alt: "Better Together illuminated memory corner with rattan chairs at Two Hearts Cafe",
+    badgeText: "Photo Spot • Neon Romance",
+    locationNote: "Romantic Date Nook • Pillar 852"
+  },
+  {
+    id: "window-lounge",
+    tabLabel: "Window Lounge",
+    tag: "Daylight & Crystal",
+    eyebrow: "Afternoon Teatime",
+    title: "The Chandelier Windowside Lounge",
+    subtitle: "Porcelain teacups, gourmet desserts, and crystal chandeliers",
+    quote: "Afternoon golden hour, warm tea infusions, and sweet conversation by the European glass window.",
+    description: "Bathed in gentle daylight filtered through wide black-framed European pane windows, this elegant lounge table is perfect for slow afternoons. Look up to glittering crystal chandeliers nestled among cascading wisteria, savor gourmet cheesecakes and hot cappuccino served in fine porcelain china, with our iconic glowing rose heart wall softly illuminating the background.",
+    orientation: "vertical",
+    hasStory: true,
+    highlights: [
+      { id: "chandelier", label: "Crystal Chandelier", detail: "Vintage cut-glass chandeliers suspended among hanging flowers", icon: "Sparkles" },
+      { id: "european_window", label: "European Pane Window", detail: "Large glass panels looking out into the daylight of Muradnagar", icon: "Coffee" },
+      { id: "artisan_dessert", label: "Fine Teaware", detail: "Porcelain cup settings perfect for dessert dates and artisan brews", icon: "Flame" },
+      { id: "heart_view", label: "Rose Heart Glimpse", detail: "Framed sightline directly facing the illuminated heart wall", icon: "Heart" }
+    ],
+    image: "/images/cafe_ambience_9_window_lounge.jpg",
+    alt: "Chandelier windowside tea and dessert table at Two Hearts Cafe",
+    badgeText: "Windowside • Teatime Lounge",
+    locationNote: "Front Window Bay • Pillar 852"
+  },
+  {
+    id: "floral-facade",
+    tabLabel: "Storefront",
+    tag: "Grand Entrance",
+    eyebrow: "Evening Welcome",
+    title: "The Illuminated Floral Facade",
+    subtitle: "A glowing floral doorway lighting up the Muradnagar streetscape",
+    quote: "Step through our rose-lined doorway into an enchanting world of comfort, coffee, and warmth.",
+    description: "From the street right by Pillar 852 in Muradnagar, Two Hearts Café beckons like a glowing dream. Framed by a magnificent archway of blush and crimson roses, shimmering under golden fairy lights and illuminated neon lettering, the grand black-metal glass facade invites you inside. Through the transparent glass, catch glowing glimpses of crystal chandeliers, floating wisteria blossoms, and our welcoming barista counter.",
+    orientation: "vertical",
+    hasStory: true,
+    highlights: [
+      { id: "floral_arch", label: "Rose Archway", detail: "Grand floral frame wrapping around the entire exterior entrance", icon: "Flower2" },
+      { id: "fairy_lights", label: "Fairy Light Canopy", detail: "Warm festoon string lights illuminating the front staircase", icon: "Flame" },
+      { id: "glass_facade", label: "European Glass Portal", detail: "High-transparency architectural grid window showcasing the interior", icon: "Eye" },
+      { id: "night_glow", label: "Neon Signature", detail: "Backlit neon cafe emblem visible from the main highway", icon: "Sparkles" }
+    ],
+    image: "/images/cafe_ambience_10_floral_facade.jpg",
+    alt: "Exterior illuminated floral facade of Two Hearts Cafe at night",
+    badgeText: "Main Entrance • Night Facade",
+    locationNote: "Street View • Pillar 852, Muradnagar"
   }
 ];
 
@@ -479,9 +626,9 @@ export const CAFE_STORY = {
   headline: "Born out of Friendship, Built for Togetherness",
   subheadline: "Where college conversations turn into lifelong memories over warm, comforting bowls.",
   bodyP1: "Two Hearts Cafe was dreamed up with a singular philosophy: every college town deserves an intimate, boutique corner where quality isn't compromised, where prices respect student pockets, and where nobody rushes you to give up your table.",
-  bodyP2: "Located conveniently right by Pillar 852 in Muradnagar, we blend the refined warmth of a French neighborhood bistro with the vibrant, comforting palate of authentic Indian street-cafes. From our slow-simmered Makhani pasta to our crisp Bombay sandwiches, every recipe is dialed in with heart.",
-  imageAmbience1: "/images/cafe_story_private_corner.jpg",
-  imageAmbience2: "/images/cafe_story_heart_lounge.jpg"
+  bodyP2: "Located conveniently right by Pillar 852 in Muradnagar, we blend the refined warmth of an intimate European cafe with the vibrant, comforting palate of authentic Indian street favorites. From our slow-simmered Makhani pasta to our crisp Bombay sandwiches, every recipe is dialed in with heart.",
+  imageAmbience1: "/images/cafe_ambience_1_heart_lounge.jpg",
+  imageAmbience2: "/images/cafe_ambience_5_intimate_nook.jpg"
 };
 
 export const TESTIMONIALS = [

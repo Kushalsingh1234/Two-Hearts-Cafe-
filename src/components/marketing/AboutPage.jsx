@@ -8,20 +8,44 @@ import { CAFE_STORY, VALUES_LIST } from "./MarketingData";
 export default function AboutPage({ setPage }) {
   const galleryImages = [
     {
-      url: "/images/cafe_story_private_corner.jpg",
-      caption: "A private corner for special ones under blossom canopy"
-    },
-    {
-      url: "/images/cafe_story_heart_lounge.jpg",
+      url: "/images/cafe_ambience_1_heart_lounge.jpg",
       caption: "Our signature floral heart wall & celebration lounge"
     },
     {
-      url: "https://images.unsplash.com/photo-1559925393-8be0ec4767c8?auto=format&fit=crop&w=800&q=80",
-      caption: "Acoustic ambiance & tranquil corners"
+      url: "/images/cafe_ambience_2_dining_canopy.jpg",
+      caption: "Dining hall under an ethereal wisteria blossom canopy"
     },
     {
-      url: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=800&q=80",
-      caption: "Artisan coffee, teas, and comfort bowls"
+      url: "/images/cafe_ambience_3_welcome_counter.jpg",
+      caption: "Warm welcome reception & barista counter"
+    },
+    {
+      url: "/images/cafe_ambience_4_wall_decor.png",
+      caption: "European classic wall decor, murals & ambient sconces"
+    },
+    {
+      url: "/images/cafe_ambience_5_intimate_nook.jpg",
+      caption: "Secluded corner with handwoven yellow cane chairs"
+    },
+    {
+      url: "/images/cafe_ambience_6_amber_sconces.png",
+      caption: "Murals in warm amber sconce radiance"
+    },
+    {
+      url: "/images/cafe_ambience_7_banquet_vista.jpg",
+      caption: "Long marble feast table beneath wisteria ceiling"
+    },
+    {
+      url: "/images/cafe_ambience_8_memory_wall.jpg",
+      caption: "The Better Together memory wall & butterfly lamp date nook"
+    },
+    {
+      url: "/images/cafe_ambience_9_window_lounge.jpg",
+      caption: "Crystal chandelier windowside lounge & teatime table"
+    },
+    {
+      url: "/images/cafe_ambience_10_floral_facade.jpg",
+      caption: "Enchanting illuminated floral facade & glass storefront at night"
     }
   ];
 
@@ -70,7 +94,7 @@ export default function AboutPage({ setPage }) {
             maxWidth: 600,
             margin: "0 auto"
           }}>
-            How a humble dream of bringing French bistro intimacy and genuine Indian comfort to Muradnagar became a cherished reality.
+            How a humble dream of bringing European cafe intimacy and genuine Indian comfort to Muradnagar became a cherished reality.
           </p>
         </div>
       </section>

@@ -383,7 +383,7 @@ export default function LiveOrderTracker({ isOpen, onClose, orders, tableNumber 
                         }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <CheckCircle2 size={14} />
-                            <span>Paid Online via UPI ({ord.paymentDetails?.upiId || "q086839601@ybl"}){ord.paymentDetails?.utr ? ` • Ref: ${ord.paymentDetails.utr}` : ""}</span>
+                            <span>Paid Online via UPI ({ord.paymentDetails?.upiId || "Q327979600@ybl"}){ord.paymentDetails?.utr ? ` • Ref: ${ord.paymentDetails.utr}` : ""}</span>
                           </div>
                           <span style={{ fontSize: 11, fontStyle: "italic", color: "var(--color-bronze)" }}>Verifying</span>
                         </div>

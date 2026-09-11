@@ -500,7 +500,7 @@ export const updateOrderStatus = async (orderId, newStatus, extraData = {}) => {
 };
 
 /**
- * Update order payment details (UPI to q086839601@ybl or Pay at Counter)
+ * Update order payment details (UPI to Q327979600@ybl or Pay at Counter)
  */
 export const updateOrderPayment = async (orderId, paymentData) => {
   const updatedAt = new Date().toISOString();
@@ -510,7 +510,7 @@ export const updateOrderPayment = async (orderId, paymentData) => {
     paymentStatus: paymentData.paymentStatus, // 'paid_online' | 'pay_at_counter' | 'unpaid'
     paymentMethod: paymentData.paymentMethod, // 'upi' | 'counter'
     paymentDetails: {
-      upiId: paymentData.upiId || "q086839601@ybl",
+      upiId: paymentData.upiId || "Q327979600@ybl",
       utr: paymentData.utr || "",
       paidAt: paymentData.paidAt || (isOnlinePaid ? updatedAt : null)
     },

@@ -632,7 +632,7 @@ export default function CheckoutPage({ onNavigate }) {
                 </p>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#15803d", fontWeight: 600 }}>
                   <ShieldCheck size={13} />
-                  <span>UPI ID: q086839601@ybl • Verified PhonePe Merchant</span>
+                  <span>UPI ID: Q327979600@ybl • Verified PhonePe Merchant</span>
                 </div>
               </div>
             </div>

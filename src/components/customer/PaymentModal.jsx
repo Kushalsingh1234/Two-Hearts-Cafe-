@@ -20,7 +20,7 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmedMessage, setConfirmedMessage] = useState(null);
 
-  const upiId = "q086839601@ybl";
+  const upiId = "Q327979600@ybl";
   // PhonePe Merchant account for Two Hearts Cafe
   const payeeName = "Two Hearts Cafe";
   const amount = order.total || 0;
@@ -30,11 +30,11 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
     ? `Two Hearts ${orderLabel} ${order.orderNumber || (order.id ? order.id.slice(0, 6) : "101")}`
     : `Two Hearts Cafe T${order.tableNumber} ${order.orderNumber || (order.id ? order.id.slice(0, 6) : "101")}`;
 
-  // Standard NPCI UPI URI Schemes with verified merchant handle & MCC 5812 (Restaurant)
-  const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}&mc=5812`;
-  const phonepeUri = `phonepe://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&mc=5812`;
-  const paytmUri = `paytmmp://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR`;
-  const gpayUri = `tez://upi/pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR`;
+  // Standard NPCI UPI URI Schemes for PhonePe Merchant Q327979600@ybl (removed mc to prevent MCC conflict/risk blocks)
+  const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+  const phonepeUri = `phonepe://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+  const paytmUri = `paytmmp://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+  const gpayUri = `tez://upi/pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
 
   const handleCopyUpi = () => {
     navigator.clipboard.writeText(upiId);
@@ -279,7 +279,7 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
               </button>
             </div>
 
-            {/* TAB 1: PAY ONLINE (PhonePe Merchant UPI: q086839601@ybl) */}
+            {/* TAB 1: PAY ONLINE (PhonePe Merchant UPI: Q327979600@ybl) */}
             {paymentType === "online" ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {/* 1-Click Launch Button for Mobile */}

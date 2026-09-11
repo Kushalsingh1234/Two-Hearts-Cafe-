@@ -345,7 +345,7 @@ export default function DigitalInvoiceModal({ isOpen, onClose, order, onOpenRevi
               </div>
               {isOnlinePayment && (
                 <div style={{ fontSize: 11, color: "var(--color-bronze)", marginTop: 2 }}>
-                  Payee: <strong>{order.paymentDetails?.upiId || "q086839601@ybl"}</strong>
+                  Payee: <strong>{order.paymentDetails?.upiId || "Q327979600@ybl"}</strong>
                   {utr ? ` • UTR: ${utr}` : ""}
                 </div>
               )}

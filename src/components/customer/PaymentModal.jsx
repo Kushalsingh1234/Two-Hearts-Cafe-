@@ -32,7 +32,7 @@ export default function PaymentModal({
   const [isCopied, setIsCopied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [upiLaunched, setUpiLaunched] = useState(false);
-  const [isVerifyingReturn, setIsVerifyingReturn] = useState(false);
+  const [showReturnPrompt, setShowReturnPrompt] = useState(false);
   const [settledSuccess, setSettledSuccess] = useState(false);
   const [confirmedMessage, setConfirmedMessage] = useState(null);
   const [qrMode, setQrMode] = useState("auto"); // 'auto' | 'standee'
@@ -140,38 +140,29 @@ export default function PaymentModal({
     }
   };
 
-  // Automatic app return detection: when customer completes payment in PhonePe/Paytm
-  // and switches back to the browser tab, automatically verify & settle the bill!
+  // App return detection: when customer returns from PhonePe/Paytm,
+  // do NOT blindly auto-settle! Instead, prompt them to confirm if payment was completed.
   useEffect(() => {
     if (!isOpen || !order || settledSuccess) return;
 
     const checkAppReturn = () => {
       if (document.visibilityState === "visible") {
-        let shouldAutoSettle = upiLaunched;
-        if (!shouldAutoSettle) {
+        let shouldPrompt = upiLaunched;
+        if (!shouldPrompt) {
           try {
             const raw = sessionStorage.getItem("twohearts_upi_in_flight");
             if (raw) {
               const data = JSON.parse(raw);
               if (data.orderId === order.id && Date.now() - data.time < 15 * 60 * 1000) {
-                shouldAutoSettle = true;
+                shouldPrompt = true;
               }
             }
           } catch {}
         }
 
-        if (shouldAutoSettle && !isSubmitting && !settledSuccess) {
-          try {
-            sessionStorage.removeItem("twohearts_upi_in_flight");
-          } catch {}
+        if (shouldPrompt && !isSubmitting && !settledSuccess) {
           setUpiLaunched(false);
-          setIsVerifyingReturn(true);
-
-          // Smooth 1.4-second natural verification loader, then settle automatically
-          setTimeout(async () => {
-            await handleConfirmOnlinePayment();
-            setIsVerifyingReturn(false);
-          }, 1400);
+          setShowReturnPrompt(true);
         }
       }
     };
@@ -302,57 +293,7 @@ export default function PaymentModal({
           </div>
         </div>
 
-        {/* STATE 1: RETURNING FROM PAYMENT APP - AUTO-VERIFYING */}
-        {isVerifyingReturn ? (
-          <div style={{
-            padding: "36px 24px",
-            textAlign: "center",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 16
-          }}>
-            <div style={{
-              width: 60,
-              height: 60,
-              borderRadius: "50%",
-              backgroundColor: "#DCFCE7",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              position: "relative"
-            }}>
-              <Loader2
-                size={34}
-                style={{
-                  color: "#15803d",
-                  animation: "spin 0.9s linear infinite"
-                }}
-              />
-            </div>
-            <div>
-              <h4 style={{
-                fontFamily: "var(--font-serif)",
-                fontSize: 19,
-                fontWeight: 700,
-                color: "var(--color-ink)",
-                margin: "0 0 6px 0"
-              }}>
-                Verifying UPI Payment...
-              </h4>
-              <p style={{
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: 14,
-                color: "var(--color-bronze)",
-                margin: 0,
-                lineHeight: 1.4
-              }}>
-                Welcome back! Confirming Rs.{amount} payment from PhonePe and settling your bill automatically...
-              </p>
-            </div>
-          </div>
-        ) : confirmedMessage || settledSuccess ? (
+        {confirmedMessage || settledSuccess ? (
           /* STATE 2: BILL SETTLED CONFIRMATION SCREEN */
           <div style={{
             padding: "26px 20px",
@@ -476,6 +417,82 @@ export default function PaymentModal({
         ) : (
           /* STATE 3: PAYMENT METHOD OPTIONS */
           <div style={{ padding: "16px 20px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 14 }}>
+            {/* Returning from UPI app confirmation prompt */}
+            {showReturnPrompt && (
+              <div style={{
+                backgroundColor: "#F0FDF4",
+                border: "1.5px solid #22c55e",
+                borderRadius: 8,
+                padding: "14px 16px",
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                boxShadow: "0 4px 12px rgba(22, 163, 74, 0.12)"
+              }}>
+                <div style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: "#166534"
+                }}>
+                  💳 Returning from UPI / PhonePe?
+                </div>
+                <p style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 13,
+                  color: "var(--color-bronze)",
+                  margin: 0,
+                  lineHeight: 1.4
+                }}>
+                  Did you enter your UPI PIN and complete the <strong>Rs.{amount}</strong> payment?
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowReturnPrompt(false);
+                    try { sessionStorage.removeItem("twohearts_upi_in_flight"); } catch {}
+                    handleConfirmOnlinePayment();
+                  }}
+                  disabled={isSubmitting}
+                  style={{
+                    backgroundColor: "#15803d",
+                    color: "#fff",
+                    padding: "11px 18px",
+                    borderRadius: "var(--radius-pill)",
+                    fontWeight: 700,
+                    fontSize: 13.5,
+                    border: "none",
+                    cursor: isSubmitting ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6
+                  }}
+                >
+                  <CheckCircle2 size={16} />
+                  <span>{isSubmitting ? "Settling..." : `✓ Yes, I Have Paid Rs.${amount}`}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowReturnPrompt(false);
+                    try { sessionStorage.removeItem("twohearts_upi_in_flight"); } catch {}
+                  }}
+                  style={{
+                    background: "transparent",
+                    color: "#6b7280",
+                    border: "none",
+                    fontSize: 12,
+                    cursor: "pointer",
+                    textDecoration: "underline"
+                  }}
+                >
+                  ✕ Payment Incomplete or Cancelled
+                </button>
+              </div>
+            )}
+
             {/* Toggle: Pay Online vs Pay at Counter */}
             <div style={{
               display: "flex",

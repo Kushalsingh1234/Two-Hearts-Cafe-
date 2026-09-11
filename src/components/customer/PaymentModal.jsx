@@ -19,10 +19,12 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
   const [isCopiedPhone, setIsCopiedPhone] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmedMessage, setConfirmedMessage] = useState(null);
+  const [qrMode, setQrMode] = useState("auto"); // 'auto' | 'standee'
 
   const upiId = "Q327979600@ybl";
-  // PhonePe Merchant account for Two Hearts Cafe
-  const payeeName = "Two Hearts Cafe";
+  // Exact parameters decoded from physical PhonePe standee:
+  // upi://pay?pa=Q327979600@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00
+  const payeeName = "PhonePeMerchant";
   const amount = order.total || 0;
   const isDeliveryOrder = order.orderType === "delivery" || order.orderType === "pickup";
   const orderLabel = order.orderType === "delivery" ? "Delivery" : order.orderType === "pickup" ? "Pickup" : `Table #${order.tableNumber}`;
@@ -30,11 +32,14 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
     ? `Two Hearts ${orderLabel} ${order.orderNumber || (order.id ? order.id.slice(0, 6) : "101")}`
     : `Two Hearts Cafe T${order.tableNumber} ${order.orderNumber || (order.id ? order.id.slice(0, 6) : "101")}`;
 
-  // Standard NPCI UPI URI Schemes for PhonePe Merchant Q327979600@ybl (removed mc to prevent MCC conflict/risk blocks)
-  const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
-  const phonepeUri = `phonepe://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
-  const paytmUri = `paytmmp://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
-  const gpayUri = `tez://upi/pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+  // 1. Dynamic UPI links with exact registered merchant spec
+  const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+  const phonepeUri = `phonepe://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+  const paytmUri = `paytmmp://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+  const gpayUri = `tez://upi/pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+
+  // 2. Official Standee QR (100% exact copy of physical counter standee)
+  const officialStandeeUri = `upi://pay?pa=Q327979600@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00`;
 
   const handleCopyUpi = () => {
     navigator.clipboard.writeText(upiId);
@@ -362,7 +367,45 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
                   gap: 10
                 }}>
                   <div style={{ fontSize: 12, fontFamily: "var(--font-serif)", fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                    Or Scan QR to Pay Rs.{amount}
+                    Scan QR to Pay Rs.{amount}
+                  </div>
+
+                  {/* Mode Selector: Auto-fill Amount vs Official Standee QR */}
+                  <div style={{ display: "flex", gap: 6, backgroundColor: "#FAF7F2", padding: 3, borderRadius: "var(--radius-pill)", border: "1px solid var(--color-border-frame)" }}>
+                    <button
+                      type="button"
+                      onClick={() => setQrMode("auto")}
+                      style={{
+                        padding: "4px 12px",
+                        borderRadius: "var(--radius-pill)",
+                        backgroundColor: qrMode === "auto" ? "var(--color-ink)" : "transparent",
+                        color: qrMode === "auto" ? "#FFFFFF" : "var(--color-ink)",
+                        border: "none",
+                        fontSize: 11,
+                        fontFamily: "var(--font-serif)",
+                        fontWeight: 700,
+                        cursor: "pointer"
+                      }}
+                    >
+                      Pre-filled (Rs.{amount})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setQrMode("standee")}
+                      style={{
+                        padding: "4px 12px",
+                        borderRadius: "var(--radius-pill)",
+                        backgroundColor: qrMode === "standee" ? "var(--color-ink)" : "transparent",
+                        color: qrMode === "standee" ? "#FFFFFF" : "var(--color-ink)",
+                        border: "none",
+                        fontSize: 11,
+                        fontFamily: "var(--font-serif)",
+                        fontWeight: 700,
+                        cursor: "pointer"
+                      }}
+                    >
+                      Official Standee QR
+                    </button>
                   </div>
 
                   <div style={{
@@ -372,12 +415,17 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
                     border: "1px solid var(--color-border-frame)"
                   }}>
                     <QRCodeSVG
-                      value={upiUri}
+                      value={qrMode === "standee" ? officialStandeeUri : upiUri}
                       size={150}
                       level="H"
                       includeMargin={false}
                     />
                   </div>
+                  {qrMode === "standee" && (
+                    <div style={{ fontSize: 11, color: "var(--color-bronze)", fontStyle: "italic", textAlign: "center" }}>
+                      Works identically to scanning the counter standee • Enter Rs.{amount}
+                    </div>
+                  )}
 
                   {/* Copy Pills for UPI ID & Mobile */}
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>

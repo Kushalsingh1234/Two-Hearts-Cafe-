@@ -119,8 +119,8 @@ export const subscribeMenuItems = (onSuccess, onError) => {
             return {
               ...seed,
               ...docData,
-              portions: seed.portions || docData.portions,
-              options: seed.options || docData.options,
+              portions: docData.portions !== undefined ? docData.portions : seed.portions,
+              options: docData.options !== undefined ? docData.options : seed.options,
               id: docSnap.id
             };
           });
@@ -142,7 +142,14 @@ export const subscribeMenuItems = (onSuccess, onError) => {
         const existingIds = new Set(localMenu.map((i) => i.id));
         const merged = localMenu.map((item) => {
           const seed = seedMap.get(item.id);
-          return seed ? { ...seed, ...item, portions: seed.portions || item.portions, options: seed.options || item.options } : item;
+          return seed
+            ? {
+                ...seed,
+                ...item,
+                portions: item.portions !== undefined ? item.portions : seed.portions,
+                options: item.options !== undefined ? item.options : seed.options
+              }
+            : item;
         });
         for (const s of INITIAL_MENU_ITEMS) {
           if (!existingIds.has(s.id)) merged.push(s);
@@ -227,17 +234,25 @@ export const toggleItemAvailability = async (itemId, isAvailable, fallbackItem =
 };
 
 /**
- * Quick update menu item price
+ * Quick update menu item price (and optional portion pricing)
  */
-export const updateMenuItemPrice = async (itemId, newPrice) => {
+export const updateMenuItemPrice = async (itemId, newPrice, newPortions = undefined) => {
   const price = Number(newPrice);
+  const updateFields = {
+    price,
+    updatedAt: new Date().toISOString()
+  };
+  if (newPortions !== undefined) {
+    updateFields.portions = newPortions;
+  }
+
   try {
     const docRef = doc(db, MENU_COLLECTION, itemId);
-    await updateDoc(docRef, { price, updatedAt: new Date().toISOString() });
+    await updateDoc(docRef, updateFields);
   } catch (err) {
     console.warn("Firestore update price fallback:", err);
     const local = getLocalData(LOCAL_STORAGE_MENU_KEY, INITIAL_MENU_ITEMS);
-    const updated = local.map((it) => (it.id === itemId ? { ...it, price } : it));
+    const updated = local.map((it) => (it.id === itemId ? { ...it, ...updateFields } : it));
     setLocalData(LOCAL_STORAGE_MENU_KEY, updated);
     window.dispatchEvent(new CustomEvent("twohearts_menu_updated"));
   }

@@ -21,6 +21,8 @@ export default function MenuManager({ menuItems }) {
   // Inline price quick-editing state
   const [editingPriceId, setEditingPriceId] = useState(null);
   const [tempPrice, setTempPrice] = useState("");
+  const [tempHalfPrice, setTempHalfPrice] = useState("");
+  const [tempFullPrice, setTempFullPrice] = useState("");
   const [isSavingPrice, setIsSavingPrice] = useState(false);
 
   // Form State
@@ -28,6 +30,9 @@ export default function MenuManager({ menuItems }) {
     name: "",
     category: "pasta",
     newCategoryName: "",
+    hasPortions: false,
+    halfPrice: "",
+    fullPrice: "",
     price: "",
     description: "",
     isSpecial: false,
@@ -144,6 +149,9 @@ export default function MenuManager({ menuItems }) {
       name: "",
       category: presetCategory || availableCategories[0]?.id || "pasta",
       newCategoryName: "",
+      hasPortions: false,
+      halfPrice: "",
+      fullPrice: "",
       price: "",
       description: "",
       isSpecial: false,
@@ -155,10 +163,17 @@ export default function MenuManager({ menuItems }) {
   const handleOpenEditModal = (item) => {
     setModalMode("edit");
     setEditingItemId(item.id);
+    const hasPortions = Array.isArray(item.portions) && item.portions.length > 0;
+    const halfP = hasPortions ? item.portions.find((p) => p.id === "half" || p.label?.toLowerCase() === "half") : null;
+    const fullP = hasPortions ? item.portions.find((p) => p.id === "full" || p.label?.toLowerCase() === "full") : null;
+
     setFormData({
       name: item.name || "",
       category: item.category || "pasta",
       newCategoryName: "",
+      hasPortions,
+      halfPrice: halfP?.price ? String(halfP.price) : "",
+      fullPrice: fullP?.price ? String(fullP.price) : (item.price ? String(item.price) : ""),
       price: item.price ? String(item.price) : "",
       description: item.description || "",
       isSpecial: Boolean(item.isSpecial),
@@ -169,9 +184,21 @@ export default function MenuManager({ menuItems }) {
 
   const handleSaveItem = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.price) {
-      alert("Please enter item name and price.");
+    if (!formData.name.trim()) {
+      alert("Please enter item name.");
       return;
+    }
+
+    if (formData.hasPortions) {
+      if (!formData.halfPrice || Number(formData.halfPrice) <= 0 || !formData.fullPrice || Number(formData.fullPrice) <= 0) {
+        alert("Please enter valid prices for both Half and Full portions.");
+        return;
+      }
+    } else {
+      if (!formData.price || Number(formData.price) <= 0) {
+        alert("Please enter item price.");
+        return;
+      }
     }
 
     let finalCategory = formData.category;
@@ -189,15 +216,25 @@ export default function MenuManager({ menuItems }) {
       finalCategoryTitle = match ? match.label : formData.category;
     }
 
+    const itemPrice = formData.hasPortions
+      ? Number(formData.fullPrice)
+      : Number(formData.price);
+
     const payload = {
       ...(editingItemId ? { id: editingItemId } : {}),
       name: formData.name.trim(),
       category: finalCategory,
       categoryTitle: finalCategoryTitle,
-      price: Number(formData.price),
+      price: itemPrice,
       description: formData.description.trim(),
       isSpecial: Boolean(formData.isSpecial),
-      isAvailable: formData.isAvailable !== false
+      isAvailable: formData.isAvailable !== false,
+      portions: formData.hasPortions
+        ? [
+            { id: "half", label: "Half", price: Number(formData.halfPrice) },
+            { id: "full", label: "Full", price: Number(formData.fullPrice) }
+          ]
+        : null
     };
 
     await saveMenuItem(payload);
@@ -207,17 +244,47 @@ export default function MenuManager({ menuItems }) {
   // Inline Quick Price Edit
   const handleStartInlinePriceEdit = (item) => {
     setEditingPriceId(item.id);
-    setTempPrice(String(item.price));
+    const hasPortions = Array.isArray(item.portions) && item.portions.length > 0;
+    if (hasPortions) {
+      const halfP = item.portions.find((p) => p.id === "half" || p.label?.toLowerCase() === "half");
+      const fullP = item.portions.find((p) => p.id === "full" || p.label?.toLowerCase() === "full");
+      setTempHalfPrice(halfP?.price ? String(halfP.price) : "");
+      setTempFullPrice(fullP?.price ? String(fullP.price) : String(item.price || ""));
+      setTempPrice(String(item.price || ""));
+    } else {
+      setTempPrice(String(item.price || ""));
+      setTempHalfPrice("");
+      setTempFullPrice("");
+    }
   };
 
-  const handleSaveInlinePrice = async (itemId) => {
-    const num = Number(tempPrice);
-    if (!tempPrice || isNaN(num) || num <= 0) {
-      alert("Please enter a valid price greater than 0");
-      return;
-    }
+  const handleSaveInlinePrice = async (item) => {
+    const hasPortions = Array.isArray(item.portions) && item.portions.length > 0;
     setIsSavingPrice(true);
-    await updateMenuItemPrice(itemId, num);
+
+    if (hasPortions) {
+      const halfNum = Number(tempHalfPrice);
+      const fullNum = Number(tempFullPrice);
+      if (isNaN(halfNum) || halfNum <= 0 || isNaN(fullNum) || fullNum <= 0) {
+        alert("Please enter valid prices for both Half and Full portions");
+        setIsSavingPrice(false);
+        return;
+      }
+      const updatedPortions = [
+        { id: "half", label: "Half", price: halfNum },
+        { id: "full", label: "Full", price: fullNum }
+      ];
+      await updateMenuItemPrice(item.id, fullNum, updatedPortions);
+    } else {
+      const num = Number(tempPrice);
+      if (!tempPrice || isNaN(num) || num <= 0) {
+        alert("Please enter a valid price greater than 0");
+        setIsSavingPrice(false);
+        return;
+      }
+      await updateMenuItemPrice(item.id, num);
+    }
+
     setIsSavingPrice(false);
     setEditingPriceId(null);
   };
@@ -690,98 +757,244 @@ export default function MenuManager({ menuItems }) {
 
                       {/* Price with Inline Edit */}
                       <div>
-                        {editingPriceId === item.id ? (
-                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                            <span style={{ fontFamily: "var(--font-serif)", fontWeight: 700, fontSize: 14 }}>Rs.</span>
-                            <input
-                              type="number"
-                              min="1"
-                              value={tempPrice}
-                              onChange={(e) => setTempPrice(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") handleSaveInlinePrice(item.id);
-                                if (e.key === "Escape") setEditingPriceId(null);
-                              }}
-                              autoFocus
+                        {(() => {
+                          const hasPortions = Array.isArray(item.portions) && item.portions.length > 0;
+                          const halfP = hasPortions ? item.portions.find((p) => p.id === "half" || p.label?.toLowerCase() === "half") : null;
+                          const fullP = hasPortions ? item.portions.find((p) => p.id === "full" || p.label?.toLowerCase() === "full") : null;
+
+                          if (editingPriceId === item.id) {
+                            if (hasPortions) {
+                              return (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                    <span style={{ fontSize: 11, fontFamily: "var(--font-serif)", fontWeight: 700, color: "#166534", width: 28 }}>Half:</span>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      value={tempHalfPrice}
+                                      placeholder="Half"
+                                      onChange={(e) => setTempHalfPrice(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") handleSaveInlinePrice(item);
+                                        if (e.key === "Escape") setEditingPriceId(null);
+                                      }}
+                                      autoFocus
+                                      style={{
+                                        width: 52,
+                                        padding: "2px 5px",
+                                        borderRadius: 3,
+                                        border: "1.5px solid #16a34a",
+                                        fontSize: 13,
+                                        fontWeight: 700,
+                                        fontFamily: "var(--font-serif)",
+                                        outline: "none"
+                                      }}
+                                    />
+                                  </div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                    <span style={{ fontSize: 11, fontFamily: "var(--font-serif)", fontWeight: 700, color: "#166534", width: 28 }}>Full:</span>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      value={tempFullPrice}
+                                      placeholder="Full"
+                                      onChange={(e) => setTempFullPrice(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") handleSaveInlinePrice(item);
+                                        if (e.key === "Escape") setEditingPriceId(null);
+                                      }}
+                                      style={{
+                                        width: 52,
+                                        padding: "2px 5px",
+                                        borderRadius: 3,
+                                        border: "1.5px solid #16a34a",
+                                        fontSize: 13,
+                                        fontWeight: 700,
+                                        fontFamily: "var(--font-serif)",
+                                        outline: "none"
+                                      }}
+                                    />
+                                    <button
+                                      onClick={() => handleSaveInlinePrice(item)}
+                                      disabled={isSavingPrice}
+                                      title="Save prices"
+                                      style={{
+                                        background: "#15803d",
+                                        color: "#fff",
+                                        border: "none",
+                                        borderRadius: 3,
+                                        padding: "3px 6px",
+                                        cursor: "pointer",
+                                        display: "inline-flex",
+                                        alignItems: "center"
+                                      }}
+                                    >
+                                      <Check size={13} />
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingPriceId(null)}
+                                      title="Cancel"
+                                      style={{
+                                        background: "#fee2e2",
+                                        color: "#dc2626",
+                                        border: "none",
+                                        borderRadius: 3,
+                                        padding: "3px 6px",
+                                        cursor: "pointer",
+                                        display: "inline-flex",
+                                        alignItems: "center"
+                                      }}
+                                    >
+                                      <X size={13} />
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                <span style={{ fontFamily: "var(--font-serif)", fontWeight: 700, fontSize: 14 }}>Rs.</span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={tempPrice}
+                                  onChange={(e) => setTempPrice(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") handleSaveInlinePrice(item);
+                                    if (e.key === "Escape") setEditingPriceId(null);
+                                  }}
+                                  autoFocus
+                                  style={{
+                                    width: 58,
+                                    padding: "3px 6px",
+                                    borderRadius: 3,
+                                    border: "1.5px solid var(--color-ink)",
+                                    fontSize: 14,
+                                    fontWeight: 700,
+                                    fontFamily: "var(--font-serif)",
+                                    outline: "none"
+                                  }}
+                                />
+                                <button
+                                  onClick={() => handleSaveInlinePrice(item)}
+                                  disabled={isSavingPrice}
+                                  title="Save price"
+                                  style={{
+                                    background: "var(--color-ink)",
+                                    color: "#fff",
+                                    border: "none",
+                                    borderRadius: 3,
+                                    padding: "4px",
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center"
+                                  }}
+                                >
+                                  <Check size={13} />
+                                </button>
+                                <button
+                                  onClick={() => setEditingPriceId(null)}
+                                  title="Cancel"
+                                  style={{
+                                    background: "#fee2e2",
+                                    color: "#dc2626",
+                                    border: "none",
+                                    borderRadius: 3,
+                                    padding: "4px",
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center"
+                                  }}
+                                >
+                                  <X size={13} />
+                                </button>
+                              </div>
+                            );
+                          }
+
+                          if (hasPortions) {
+                            return (
+                              <div
+                                onClick={() => handleStartInlinePriceEdit(item)}
+                                title="Click to edit Half & Full prices"
+                                style={{
+                                  display: "inline-flex",
+                                  flexDirection: "column",
+                                  gap: 2,
+                                  cursor: "pointer",
+                                  padding: "3px 6px",
+                                  borderRadius: 4,
+                                  border: "1px solid transparent",
+                                  transition: "all 0.15s"
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = "#F5EFEB";
+                                  e.currentTarget.style.borderColor = "var(--color-border-frame)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = "transparent";
+                                  e.currentTarget.style.borderColor = "transparent";
+                                }}
+                              >
+                                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                  <span style={{
+                                    fontSize: 9.5,
+                                    fontFamily: "var(--font-serif)",
+                                    fontWeight: 800,
+                                    backgroundColor: "#dcfce7",
+                                    color: "#15803d",
+                                    padding: "1px 5px",
+                                    borderRadius: "var(--radius-pill)",
+                                    border: "1px solid #86efac",
+                                    textTransform: "uppercase"
+                                  }}>
+                                    Half & Full
+                                  </span>
+                                  <Edit3 size={11} style={{ color: "var(--color-bronze)", opacity: 0.7 }} />
+                                </div>
+                                <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, color: "var(--color-ink)", marginTop: 1 }}>
+                                  H: <span style={{ color: "#15803d" }}>₹{halfP?.price || "-"}</span> │ F: <span style={{ color: "var(--color-ink)" }}>₹{fullP?.price || item.price}</span>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div
+                              onClick={() => handleStartInlinePriceEdit(item)}
+                              title="Click to quickly edit price"
                               style={{
-                                width: 58,
-                                padding: "3px 6px",
-                                borderRadius: 3,
-                                border: "1.5px solid var(--color-ink)",
-                                fontSize: 14,
-                                fontWeight: 700,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                cursor: "pointer",
+                                padding: "3px 8px",
+                                borderRadius: 4,
+                                border: "1px solid transparent",
+                                transition: "all 0.15s"
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = "#F5EFEB";
+                                e.currentTarget.style.borderColor = "var(--color-border-frame)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = "transparent";
+                                e.currentTarget.style.borderColor = "transparent";
+                              }}
+                            >
+                              <span style={{
                                 fontFamily: "var(--font-serif)",
-                                outline: "none"
-                              }}
-                            />
-                            <button
-                              onClick={() => handleSaveInlinePrice(item.id)}
-                              disabled={isSavingPrice}
-                              title="Save price"
-                              style={{
-                                background: "var(--color-ink)",
-                                color: "#fff",
-                                border: "none",
-                                borderRadius: 3,
-                                padding: "4px",
-                                cursor: "pointer",
-                                display: "inline-flex",
-                                alignItems: "center"
-                              }}
-                            >
-                              <Check size={13} />
-                            </button>
-                            <button
-                              onClick={() => setEditingPriceId(null)}
-                              title="Cancel"
-                              style={{
-                                background: "#fee2e2",
-                                color: "#dc2626",
-                                border: "none",
-                                borderRadius: 3,
-                                padding: "4px",
-                                cursor: "pointer",
-                                display: "inline-flex",
-                                alignItems: "center"
-                              }}
-                            >
-                              <X size={13} />
-                            </button>
-                          </div>
-                        ) : (
-                          <div
-                            onClick={() => handleStartInlinePriceEdit(item)}
-                            title="Click to quickly edit price"
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 6,
-                              cursor: "pointer",
-                              padding: "3px 8px",
-                              borderRadius: 4,
-                              border: "1px solid transparent",
-                              transition: "all 0.15s"
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = "#F5EFEB";
-                              e.currentTarget.style.borderColor = "var(--color-border-frame)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = "transparent";
-                              e.currentTarget.style.borderColor = "transparent";
-                            }}
-                          >
-                            <span style={{
-                              fontFamily: "var(--font-serif)",
-                              fontSize: 16,
-                              fontWeight: 700,
-                              color: "var(--color-ink)"
-                            }}>
-                              Rs.{item.price}
-                            </span>
-                            <Edit3 size={12} style={{ color: "var(--color-bronze)", opacity: 0.7 }} />
-                          </div>
-                        )}
+                                fontSize: 16,
+                                fontWeight: 700,
+                                color: "var(--color-ink)"
+                              }}>
+                                Rs.{item.price}
+                              </span>
+                              <Edit3 size={12} style={{ color: "var(--color-bronze)", opacity: 0.7 }} />
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Stock Toggle */}
@@ -935,7 +1148,7 @@ export default function MenuManager({ menuItems }) {
                 />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: formData.hasPortions ? "1fr" : "1fr 1fr", gap: 12 }}>
                 <div>
                   <label style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, display: "block", marginBottom: 4 }}>
                     Category *
@@ -963,30 +1176,133 @@ export default function MenuManager({ menuItems }) {
                   </select>
                 </div>
 
-                <div>
-                  <label style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, display: "block", marginBottom: 4 }}>
-                    Price (Rs.) *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    placeholder="139"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                {!formData.hasPortions && (
+                  <div>
+                    <label style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, display: "block", marginBottom: 4 }}>
+                      Price (Rs.) *
+                    </label>
+                    <input
+                      type="number"
+                      required={!formData.hasPortions}
+                      min="1"
+                      placeholder="139"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                      style={{
+                        width: "100%",
+                        boxSizing: "border-box",
+                        padding: "8px 12px",
+                        borderRadius: 3,
+                        border: "1px solid var(--color-border-frame)",
+                        fontFamily: "var(--font-serif)",
+                        fontSize: 15,
+                        outline: "none",
+                        backgroundColor: "#fff"
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Portion Sizes (Half & Full) Option Card */}
+              <div style={{
+                padding: "12px 14px",
+                backgroundColor: formData.hasPortions ? "#f0fdf4" : "#FAF7F2",
+                border: formData.hasPortions ? "1.5px solid #86efac" : "1px solid var(--color-border-frame)",
+                borderRadius: 4,
+                transition: "all 0.18s ease"
+              }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <div>
+                    <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, color: "var(--color-ink)", display: "flex", alignItems: "center", gap: 6 }}>
+                      <span>Portion Sizes (Half & Full)</span>
+                      {formData.hasPortions && (
+                        <span style={{ fontSize: 10.5, fontWeight: 800, backgroundColor: "#15803d", color: "#fff", padding: "1px 6px", borderRadius: "var(--radius-pill)" }}>
+                          ENABLED
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11.5, fontStyle: "italic", color: "var(--color-bronze)", marginTop: 2 }}>
+                      Enable separate Half plate and Full plate pricing for this dish
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, hasPortions: !formData.hasPortions })}
                     style={{
-                      width: "100%",
-                      boxSizing: "border-box",
-                      padding: "8px 12px",
-                      borderRadius: 3,
-                      border: "1px solid var(--color-border-frame)",
+                      padding: "5px 12px",
+                      borderRadius: "var(--radius-pill)",
                       fontFamily: "var(--font-serif)",
-                      fontSize: 15,
-                      outline: "none",
-                      backgroundColor: "#fff"
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      backgroundColor: formData.hasPortions ? "#15803d" : "#fff",
+                      color: formData.hasPortions ? "#fff" : "var(--color-ink)",
+                      border: formData.hasPortions ? "none" : "1px solid var(--color-border-frame)",
+                      boxShadow: "var(--shadow-sm)"
                     }}
-                  />
+                  >
+                    {formData.hasPortions ? "✓ Half & Full On" : "+ Enable Half / Full"}
+                  </button>
                 </div>
+
+                {/* If Half & Full enabled: show Half and Full price inputs */}
+                {formData.hasPortions && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12, paddingTop: 10, borderTop: "1px dashed #86efac" }}>
+                    <div>
+                      <label style={{ fontFamily: "var(--font-serif)", fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4, color: "#166534" }}>
+                        Half Portion Price (₹) *
+                      </label>
+                      <input
+                        type="number"
+                        required={formData.hasPortions}
+                        min="1"
+                        placeholder="e.g. 130"
+                        value={formData.halfPrice}
+                        onChange={(e) => setFormData({ ...formData, halfPrice: e.target.value })}
+                        style={{
+                          width: "100%",
+                          boxSizing: "border-box",
+                          padding: "8px 12px",
+                          borderRadius: 3,
+                          border: "1.5px solid #22c55e",
+                          fontFamily: "var(--font-serif)",
+                          fontSize: 15,
+                          fontWeight: 700,
+                          outline: "none",
+                          backgroundColor: "#fff"
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ fontFamily: "var(--font-serif)", fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4, color: "#166534" }}>
+                        Full Portion Price (₹) *
+                      </label>
+                      <input
+                        type="number"
+                        required={formData.hasPortions}
+                        min="1"
+                        placeholder="e.g. 210"
+                        value={formData.fullPrice}
+                        onChange={(e) => setFormData({ ...formData, fullPrice: e.target.value })}
+                        style={{
+                          width: "100%",
+                          boxSizing: "border-box",
+                          padding: "8px 12px",
+                          borderRadius: 3,
+                          border: "1.5px solid #22c55e",
+                          fontFamily: "var(--font-serif)",
+                          fontSize: 15,
+                          fontWeight: 700,
+                          outline: "none",
+                          backgroundColor: "#fff"
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Conditional Input for New Category */}

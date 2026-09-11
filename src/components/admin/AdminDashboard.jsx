@@ -111,6 +111,13 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
   const [notifPermission, setNotifPermission] = useState(getNotificationPermission());
   const [canInstallPwa, setCanInstallPwa] = useState(false);
   const [isScreenAwake, setIsScreenAwake] = useState(false);
+  const [isAlreadyInstalled, setIsAlreadyInstalled] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return (
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true
+    );
+  });
 
   // Subscribe to PWA install prompt availability
   useEffect(() => {
@@ -174,7 +181,19 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
   };
 
   const handleInstallApp = async () => {
-    await promptPwaInstall();
+    if (canInstallPwa) {
+      const accepted = await promptPwaInstall();
+      if (accepted) {
+        setIsAlreadyInstalled(true);
+      }
+    } else {
+      alert(
+        "To install Two Hearts Cafe on your device:\n\n" +
+        "• On Android/Chrome: Tap the 3 dots menu (⋮) at top right and select 'Install app' or 'Add to Home screen'.\n" +
+        "• On iPhone/iPad (Safari): Tap the Share button (⬆) and select 'Add to Home Screen'.\n" +
+        "• On PC/Mac: Click the Install icon (⊕) in your browser address bar."
+      );
+    }
   };
 
   // Helper to distinguish online delivery/pickup orders from dine-in QR table orders
@@ -468,6 +487,32 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
             <Sun size={13} />
             <span>{isScreenAwake ? "Screen Awake: ON" : "Keep Screen Awake"}</span>
           </button>
+
+          {/* PWA Install Button */}
+          {!isAlreadyInstalled && (
+            <button
+              onClick={handleInstallApp}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "5px 14px",
+                borderRadius: "var(--radius-pill)",
+                backgroundColor: "var(--color-ink)",
+                color: "#FAF7F2",
+                border: "none",
+                fontFamily: "var(--font-serif)",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                boxShadow: "var(--shadow-sm)"
+              }}
+              title="Install Two Hearts Cafe as an app on your device"
+            >
+              <Smartphone size={13} />
+              <span>Install App</span>
+            </button>
+          )}
         </div>
       </div>
 

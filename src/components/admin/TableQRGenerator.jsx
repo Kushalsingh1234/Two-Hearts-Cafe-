@@ -9,9 +9,7 @@ export default function TableQRGenerator() {
   const [selectedTable, setSelectedTable] = useState(5);
   const [viewMode, setViewMode] = useState("single"); // 'single' | 'grid'
 
-  const defaultDomain = window.location.origin.includes("localhost")
-    ? "https://twoheartscafe.in"
-    : window.location.origin;
+  const defaultDomain = "https://twoheartscafe.in";
 
   const [domainUrl, setDomainUrl] = useState(defaultDomain);
 

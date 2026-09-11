@@ -2,6 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Canonical Domain Redirect: ensure QR scans & customers always run on official twoheartscafe.in domain for Razorpay & PWA -->
+    <script>
+      (function() {
+        var h = window.location.hostname;
+        if (h && (h.endsWith('.vercel.app') || (h.includes('vercel.app') && !h.includes('localhost')))) {
+          window.location.replace('https://twoheartscafe.in' + window.location.pathname + window.location.search + window.location.hash);
+        }
+      })();
+    </script>
     <!-- Favicons & App Icons for Google Search & Browsers -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="48x48" href="/images/pwa/favicon-48.png" />

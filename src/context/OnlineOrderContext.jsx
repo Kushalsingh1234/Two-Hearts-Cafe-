@@ -178,6 +178,8 @@ export function OnlineOrderProvider({ children }) {
           image: item.image || "",
           isSpecial: Boolean(item.isSpecial),
           description: item.description || "",
+          portion: item.portion || "",
+          baseDishId: item.baseDishId || item.id,
           quantity: 1,
           specialInstructions: ""
         }

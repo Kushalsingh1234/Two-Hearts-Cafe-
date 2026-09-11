@@ -82,7 +82,7 @@ export const subscribeMenuItems = (onSuccess, onError) => {
     const existingIds = new Set(localMenu.map((i) => i.id));
     const merged = localMenu.map((item) => {
       const seed = seedMap.get(item.id);
-      return seed ? { ...seed, ...item } : item;
+      return seed ? { ...seed, ...item, portions: seed.portions || item.portions, options: seed.options || item.options } : item;
     });
     for (const s of INITIAL_MENU_ITEMS) {
       if (!existingIds.has(s.id)) merged.push(s);
@@ -104,7 +104,7 @@ export const subscribeMenuItems = (onSuccess, onError) => {
           const existingIds = new Set(localMenu.map((i) => i.id));
           const merged = localMenu.map((item) => {
             const seed = seedMap.get(item.id);
-            return seed ? { ...seed, ...item } : item;
+            return seed ? { ...seed, ...item, portions: seed.portions || item.portions, options: seed.options || item.options } : item;
           });
           for (const s of INITIAL_MENU_ITEMS) {
             if (!existingIds.has(s.id)) merged.push(s);
@@ -119,6 +119,8 @@ export const subscribeMenuItems = (onSuccess, onError) => {
             return {
               ...seed,
               ...docData,
+              portions: seed.portions || docData.portions,
+              options: seed.options || docData.options,
               id: docSnap.id
             };
           });
@@ -140,7 +142,7 @@ export const subscribeMenuItems = (onSuccess, onError) => {
         const existingIds = new Set(localMenu.map((i) => i.id));
         const merged = localMenu.map((item) => {
           const seed = seedMap.get(item.id);
-          return seed ? { ...seed, ...item } : item;
+          return seed ? { ...seed, ...item, portions: seed.portions || item.portions, options: seed.options || item.options } : item;
         });
         for (const s of INITIAL_MENU_ITEMS) {
           if (!existingIds.has(s.id)) merged.push(s);
@@ -161,7 +163,7 @@ export const subscribeMenuItems = (onSuccess, onError) => {
     const existingIds = new Set(localMenu.map((i) => i.id));
     const merged = localMenu.map((item) => {
       const seed = seedMap.get(item.id);
-      return seed ? { ...seed, ...item } : item;
+      return seed ? { ...seed, ...item, portions: seed.portions || item.portions, options: seed.options || item.options } : item;
     });
     for (const s of INITIAL_MENU_ITEMS) {
       if (!existingIds.has(s.id)) merged.push(s);

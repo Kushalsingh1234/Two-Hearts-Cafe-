@@ -4,12 +4,14 @@ import { Plus, Minus, MessageSquare, Star } from "lucide-react";
 export default function MenuItemCard({
   item,
   cartQuantity,
+  cartItems = [],
   onAddToCart,
   onUpdateQty
 }) {
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [customNote, setCustomNote] = useState("");
   const isOutOfStock = item.isAvailable === false;
+  const hasPortions = Boolean(item.portions && item.portions.length > 0);
 
   const handleAdd = () => {
     if (isOutOfStock) return;
@@ -126,20 +128,23 @@ export default function MenuItemCard({
             </p>
           )}
 
-          {/* Price */}
-          <div style={{
-            fontFamily: "var(--font-serif)",
-            fontSize: 15,
-            fontWeight: 700,
-            color: isOutOfStock ? "#71717a" : "var(--color-ink)",
-            marginTop: 6
-          }}>
-            Rs.{item.price}
-          </div>
+          {/* Standard Price (only if NOT multi-portion) */}
+          {!hasPortions && (
+            <div style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: 15,
+              fontWeight: 700,
+              color: isOutOfStock ? "#71717a" : "var(--color-ink)",
+              marginTop: 6
+            }}>
+              Rs.{item.price}
+            </div>
+          )}
         </div>
 
-        {/* Action Button on the right */}
-        <div style={{ flexShrink: 0, marginTop: 2 }}>
+        {/* Action Button on the right (only if NOT multi-portion) */}
+        {!hasPortions && (
+          <div style={{ flexShrink: 0, marginTop: 2 }}>
           {isOutOfStock ? (
             <button
               type="button"
@@ -223,11 +228,158 @@ export default function MenuItemCard({
               <span>Add</span>
             </button>
           )}
-        </div>
+          </div>
+        )}
       </div>
 
+      {/* Portion Options (Half & Full) */}
+      {hasPortions && (
+        <div style={{
+          marginTop: 10,
+          paddingTop: 8,
+          borderTop: isOutOfStock ? "1px solid #e4e4e7" : "1px solid var(--border-color)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 6
+        }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{
+              fontSize: 11,
+              fontFamily: "var(--font-serif)",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: 0.8,
+              color: "var(--color-bronze)"
+            }}>
+              Portion Options
+            </span>
+            <span style={{
+              fontSize: 10.5,
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              color: "var(--color-ink-soft)"
+            }}>
+              Choose Half or Full
+            </span>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {item.portions.map((portion) => {
+              const portionId = `${item.id}_${portion.id}`;
+              const pInCart = cartItems ? cartItems.find((c) => c.id === portionId) : null;
+              const pQty = pInCart ? pInCart.quantity : 0;
+              const isHalf = portion.id === "half";
+
+              return (
+                <div
+                  key={portion.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "6px 8px",
+                    backgroundColor: pQty > 0 ? "rgba(82, 162, 111, 0.08)" : "#FAFAFA",
+                    border: pQty > 0 ? "1.5px solid rgba(82, 162, 111, 0.5)" : "1px solid var(--border-color)",
+                    borderRadius: "var(--radius-sm)",
+                    gap: 6
+                  }}
+                >
+                  <div>
+                    <div style={{
+                      fontSize: 11,
+                      fontFamily: "var(--font-serif)",
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      color: isHalf ? "#6B21A8" : "#92400E"
+                    }}>
+                      {portion.label}
+                    </div>
+                    <div style={{
+                      fontSize: 14,
+                      fontFamily: "var(--font-serif)",
+                      fontWeight: 700,
+                      color: isOutOfStock ? "#71717a" : "var(--color-ink)"
+                    }}>
+                      Rs.{portion.price}
+                    </div>
+                  </div>
+
+                  {isOutOfStock ? (
+                    <span style={{ fontSize: 10, color: "#71717a" }}>N/A</span>
+                  ) : pQty > 0 ? (
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      border: "1px solid var(--color-ink)",
+                      backgroundColor: "#fff",
+                      borderRadius: "var(--radius-pill)",
+                      padding: "2px 5px"
+                    }}>
+                      <button
+                        type="button"
+                        onClick={() => onUpdateQty(portionId, pQty - 1)}
+                        style={{ color: "var(--color-ink)", display: "flex", alignItems: "center", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                      >
+                        <Minus size={11} />
+                      </button>
+                      <span style={{
+                        fontFamily: "var(--font-serif)",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        minWidth: 14,
+                        textAlign: "center"
+                      }}>
+                        {pQty}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onUpdateQty(portionId, pQty + 1)}
+                        style={{ color: "var(--color-ink)", display: "flex", alignItems: "center", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                      >
+                        <Plus size={11} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onAddToCart({
+                        ...item,
+                        id: portionId,
+                        name: `${item.name} (${portion.label})`,
+                        price: portion.price,
+                        portion: portion.label,
+                        baseDishId: item.id,
+                        note: customNote.trim()
+                      })}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 3,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        fontFamily: "var(--font-serif)",
+                        color: "var(--color-ink)",
+                        border: "1.2px solid var(--color-ink)",
+                        backgroundColor: "#fff",
+                        borderRadius: "var(--radius-pill)",
+                        padding: "3px 8px",
+                        cursor: "pointer"
+                      }}
+                    >
+                      <Plus size={10} />
+                      <span>ADD</span>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Optional Note for kitchen */}
-      {cartQuantity > 0 && (
+      {(cartQuantity > 0 || (cartItems && cartItems.some((c) => c.baseDishId === item.id))) && (
         <div style={{ marginTop: 8, paddingTop: 6, borderTop: "1px dashed var(--border-color)" }}>
           {!showNoteInput ? (
             <button

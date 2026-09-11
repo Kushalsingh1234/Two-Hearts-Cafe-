@@ -187,6 +187,7 @@ export const getDishPhoto = (dish) => {
   if (!dish) return "/images/dishes/penne_arabiata.jpg";
   if (dish.image) return dish.image;
   if (dish.id && DISH_PHOTOS[dish.id]) return DISH_PHOTOS[dish.id];
+  if (dish.baseDishId && DISH_PHOTOS[dish.baseDishId]) return DISH_PHOTOS[dish.baseDishId];
 
   const nameKey = (dish.name || "").toLowerCase().trim();
   if (DISH_PHOTOS_BY_NAME[nameKey]) return DISH_PHOTOS_BY_NAME[nameKey];

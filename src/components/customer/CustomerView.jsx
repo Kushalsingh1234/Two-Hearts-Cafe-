@@ -99,7 +99,7 @@ export default function CustomerView({
   // Synchronize stock status with latest menu items
   const enrichedCartItems = useMemo(() => {
     return cartItems.map((ci) => {
-      const match = menuItems.find((m) => m.id === ci.id);
+      const match = menuItems.find((m) => m.id === ci.id || m.id === ci.baseDishId);
       return {
         ...ci,
         isAvailable: match ? match.isAvailable !== false : true
@@ -130,7 +130,9 @@ export default function CustomerView({
           name: itemWithNote.name,
           price: itemWithNote.price,
           quantity: itemWithNote.quantity || 1,
-          note: itemWithNote.note || ""
+          note: itemWithNote.note || "",
+          portion: itemWithNote.portion || "",
+          baseDishId: itemWithNote.baseDishId || itemWithNote.id
         }
       ]);
     }
@@ -373,6 +375,7 @@ export default function CustomerView({
                         key={item.id}
                         item={item}
                         cartQuantity={inCart ? inCart.quantity : 0}
+                        cartItems={cartItems}
                         onAddToCart={handleAddToCart}
                         onUpdateQty={handleUpdateQty}
                       />
@@ -424,6 +427,7 @@ export default function CustomerView({
                   key={item.id}
                   item={item}
                   cartQuantity={inCart ? inCart.quantity : 0}
+                  cartItems={cartItems}
                   onAddToCart={handleAddToCart}
                   onUpdateQty={handleUpdateQty}
                 />

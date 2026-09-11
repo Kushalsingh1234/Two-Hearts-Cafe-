@@ -776,6 +776,10 @@ export const INITIAL_MENU_ITEMS = [
     category: "desi",
     price: 139,
     description: "Yellow lentils tempered with fragrant garlic, cumin seeds, tomatoes, and dry red chillies. (Half: ₹139 / Full: ₹199)",
+    portions: [
+      { id: "half", label: "Half", price: 139 },
+      { id: "full", label: "Full", price: 199 }
+    ],
     options: [
       {
         name: "Portion Size",
@@ -794,6 +798,10 @@ export const INITIAL_MENU_ITEMS = [
     category: "desi",
     price: 169,
     description: "Slow-cooked black urad dal simmered overnight with cream, butter, and mild spices. (Half: ₹169 / Full: ₹239)",
+    portions: [
+      { id: "half", label: "Half", price: 169 },
+      { id: "full", label: "Full", price: 239 }
+    ],
     options: [
       {
         name: "Portion Size",
@@ -813,6 +821,10 @@ export const INITIAL_MENU_ITEMS = [
     category: "desi",
     price: 169,
     description: "Tender paneer cubes and sweet green peas simmered in homestyle spiced onion tomato gravy. (Half: ₹169 / Full: ₹239)",
+    portions: [
+      { id: "half", label: "Half", price: 169 },
+      { id: "full", label: "Full", price: 239 }
+    ],
     options: [
       {
         name: "Portion Size",
@@ -831,6 +843,10 @@ export const INITIAL_MENU_ITEMS = [
     category: "desi",
     price: 159,
     description: "Royal cottage cheese simmered in a velvety cashew, melon seed, and saffron-scented gravy. (Half: ₹159 / Full: ₹249)",
+    portions: [
+      { id: "half", label: "Half", price: 159 },
+      { id: "full", label: "Full", price: 249 }
+    ],
     options: [
       {
         name: "Portion Size",
@@ -849,6 +865,10 @@ export const INITIAL_MENU_ITEMS = [
     category: "desi",
     price: 169,
     description: "Paneer cubes tossed with crunchy capsicum, onions, and freshly pounded kadhai spices. (Half: ₹169 / Full: ₹249)",
+    portions: [
+      { id: "half", label: "Half", price: 169 },
+      { id: "full", label: "Full", price: 249 }
+    ],
     options: [
       {
         name: "Portion Size",
@@ -867,6 +887,10 @@ export const INITIAL_MENU_ITEMS = [
     category: "desi",
     price: 189,
     description: "Rich buttery tomato makhani gravy infused with kasuri methi and soft paneer chunks. (Half: ₹189 / Full: ₹279)",
+    portions: [
+      { id: "half", label: "Half", price: 189 },
+      { id: "full", label: "Full", price: 279 }
+    ],
     options: [
       {
         name: "Portion Size",
@@ -886,6 +910,10 @@ export const INITIAL_MENU_ITEMS = [
     category: "desi",
     price: 179,
     description: "Luscious gravy enriched with grated paneer, fresh cream, onions, and aromatic herbs. (Half: ₹179 / Full: ₹279)",
+    portions: [
+      { id: "half", label: "Half", price: 179 },
+      { id: "full", label: "Full", price: 279 }
+    ],
     options: [
       {
         name: "Portion Size",
@@ -904,6 +932,10 @@ export const INITIAL_MENU_ITEMS = [
     category: "desi",
     price: 169,
     description: "Paneer cooked with twice the quantity of sautéed onions in a robust semi-dry masala. (Half: ₹169 / Full: ₹249)",
+    portions: [
+      { id: "half", label: "Half", price: 169 },
+      { id: "full", label: "Full", price: 249 }
+    ],
     options: [
       {
         name: "Portion Size",
@@ -922,6 +954,10 @@ export const INITIAL_MENU_ITEMS = [
     category: "desi",
     price: 169,
     description: "Seasonal cauliflower, carrots, beans, peas, and paneer cooked in aromatic North Indian spices. (Half: ₹169 / Full: ₹239)",
+    portions: [
+      { id: "half", label: "Half", price: 169 },
+      { id: "full", label: "Full", price: 239 }
+    ],
     options: [
       {
         name: "Portion Size",

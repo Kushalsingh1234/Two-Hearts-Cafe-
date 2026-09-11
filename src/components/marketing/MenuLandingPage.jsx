@@ -701,131 +701,294 @@ export default function MenuLandingPage({
                         </p>
                       </div>
 
-                      {/* Pricing + Add Button / Stepper */}
-                      <div style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        paddingTop: 10,
-                        borderTop: item.isAvailable === false ? "1px solid #e4e4e7" : "1px solid var(--border-color)"
-                      }}>
-                        <div style={{ display: "flex", flexDirection: "column" }}>
-                          <span style={{
-                            fontFamily: "var(--font-serif)",
-                            fontSize: 18,
-                            fontWeight: 700,
-                            color: item.isAvailable === false ? "#71717a" : "var(--color-ink)"
-                          }}>
-                            ₹{item.price}
-                          </span>
-                        </div>
+                      {/* Portion Options (Half & Full) vs Standard Pricing */}
+                      {item.portions && item.portions.length > 0 ? (
+                        <div style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8,
+                          width: "100%",
+                          paddingTop: 12,
+                          borderTop: item.isAvailable === false ? "1px solid #e4e4e7" : "1px solid var(--border-color)"
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <span style={{
+                              fontSize: 11,
+                              fontFamily: "var(--font-serif)",
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              letterSpacing: 0.8,
+                              color: "var(--color-bronze)"
+                            }}>
+                              Choose Portion
+                            </span>
+                            <span style={{
+                              fontSize: 11,
+                              fontFamily: "var(--font-serif)",
+                              fontStyle: "italic",
+                              color: "var(--color-ink-soft)"
+                            }}>
+                              Half / Full
+                            </span>
+                          </div>
 
-                        {/* If Out of stock: disabled unselectable button; If 0: Pill "+ ADD" Button, If >= 1: Stepper */}
-                        {item.isAvailable === false ? (
-                          <button
-                            type="button"
-                            disabled
-                            aria-disabled="true"
-                            title="Currently out of stock and cannot be selected"
-                            style={{
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            {item.portions.map((portion) => {
+                              const portionItemId = `${item.id}_${portion.id}`;
+                              const portionQty = getItemQuantity(portionItemId);
+                              const isHalf = portion.id === "half";
+
+                              return (
+                                <div
+                                  key={portion.id}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    padding: "6px 12px",
+                                    borderRadius: 8,
+                                    backgroundColor: portionQty > 0 ? "rgba(82, 162, 111, 0.08)" : "#FDFBF7",
+                                    border: portionQty > 0 ? "1.5px solid rgba(82, 162, 111, 0.4)" : "1px solid var(--border-color)",
+                                    transition: "all 0.2s ease"
+                                  }}
+                                >
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <span style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      padding: "2px 8px",
+                                      borderRadius: 4,
+                                      fontSize: 10.5,
+                                      fontFamily: "var(--font-serif)",
+                                      fontWeight: 700,
+                                      letterSpacing: 0.5,
+                                      textTransform: "uppercase",
+                                      backgroundColor: isHalf ? "#F3E8FF" : "#FEF3C7",
+                                      color: isHalf ? "#6B21A8" : "#92400E"
+                                    }}>
+                                      {portion.label}
+                                    </span>
+                                    <span style={{
+                                      fontFamily: "var(--font-serif)",
+                                      fontSize: 16,
+                                      fontWeight: 700,
+                                      color: item.isAvailable === false ? "#71717a" : "var(--color-ink)"
+                                    }}>
+                                      ₹{portion.price}
+                                    </span>
+                                  </div>
+
+                                  {item.isAvailable === false ? (
+                                    <span style={{ fontSize: 11, color: "#71717a", fontWeight: 600 }}>Out of Stock</span>
+                                  ) : portionQty === 0 ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        addToCart({
+                                          ...item,
+                                          id: portionItemId,
+                                          name: `${item.name} (${portion.label})`,
+                                          price: portion.price,
+                                          portion: portion.label,
+                                          baseDishId: item.id
+                                        });
+                                      }}
+                                      className="btn-pill-black touch-target-44"
+                                      style={{
+                                        padding: "4px 14px",
+                                        minHeight: 34,
+                                        fontSize: 11.5,
+                                        borderRadius: "var(--radius-pill)"
+                                      }}
+                                    >
+                                      <span>+ ADD {portion.label.toUpperCase()}</span>
+                                    </button>
+                                  ) : (
+                                    <div style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: 6,
+                                      border: "1.5px solid var(--color-ink)",
+                                      borderRadius: "var(--radius-pill)",
+                                      backgroundColor: "#FFFFFF",
+                                      padding: "2px 8px"
+                                    }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => updateQuantity(portionItemId, portionQty - 1)}
+                                        style={{
+                                          border: "none",
+                                          background: "none",
+                                          cursor: "pointer",
+                                          padding: "2px",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          color: "var(--color-ink)"
+                                        }}
+                                        title="Decrease"
+                                      >
+                                        <Minus size={12} />
+                                      </button>
+                                      <span style={{
+                                        fontFamily: "var(--font-serif)",
+                                        fontSize: 13,
+                                        fontWeight: 700,
+                                        minWidth: 16,
+                                        textAlign: "center"
+                                      }}>
+                                        {portionQty}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => updateQuantity(portionItemId, portionQty + 1)}
+                                        style={{
+                                          border: "none",
+                                          background: "none",
+                                          cursor: "pointer",
+                                          padding: "2px",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          color: "var(--color-ink)"
+                                        }}
+                                        title="Increase"
+                                      >
+                                        <Plus size={12} />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        /* Pricing + Add Button / Stepper */
+                        <div style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          paddingTop: 10,
+                          borderTop: item.isAvailable === false ? "1px solid #e4e4e7" : "1px solid var(--border-color)"
+                        }}>
+                          <div style={{ display: "flex", flexDirection: "column" }}>
+                            <span style={{
+                              fontFamily: "var(--font-serif)",
+                              fontSize: 18,
+                              fontWeight: 700,
+                              color: item.isAvailable === false ? "#71717a" : "var(--color-ink)"
+                            }}>
+                              ₹{item.price}
+                            </span>
+                          </div>
+
+                          {/* If Out of stock: disabled unselectable button; If 0: Pill "+ ADD" Button, If >= 1: Stepper */}
+                          {item.isAvailable === false ? (
+                            <button
+                              type="button"
+                              disabled
+                              aria-disabled="true"
+                              title="Currently out of stock and cannot be selected"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 5,
+                                padding: "8px 16px",
+                                minHeight: 44,
+                                fontSize: 11.5,
+                                fontFamily: "var(--font-serif)",
+                                fontWeight: 700,
+                                letterSpacing: 0.5,
+                                textTransform: "uppercase",
+                                color: "#71717a",
+                                backgroundColor: "#e4e4e7",
+                                border: "1px solid #d4d4d8",
+                                borderRadius: "var(--radius-pill)",
+                                cursor: "not-allowed",
+                                userSelect: "none"
+                              }}
+                            >
+                              <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#71717a" }} />
+                              <span>Out of Stock</span>
+                            </button>
+                          ) : qty === 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => handleAddItem(item)}
+                              className="btn-pill-black touch-target-44"
+                              style={{
+                                padding: "8px 20px",
+                                minHeight: 44,
+                                fontSize: 12,
+                                borderRadius: "var(--radius-pill)"
+                              }}
+                            >
+                              <span>+ ADD</span>
+                            </button>
+                          ) : (
+                            <div style={{
                               display: "inline-flex",
                               alignItems: "center",
-                              gap: 5,
-                              padding: "8px 16px",
-                              minHeight: 44,
-                              fontSize: 11.5,
-                              fontFamily: "var(--font-serif)",
-                              fontWeight: 700,
-                              letterSpacing: 0.5,
-                              textTransform: "uppercase",
-                              color: "#71717a",
-                              backgroundColor: "#e4e4e7",
-                              border: "1px solid #d4d4d8",
+                              gap: 8,
+                              backgroundColor: "var(--bg-app)",
+                              border: "1.5px solid var(--color-ink)",
                               borderRadius: "var(--radius-pill)",
-                              cursor: "not-allowed",
-                              userSelect: "none"
-                            }}
-                          >
-                            <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#71717a" }} />
-                            <span>Out of Stock</span>
-                          </button>
-                        ) : qty === 0 ? (
-                          <button
-                            type="button"
-                            onClick={() => handleAddItem(item)}
-                            className="btn-pill-black touch-target-44"
-                            style={{
-                              padding: "8px 20px",
+                              padding: "4px 10px",
                               minHeight: 44,
-                              fontSize: 12,
-                              borderRadius: "var(--radius-pill)"
-                            }}
-                          >
-                            <span>+ ADD</span>
-                          </button>
-                        ) : (
-                          <div style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 8,
-                            backgroundColor: "var(--bg-app)",
-                            border: "1.5px solid var(--color-ink)",
-                            borderRadius: "var(--radius-pill)",
-                            padding: "4px 10px",
-                            minHeight: 44,
-                            transform: isBounced ? "scale(1.08)" : "scale(1)",
-                            transition: "transform 0.2s ease"
-                          }}>
-                            <button
-                              type="button"
-                              onClick={() => removeFromCart(item.id)}
-                              style={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: "50%",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                color: "var(--color-ink)",
-                                cursor: "pointer",
-                                backgroundColor: "#FFFFFF",
-                                border: "1px solid var(--border-color)"
-                              }}
-                              title="Decrease"
-                            >
-                              <Minus size={13} />
-                            </button>
-                            <span style={{
-                              fontSize: 14,
-                              fontWeight: 700,
-                              fontFamily: "var(--font-serif)",
-                              minWidth: 18,
-                              textAlign: "center"
+                              transform: isBounced ? "scale(1.08)" : "scale(1)",
+                              transition: "transform 0.2s ease"
                             }}>
-                              {qty}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => updateQuantity(item.id, qty + 1)}
-                              style={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: "50%",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                color: "var(--color-ink)",
-                                cursor: "pointer",
-                                backgroundColor: "#FFFFFF",
-                                border: "1px solid var(--border-color)"
-                              }}
-                              title="Increase"
-                            >
-                              <Plus size={13} />
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                              <button
+                                type="button"
+                                onClick={() => removeFromCart(item.id)}
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: "50%",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: "var(--color-ink)",
+                                  cursor: "pointer",
+                                  backgroundColor: "#FFFFFF",
+                                  border: "1px solid var(--border-color)"
+                                }}
+                                title="Decrease"
+                              >
+                                <Minus size={13} />
+                              </button>
+                              <span style={{
+                                fontSize: 14,
+                                fontWeight: 700,
+                                fontFamily: "var(--font-serif)",
+                                minWidth: 20,
+                                textAlign: "center",
+                                color: "var(--color-ink)"
+                              }}>
+                                {qty}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => addToCart(item)}
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: "50%",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: "var(--color-ink)",
+                                  cursor: "pointer",
+                                  backgroundColor: "#FFFFFF",
+                                  border: "1px solid var(--border-color)"
+                                }}
+                                title="Increase"
+                              >
+                                <Plus size={13} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

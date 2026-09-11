@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import confetti from "canvas-confetti";
 import {
@@ -10,11 +10,11 @@ import {
   Building2,
   Receipt,
   Star,
-  ArrowRight,
-  Loader2,
-  Sparkles
+  ShieldCheck,
+  Loader2
 } from "lucide-react";
 import { updateOrderPayment } from "../../firebase/services";
+import { launchRazorpayCheckout } from "../../services/razorpayService";
 
 export default function PaymentModal({
   isOpen,
@@ -31,6 +31,8 @@ export default function PaymentModal({
   const [showUtrInput, setShowUtrInput] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRazorpayLoading, setIsRazorpayLoading] = useState(false);
+  const [razorpayError, setRazorpayError] = useState(null);
   const [upiLaunched, setUpiLaunched] = useState(false);
   const [showReturnPrompt, setShowReturnPrompt] = useState(false);
   const [settledSuccess, setSettledSuccess] = useState(false);
@@ -38,8 +40,6 @@ export default function PaymentModal({
   const [qrMode, setQrMode] = useState("auto"); // 'auto' | 'standee'
 
   const upiId = "Q327979600@ybl";
-  // Exact parameters decoded from physical PhonePe standee:
-  // upi://pay?pa=Q327979600@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00
   const payeeName = "PhonePeMerchant";
   const amount = order.total || 0;
   const isDeliveryOrder = order.orderType === "delivery" || order.orderType === "pickup";
@@ -48,15 +48,14 @@ export default function PaymentModal({
     ? `Two Hearts ${orderLabel} ${order.orderNumber || (order.id ? order.id.slice(0, 6) : "101")}`
     : `Two Hearts Cafe T${order.tableNumber} ${order.orderNumber || (order.id ? order.id.slice(0, 6) : "101")}`;
 
-  // 1. Dynamic UPI links with exact registered merchant spec
+  // 1. Dynamic UPI links
   const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
   const phonepeUri = `phonepe://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
   const paytmUri = `paytmmp://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
 
-  // 2. Official Standee QR (100% exact copy of physical counter standee)
+  // 2. Official Standee QR
   const officialStandeeUri = `upi://pay?pa=Q327979600@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00`;
 
-  // Track when user taps any UPI app launcher link
   const handleLaunchUpi = () => {
     try {
       sessionStorage.setItem(
@@ -78,7 +77,79 @@ export default function PaymentModal({
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  // Core settlement logic
+  // 1. RAZORPAY STANDARD CHECKOUT: Automatic Bank-Verified Settlement
+  const handlePayWithRazorpay = async () => {
+    setIsRazorpayLoading(true);
+    setRazorpayError(null);
+    try {
+      await launchRazorpayCheckout({
+        order,
+        onSuccess: async (paymentResult) => {
+          const paidAt = new Date().toISOString();
+          if (order.id) {
+            await updateOrderPayment(order.id, {
+              paymentStatus: "paid_online",
+              paymentMethod: "razorpay_upi",
+              status: "settled",
+              settledAt: paidAt,
+              settledBy: "Razorpay Standard Checkout",
+              settledMethod: "razorpay",
+              upiId: "razorpay_gateway",
+              utr: paymentResult.paymentId,
+              paymentDetails: {
+                paymentId: paymentResult.paymentId,
+                orderId: paymentResult.orderId,
+                signature: paymentResult.signature,
+                verified: true,
+                paidAt
+              },
+              paidAt
+            });
+
+            try {
+              if (order.tableNumber) {
+                const raw = sessionStorage.getItem(`twohearts_table_${order.tableNumber}_session_orders`);
+                const curr = raw ? JSON.parse(raw) : [];
+                if (!curr.includes(order.id)) {
+                  sessionStorage.setItem(
+                    `twohearts_table_${order.tableNumber}_session_orders`,
+                    JSON.stringify([...curr, order.id])
+                  );
+                }
+                localStorage.setItem(`twohearts_table_${order.tableNumber}_last_settled_id`, order.id);
+              }
+            } catch {}
+
+            try {
+              confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
+            } catch {}
+
+            setSettledSuccess(true);
+            setConfirmedMessage(`Payment of Rs.${amount} verified by bank! Table #${order.tableNumber} bill is settled automatically.`);
+          } else {
+            setSettledSuccess(true);
+            setConfirmedMessage("Payment confirmed! Your order is being placed...");
+          }
+
+          if (onPaymentSuccess) onPaymentSuccess(order);
+        },
+        onFailure: (errMsg) => {
+          console.warn("Razorpay error:", errMsg);
+          setRazorpayError(typeof errMsg === "string" ? errMsg : "Payment was not completed");
+        },
+        onDismiss: () => {
+          console.log("Razorpay modal dismissed by user");
+        }
+      });
+    } catch (err) {
+      console.error("Razorpay initiation error:", err);
+      setRazorpayError(err.message || "Could not launch Razorpay. Please try again or use counter QR.");
+    } finally {
+      setIsRazorpayLoading(false);
+    }
+  };
+
+  // 2. Fallback Manual Standee Settlement
   const handleConfirmOnlinePayment = async (overrideUtr) => {
     setIsSubmitting(true);
     try {
@@ -86,7 +157,6 @@ export default function PaymentModal({
       const paidAt = new Date().toISOString();
 
       if (order.id) {
-        // Table QR order: update existing Firestore doc with payment confirmation & auto-settle
         await updateOrderPayment(order.id, {
           paymentStatus: "paid_online",
           paymentMethod: "upi",
@@ -99,7 +169,6 @@ export default function PaymentModal({
           paidAt
         });
 
-        // Ensure current browser session and local storage record this order as settled
         try {
           if (order.tableNumber) {
             const raw = sessionStorage.getItem(`twohearts_table_${order.tableNumber}_session_orders`);
@@ -123,14 +192,12 @@ export default function PaymentModal({
         } catch {}
 
         setSettledSuccess(true);
-        setConfirmedMessage(`Payment of Rs.${amount} verified! Your table bill has been settled automatically.`);
+        setConfirmedMessage(`Payment of Rs.${amount} confirmed! Your table bill has been settled.`);
       } else {
-        // Delivery checkout: no Firestore doc yet — parent's onPaymentSuccess creates the order.
         setSettledSuccess(true);
         setConfirmedMessage("Payment confirmed! Your order is being placed...");
       }
 
-      // Notify parent of success
       if (onPaymentSuccess) onPaymentSuccess(order);
     } catch (err) {
       console.error("Payment confirmation error:", err);
@@ -140,8 +207,7 @@ export default function PaymentModal({
     }
   };
 
-  // App return detection: when customer returns from PhonePe/Paytm,
-  // do NOT blindly auto-settle! Instead, prompt them to confirm if payment was completed.
+  // App return detection for standee links (prompts user explicitly, never auto-settles blindly)
   useEffect(() => {
     if (!isOpen || !order || settledSuccess) return;
 
@@ -293,8 +359,8 @@ export default function PaymentModal({
           </div>
         </div>
 
+        {/* SUCCESS VIEW */}
         {confirmedMessage || settledSuccess ? (
-          /* STATE 2: BILL SETTLED CONFIRMATION SCREEN */
           <div style={{
             padding: "26px 20px",
             textAlign: "center",
@@ -325,7 +391,7 @@ export default function PaymentModal({
                 color: "var(--color-ink)",
                 margin: "0 0 6px 0"
               }}>
-                Bill Settled Automatically!
+                Bill Settled Successfully!
               </h4>
               <p style={{
                 fontFamily: "var(--font-serif)",
@@ -415,9 +481,9 @@ export default function PaymentModal({
             </div>
           </div>
         ) : (
-          /* STATE 3: PAYMENT METHOD OPTIONS */
+          /* PAYMENT OPTIONS */
           <div style={{ padding: "16px 20px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 14 }}>
-            {/* Returning from UPI app confirmation prompt */}
+            {/* Standee return prompt if customer used standee link */}
             {showReturnPrompt && (
               <div style={{
                 backgroundColor: "#F0FDF4",
@@ -436,7 +502,7 @@ export default function PaymentModal({
                   fontWeight: 700,
                   color: "#166534"
                 }}>
-                  💳 Returning from UPI / PhonePe?
+                  💳 Returning from Standee UPI?
                 </div>
                 <p style={{
                   fontFamily: "var(--font-serif)",
@@ -525,7 +591,7 @@ export default function PaymentModal({
                 }}
               >
                 <Smartphone size={14} />
-                <span>Pay Online (UPI)</span>
+                <span>Pay Online (Instant)</span>
               </button>
 
               <button
@@ -556,102 +622,129 @@ export default function PaymentModal({
               </button>
             </div>
 
-            {/* TAB 1: PAY ONLINE (PhonePe Merchant UPI: Q327979600@ybl) */}
+            {/* TAB 1: PAY ONLINE */}
             {paymentType === "online" ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {/* 1-Click Launch Button for Mobile */}
-                <a
-                  href={upiUri}
-                  onClick={handleLaunchUpi}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                    padding: "13px 18px",
-                    borderRadius: "var(--radius-pill)",
-                    backgroundColor: "var(--color-bronze)",
-                    color: "#ffffff",
-                    fontFamily: "var(--font-serif)",
-                    fontSize: 14,
-                    fontWeight: 700,
-                    letterSpacing: 0.5,
-                    textTransform: "uppercase",
-                    textDecoration: "none",
-                    boxShadow: "var(--shadow-sm)",
-                    textAlign: "center"
-                  }}
-                >
-                  <Smartphone size={16} />
-                  <span>Open Any UPI App (Rs.{amount})</span>
-                </a>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {/* 1. PRIMARY HERO OPTION: RAZORPAY STANDARD GATEWAY (AUTO-SETTLES ON PIN) */}
+                <div style={{
+                  backgroundColor: "#FFFFFF",
+                  borderRadius: 8,
+                  border: "2px solid #16a34a",
+                  padding: "16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                  boxShadow: "0 4px 14px rgba(22, 163, 74, 0.15)"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <ShieldCheck size={18} color="#15803d" />
+                      <span style={{ fontFamily: "var(--font-serif)", fontSize: 14, fontWeight: 700, color: "var(--color-ink)" }}>
+                        Automated Bank Checkout
+                      </span>
+                    </div>
+                    <span style={{
+                      fontSize: 10.5,
+                      fontWeight: 800,
+                      textTransform: "uppercase",
+                      backgroundColor: "#DCFCE7",
+                      color: "#15803d",
+                      padding: "2px 8px",
+                      borderRadius: "var(--radius-pill)",
+                      letterSpacing: 0.5
+                    }}>
+                      Auto-Settles on PIN
+                    </span>
+                  </div>
 
-                {/* Direct App Launchers */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                  <a
-                    href={paytmUri}
-                    onClick={handleLaunchUpi}
+                  <p style={{ fontFamily: "var(--font-serif)", fontSize: 12.5, color: "var(--color-bronze)", margin: 0, lineHeight: 1.4 }}>
+                    Pay seamlessly with <strong>PhonePe, Google Pay, Paytm, Cards & Netbanking</strong>. Bank verifies payment instantly and closes your bill.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={handlePayWithRazorpay}
+                    disabled={isRazorpayLoading}
                     style={{
+                      width: "100%",
+                      padding: "13px 18px",
+                      borderRadius: "var(--radius-pill)",
+                      backgroundColor: "#16a34a",
+                      color: "#FFFFFF",
+                      border: "none",
+                      fontFamily: "var(--font-serif)",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      letterSpacing: 0.5,
+                      textTransform: "uppercase",
+                      cursor: isRazorpayLoading ? "not-allowed" : "pointer",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      padding: "9px 12px",
-                      borderRadius: "var(--radius-pill)",
-                      backgroundColor: "#00BAF2",
-                      color: "#FFFFFF",
-                      fontFamily: "var(--font-serif)",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      textDecoration: "none",
-                      textAlign: "center"
+                      gap: 8,
+                      boxShadow: "0 4px 12px rgba(22, 163, 74, 0.3)",
+                      transition: "all 0.15s"
                     }}
                   >
-                    Open in Paytm
-                  </a>
-                  <a
-                    href={phonepeUri}
-                    onClick={handleLaunchUpi}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "9px 12px",
-                      borderRadius: "var(--radius-pill)",
-                      backgroundColor: "#5f259f",
-                      color: "#FFFFFF",
-                      fontFamily: "var(--font-serif)",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      textDecoration: "none",
-                      textAlign: "center"
-                    }}
-                  >
-                    Open in PhonePe
-                  </a>
+                    {isRazorpayLoading ? (
+                      <>
+                        <Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }} />
+                        <span>Connecting Gateway...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Smartphone size={16} />
+                        <span>Pay Rs.{amount} via Razorpay</span>
+                      </>
+                    )}
+                  </button>
+
+                  {razorpayError && (
+                    <div style={{ fontSize: 11.5, color: "#b91c1c", backgroundColor: "#FEF2F2", padding: "6px 10px", borderRadius: 4, textAlign: "center" }}>
+                      {razorpayError}
+                    </div>
+                  )}
                 </div>
 
-                {/* Dynamic QR Code Card */}
+                {/* Divider */}
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  margin: "2px 0",
+                  color: "var(--color-bronze)",
+                  fontSize: 11,
+                  fontFamily: "var(--font-serif)",
+                  letterSpacing: 1,
+                  textTransform: "uppercase"
+                }}>
+                  <div style={{ flex: 1, height: 1, backgroundColor: "var(--color-border-frame)" }} />
+                  <span>Or Standee QR</span>
+                  <div style={{ flex: 1, height: 1, backgroundColor: "var(--color-border-frame)" }} />
+                </div>
+
+                {/* 2. SECONDARY OPTION: COUNTER STANDEE QR CODE */}
                 <div style={{
                   backgroundColor: "#fff",
                   borderRadius: 6,
                   border: "1.2px solid var(--color-border-frame)",
-                  padding: 14,
+                  padding: 12,
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
                   gap: 10
                 }}>
                   <div style={{ fontSize: 12, fontFamily: "var(--font-serif)", fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                    Scan QR to Pay Rs.{amount}
+                    Counter Standee QR (PhonePe)
                   </div>
 
-                  {/* Mode Selector: Auto-fill Amount vs Official Standee QR */}
+                  {/* Mode Selector */}
                   <div style={{ display: "flex", gap: 6, backgroundColor: "#FAF7F2", padding: 3, borderRadius: "var(--radius-pill)", border: "1px solid var(--color-border-frame)" }}>
                     <button
                       type="button"
                       onClick={() => setQrMode("auto")}
                       style={{
-                        padding: "4px 12px",
+                        padding: "3px 10px",
                         borderRadius: "var(--radius-pill)",
                         backgroundColor: qrMode === "auto" ? "var(--color-ink)" : "transparent",
                         color: qrMode === "auto" ? "#FFFFFF" : "var(--color-ink)",
@@ -668,7 +761,7 @@ export default function PaymentModal({
                       type="button"
                       onClick={() => setQrMode("standee")}
                       style={{
-                        padding: "4px 12px",
+                        padding: "3px 10px",
                         borderRadius: "var(--radius-pill)",
                         backgroundColor: qrMode === "standee" ? "var(--color-ink)" : "transparent",
                         color: qrMode === "standee" ? "#FFFFFF" : "var(--color-ink)",
@@ -679,40 +772,79 @@ export default function PaymentModal({
                         cursor: "pointer"
                       }}
                     >
-                      Official Standee QR
+                      Official Standee
                     </button>
                   </div>
 
                   <div style={{
-                    padding: 8,
+                    padding: 6,
                     backgroundColor: "#fff",
                     borderRadius: 4,
                     border: "1px solid var(--color-border-frame)"
                   }}>
                     <QRCodeSVG
                       value={qrMode === "standee" ? officialStandeeUri : upiUri}
-                      size={150}
+                      size={130}
                       level="H"
                       includeMargin={false}
                     />
                   </div>
-                  {qrMode === "standee" && (
-                    <div style={{ fontSize: 11, color: "var(--color-bronze)", fontStyle: "italic", textAlign: "center" }}>
-                      Works identically to scanning the counter standee • Enter Rs.{amount}
-                    </div>
-                  )}
 
-                  {/* Copy Pills for UPI ID & Mobile */}
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
+                  {/* Direct App Launchers */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, width: "100%" }}>
+                    <a
+                      href={phonepeUri}
+                      onClick={handleLaunchUpi}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "8px 12px",
+                        borderRadius: "var(--radius-pill)",
+                        backgroundColor: "#5f259f",
+                        color: "#FFFFFF",
+                        fontFamily: "var(--font-serif)",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        textDecoration: "none",
+                        textAlign: "center"
+                      }}
+                    >
+                      Open in PhonePe
+                    </a>
+                    <a
+                      href={paytmUri}
+                      onClick={handleLaunchUpi}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "8px 12px",
+                        borderRadius: "var(--radius-pill)",
+                        backgroundColor: "#00BAF2",
+                        color: "#FFFFFF",
+                        fontFamily: "var(--font-serif)",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        textDecoration: "none",
+                        textAlign: "center"
+                      }}
+                    >
+                      Open in Paytm
+                    </a>
+                  </div>
+
+                  {/* Copy Pills for UPI ID */}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
                     <div style={{
                       display: "flex",
                       alignItems: "center",
                       gap: 6,
                       backgroundColor: "#FAF7F2",
-                      padding: "5px 12px",
+                      padding: "4px 10px",
                       borderRadius: "var(--radius-pill)",
                       border: "1px solid var(--color-border-frame)",
-                      fontSize: 12,
+                      fontSize: 11.5,
                       fontFamily: "monospace"
                     }}>
                       <span>UPI: <strong>{upiId}</strong></span>
@@ -722,60 +854,13 @@ export default function PaymentModal({
                         style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--color-bronze)", display: "flex", alignItems: "center" }}
                         title="Copy UPI ID"
                       >
-                        {isCopied ? <Check size={13} color="#15803d" /> : <Copy size={13} />}
+                        {isCopied ? <Check size={12} color="#15803d" /> : <Copy size={12} />}
                       </button>
-                    </div>
-
-                    <div style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      backgroundColor: "#FAF7F2",
-                      padding: "5px 12px",
-                      borderRadius: "var(--radius-pill)",
-                      border: "1px solid var(--color-border-frame)",
-                      fontSize: 12,
-                      fontFamily: "var(--font-serif)",
-                      color: "#15803d",
-                      fontWeight: 600
-                    }}>
-                      <CheckCircle2 size={13} color="#15803d" />
-                      <span>PhonePe Verified Merchant</span>
                     </div>
                   </div>
                 </div>
 
-                {/* PROMINENT 1-TAP SETTLE BUTTON (For QR Scanners or Immediate Settlement) */}
-                <button
-                  type="button"
-                  onClick={() => handleConfirmOnlinePayment()}
-                  disabled={isSubmitting}
-                  className="animate-pulse-glow"
-                  style={{
-                    width: "100%",
-                    padding: "13px 18px",
-                    borderRadius: "var(--radius-pill)",
-                    backgroundColor: "#15803d",
-                    color: "#FFFFFF",
-                    border: "none",
-                    fontFamily: "var(--font-serif)",
-                    fontSize: 14,
-                    fontWeight: 700,
-                    letterSpacing: 0.5,
-                    textTransform: "uppercase",
-                    cursor: isSubmitting ? "not-allowed" : "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                    boxShadow: "0 4px 14px rgba(21, 128, 61, 0.35)"
-                  }}
-                >
-                  <CheckCircle2 size={18} />
-                  <span>{isSubmitting ? "Settling Bill..." : `✓ I Have Paid Rs.${amount} • Settle Bill`}</span>
-                </button>
-
-                {/* Optional UTR Toggle */}
+                {/* Optional Manual Settle for Standee Scanners */}
                 <div style={{ textAlign: "center" }}>
                   <button
                     type="button"
@@ -790,15 +875,15 @@ export default function PaymentModal({
                       cursor: "pointer"
                     }}
                   >
-                    {showUtrInput ? "Hide UTR reference" : "Have 12-digit UTR / UPI Ref? (Optional)"}
+                    {showUtrInput ? "Hide Standee Settlement" : "Scanned the Physical Standee? Confirm here"}
                   </button>
 
                   {showUtrInput && (
-                    <div style={{ marginTop: 8 }}>
+                    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
                       <input
                         type="text"
                         maxLength={16}
-                        placeholder="Enter 12-digit UTR number"
+                        placeholder="Enter 12-digit UTR (optional)"
                         value={utrNumber}
                         onChange={(e) => setUtrNumber(e.target.value)}
                         style={{
@@ -813,6 +898,25 @@ export default function PaymentModal({
                           textAlign: "center"
                         }}
                       />
+                      <button
+                        type="button"
+                        onClick={() => handleConfirmOnlinePayment()}
+                        disabled={isSubmitting}
+                        style={{
+                          width: "100%",
+                          padding: "10px 14px",
+                          borderRadius: "var(--radius-pill)",
+                          backgroundColor: "var(--color-ink)",
+                          color: "#FAF7F2",
+                          border: "none",
+                          fontFamily: "var(--font-serif)",
+                          fontSize: 13,
+                          fontWeight: 700,
+                          cursor: isSubmitting ? "not-allowed" : "pointer"
+                        }}
+                      >
+                        {isSubmitting ? "Settling..." : `Settle Bill (Paid Standee Rs.${amount})`}
+                      </button>
                     </div>
                   )}
                 </div>

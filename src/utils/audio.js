@@ -149,6 +149,45 @@ class AudioNotifier {
     }
   }
 
+  // Play bright, celebratory payment success chime (G5 784Hz -> C6 1046Hz -> E6 1318Hz)
+  playPaymentSuccessChime() {
+    if (this.isMuted) return;
+
+    // Trigger double vibration for mobile counter devices
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      try {
+        navigator.vibrate([150, 80, 250]);
+      } catch (e) {}
+    }
+
+    try {
+      this.initContext();
+      if (!this.audioCtx) return;
+
+      const now = this.audioCtx.currentTime;
+      const notes = [
+        { freq: 784, time: 0, dur: 0.22 },       // G5
+        { freq: 1046.5, time: 0.12, dur: 0.32 }, // C6
+        { freq: 1318.5, time: 0.24, dur: 0.9 }   // E6 (ringing metallic tone)
+      ];
+
+      notes.forEach(({ freq, time, dur }) => {
+        const osc = this.audioCtx.createOscillator();
+        const gain = this.audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, now + time);
+        gain.gain.setValueAtTime(0.3, now + time);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + time + dur);
+        osc.connect(gain);
+        gain.connect(this.audioCtx.destination);
+        osc.start(now + time);
+        osc.stop(now + time + dur);
+      });
+    } catch (err) {
+      console.warn("Payment chime could not be played:", err);
+    }
+  }
+
   // Request Screen Wake Lock so cafe counter tablet never turns off
   async requestWakeLock() {
     if (typeof navigator !== "undefined" && "wakeLock" in navigator) {

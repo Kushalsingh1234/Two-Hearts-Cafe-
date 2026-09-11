@@ -276,10 +276,51 @@ export default function OrderCard({ order, onUpdateStatus }) {
             </button>
           )}
 
-          {isServed && (
+          {/* Cash Counter Manual Settlement (if customer requested Pay at Counter and not yet settled) */}
+          {!isSettled && isPayAtCounter && (
             <button
               onClick={() => onUpdateStatus(order.id, "settled", {
-                paymentStatus: isPaidOnline ? "paid_online" : "paid_counter"
+                paymentStatus: "paid_counter",
+                paymentMethod: "cash",
+                settledBy: "Counter Admin (Cash)",
+                settledMethod: "cash_counter",
+                settledAt: new Date().toISOString()
+              })}
+              style={{
+                flex: 1,
+                backgroundColor: "#b45309",
+                color: "#ffffff",
+                padding: "9px 12px",
+                borderRadius: "var(--radius-pill)",
+                fontFamily: "var(--font-serif)",
+                fontSize: 13,
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                border: "none",
+                cursor: "pointer",
+                boxShadow: "0 2px 6px rgba(180, 83, 9, 0.25)"
+              }}
+              title="Collect cash at counter and manually settle this bill"
+            >
+              <Building2 size={15} />
+              <span>Settle Bill (Cash Received)</span>
+            </button>
+          )}
+
+          {/* If served, not settled, and not already showing counter button above */}
+          {!isSettled && isServed && !isPayAtCounter && (
+            <button
+              onClick={() => onUpdateStatus(order.id, "settled", {
+                paymentStatus: "paid_counter",
+                paymentMethod: "cash",
+                settledBy: "Counter Admin (Cash)",
+                settledMethod: "cash_counter",
+                settledAt: new Date().toISOString()
               })}
               style={{
                 flex: 1,
@@ -301,35 +342,58 @@ export default function OrderCard({ order, onUpdateStatus }) {
               }}
             >
               <CheckCircle2 size={15} />
-              <span>Settle Bill & Close</span>
+              <span>Settle Bill & Close (Counter)</span>
             </button>
           )}
 
           {isSettled && (
-            <button
-              onClick={() => setIsInvoiceOpen(true)}
-              style={{
-                flex: 1,
-                backgroundColor: "#fff",
-                color: "var(--color-ink)",
-                border: "1.2px solid var(--color-border-frame)",
-                padding: "8px 12px",
-                borderRadius: "var(--radius-pill)",
-                fontFamily: "var(--font-serif)",
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
+              <div style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 5,
-                cursor: "pointer"
-              }}
-            >
-              <Receipt size={14} />
-              <span>Digital Invoice</span>
-            </button>
+                gap: 6,
+                padding: "6px 10px",
+                borderRadius: 4,
+                backgroundColor: isPaidOnline || order.settledMethod === "upi_online" ? "#dcfce7" : "#fef3c7",
+                color: isPaidOnline || order.settledMethod === "upi_online" ? "#15803d" : "#92400e",
+                fontSize: 11.5,
+                fontFamily: "var(--font-serif)",
+                fontWeight: 700
+              }}>
+                <CheckCircle2 size={13} />
+                <span>
+                  {isPaidOnline || order.settledMethod === "upi_online"
+                    ? "✓ Settled Automatically • Paid Online via UPI"
+                    : "✓ Settled Manually • Cash at Counter"}
+                </span>
+              </div>
+
+              <button
+                onClick={() => setIsInvoiceOpen(true)}
+                style={{
+                  width: "100%",
+                  backgroundColor: "#fff",
+                  color: "var(--color-ink)",
+                  border: "1.2px solid var(--color-border-frame)",
+                  padding: "8px 12px",
+                  borderRadius: "var(--radius-pill)",
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: 0.5,
+                  textTransform: "uppercase",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 5,
+                  cursor: "pointer"
+                }}
+              >
+                <Receipt size={14} />
+                <span>View Digital Bill</span>
+              </button>
+            </div>
           )}
 
           {isPlaced && (

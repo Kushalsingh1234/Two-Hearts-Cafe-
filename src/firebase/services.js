@@ -458,15 +458,24 @@ export const updateOrderStatus = async (orderId, newStatus, extraData = {}) => {
  */
 export const updateOrderPayment = async (orderId, paymentData) => {
   const updatedAt = new Date().toISOString();
+  const isOnlinePaid = paymentData.paymentStatus === "paid_online" || paymentData.paymentMethod === "upi";
+
   const updatePayload = {
     paymentStatus: paymentData.paymentStatus, // 'paid_online' | 'pay_at_counter' | 'unpaid'
     paymentMethod: paymentData.paymentMethod, // 'upi' | 'counter'
     paymentDetails: {
       upiId: paymentData.upiId || "q086839601@ybl",
       utr: paymentData.utr || "",
-      paidAt: paymentData.paidAt || updatedAt
+      paidAt: paymentData.paidAt || (isOnlinePaid ? updatedAt : null)
     },
-    updatedAt
+    updatedAt,
+    // Automatic bill settlement when paid online from the scanner
+    ...(isOnlinePaid ? {
+      status: "settled",
+      settledAt: paymentData.paidAt || updatedAt,
+      settledBy: "Customer Online UPI",
+      settledMethod: "upi_online"
+    } : {})
   };
 
   try {

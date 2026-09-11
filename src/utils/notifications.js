@@ -164,3 +164,63 @@ export const triggerOrderNotification = async (order) => {
     }
   }
 };
+
+/**
+ * Trigger Payment Notification for Admin Panel
+ * Plays bright payment chime, vibrates, and triggers system push notification
+ */
+export const triggerPaymentNotification = async (order) => {
+  // 1. Play signature payment success chime
+  soundNotifier.playPaymentSuccessChime();
+
+  if (typeof window === "undefined") return;
+
+  const tableText = order.tableNumber ? `Table #${order.tableNumber}` : "QR Order";
+  const amountText = `₹${order.total || 0}`;
+  const utrText = order.paymentDetails?.utr ? ` (UTR: ${order.paymentDetails.utr})` : "";
+  const title = `💳 Online Payment Received! (${tableText})`;
+  const body = `${amountText} paid online via UPI${utrText} • Bill settled automatically!`;
+
+  try {
+    if (!swRegistration && "serviceWorker" in navigator) {
+      swRegistration = await navigator.serviceWorker.ready;
+    }
+
+    if (swRegistration && "showNotification" in swRegistration && Notification.permission === "granted") {
+      await swRegistration.showNotification(title, {
+        body,
+        icon: "/images/pwa/icon-192.png",
+        badge: "/images/pwa/badge-72.png",
+        vibrate: [150, 80, 250],
+        tag: `payment-${order.id || Date.now()}`,
+        renotify: true,
+        requireInteraction: true,
+        data: {
+          url: "/?admin=true&tab=orders",
+          orderId: order.id
+        }
+      });
+      return;
+    }
+  } catch (e) {
+    console.warn("SW showNotification fallback:", e);
+  }
+
+  if ("Notification" in window && Notification.permission === "granted") {
+    try {
+      const notif = new Notification(title, {
+        body,
+        icon: "/images/pwa/icon-192.png",
+        badge: "/images/pwa/badge-72.png",
+        tag: `payment-${order.id || Date.now()}`,
+        renotify: true
+      });
+      notif.onclick = () => {
+        window.focus();
+        notif.close();
+      };
+    } catch (err) {
+      console.warn("Window notification fallback error:", err);
+    }
+  }
+};

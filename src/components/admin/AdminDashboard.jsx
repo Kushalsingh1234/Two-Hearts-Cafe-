@@ -28,6 +28,7 @@ import { updateOrderStatus, clearAllOrders, subscribeReviews } from "../../fireb
 import { soundNotifier } from "../../utils/audio";
 import {
   triggerOrderNotification,
+  triggerPaymentNotification,
   requestNotificationPermission,
   getNotificationPermission,
   subscribeInstallPrompt,
@@ -127,23 +128,55 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
     return () => unsub();
   }, []);
 
-  // Track known order IDs so we only alert for genuinely new incoming orders
+  // Track known order IDs and paid order IDs so we only alert for genuinely new events
   const knownOrderIdsRef = useRef(new Set());
+  const knownPaidOrderIdsRef = useRef(new Set());
   const isInitialLoadRef = useRef(true);
+  const [latestPaymentAlert, setLatestPaymentAlert] = useState(null);
+
+  // Auto-dismiss floating payment alert banner after 9 seconds
+  useEffect(() => {
+    if (!latestPaymentAlert) return;
+    const timer = setTimeout(() => {
+      setLatestPaymentAlert(null);
+    }, 9000);
+    return () => clearTimeout(timer);
+  }, [latestPaymentAlert]);
 
   useEffect(() => {
     if (isInitialLoadRef.current) {
-      orders.forEach((o) => knownOrderIdsRef.current.add(o.id));
+      orders.forEach((o) => {
+        knownOrderIdsRef.current.add(o.id);
+        if (o.paymentStatus === "paid_online" || o.settledMethod === "upi_online") {
+          knownPaidOrderIdsRef.current.add(o.id);
+        }
+      });
       isInitialLoadRef.current = false;
       return;
     }
 
     orders.forEach((order) => {
+      // 1. New incoming order alert
       if (!knownOrderIdsRef.current.has(order.id)) {
         knownOrderIdsRef.current.add(order.id);
         if (order.status === "placed") {
           triggerOrderNotification(order);
         }
+      }
+
+      // 2. Online table scanner payment completed alert (auto-settles bill)
+      const isOnlinePaid = order.paymentStatus === "paid_online" || order.settledMethod === "upi_online";
+      if (isOnlinePaid && !knownPaidOrderIdsRef.current.has(order.id)) {
+        knownPaidOrderIdsRef.current.add(order.id);
+        triggerPaymentNotification(order);
+        setLatestPaymentAlert({
+          id: order.id,
+          orderNumber: order.orderNumber,
+          tableNumber: order.tableNumber,
+          total: order.total,
+          utr: order.paymentDetails?.utr,
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        });
       }
     });
   }, [orders]);
@@ -216,6 +249,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
   const tableNewOrdersCount = tableOrders.filter((o) => o.status === "placed").length;
   const tablePreparingCount = tableOrders.filter((o) => o.status === "preparing").length;
   const tableServedCount = tableOrders.filter((o) => o.status === "served").length;
+  const tableSettledCount = tableOrders.filter((o) => o.status === "settled").length;
   const tableTotalRevenue = tableOrders
     .filter((o) => o.status !== "cancelled")
     .reduce((acc, o) => acc + (o.total || 0), 0);
@@ -230,6 +264,8 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
   const filteredTableOrders = tableOrders.filter((ord) => {
     if (orderStatusFilter === "active") {
       if (ord.status === "settled" || ord.status === "cancelled") return false;
+    } else if (orderStatusFilter === "settled") {
+      if (ord.status !== "settled") return false;
     } else if (orderStatusFilter !== "all" && ord.status !== orderStatusFilter) {
       return false;
     }
@@ -245,6 +281,70 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
 
   return (
     <div className="admin-dashboard-container" style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 16px 80px 16px" }}>
+      {/* Floating Online Payment Received & Auto-Settlement Alert Banner */}
+      {latestPaymentAlert && (
+        <div style={{
+          position: "fixed",
+          top: 18,
+          right: 18,
+          zIndex: 9999,
+          maxWidth: 400,
+          backgroundColor: "#14532d",
+          color: "#f0fdf4",
+          padding: "14px 18px",
+          borderRadius: 12,
+          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.2)",
+          border: "1.5px solid #22c55e",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 12,
+          animation: "fadeIn 0.25s ease-out"
+        }}>
+          <div style={{
+            backgroundColor: "#22c55e",
+            color: "#052e16",
+            borderRadius: "50%",
+            width: 28,
+            height: 28,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            fontWeight: 900,
+            fontSize: 15
+          }}>
+            ✓
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: 14, fontWeight: 700, letterSpacing: 0.3, marginBottom: 2 }}>
+              💳 Table #{latestPaymentAlert.tableNumber || "QR"} Paid Online!
+            </div>
+            <div style={{ fontSize: 12.5, opacity: 0.95, lineHeight: 1.4 }}>
+              Received <strong>₹{latestPaymentAlert.total}</strong> via UPI
+              {latestPaymentAlert.utr ? ` • UTR: ${latestPaymentAlert.utr}` : ""}
+            </div>
+            <div style={{ fontSize: 11.5, color: "#86efac", marginTop: 4, fontWeight: 600 }}>
+              ✓ Bill settled automatically
+            </div>
+          </div>
+          <button
+            onClick={() => setLatestPaymentAlert(null)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#bbf7d0",
+              cursor: "pointer",
+              fontSize: 16,
+              padding: "0 4px",
+              lineHeight: 1
+            }}
+            title="Dismiss notification"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Top Header */}
       <div style={{
         display: "flex",
@@ -770,6 +870,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
                 { id: "placed", label: "New (Needs Prep)" },
                 { id: "preparing", label: "In Cooking" },
                 { id: "served", label: "Served" },
+                { id: "settled", label: tableSettledCount > 0 ? `Settled Bills (${tableSettledCount})` : "Settled Bills" },
                 { id: "all", label: "All History" }
               ].map((pill) => (
                 <button

@@ -46,15 +46,20 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
     setIsSubmitting(true);
     try {
       if (order.id) {
-        // Table QR order: update existing Firestore doc with payment confirmation
+        const paidAt = new Date().toISOString();
+        // Table QR order: update existing Firestore doc with payment confirmation & auto-settle
         await updateOrderPayment(order.id, {
           paymentStatus: "paid_online",
           paymentMethod: "upi",
+          status: "settled",
+          settledAt: paidAt,
+          settledBy: "Customer Online UPI",
+          settledMethod: "upi_online",
           upiId,
           utr: utrNumber.trim(),
-          paidAt: new Date().toISOString()
+          paidAt
         });
-        setConfirmedMessage("Online payment submitted! Staff will verify and settle your bill.");
+        setConfirmedMessage("Online payment verified! Your bill has been settled automatically. Thank you for dining with us!");
       } else {
         // Delivery checkout: no Firestore doc yet — parent's onPaymentSuccess creates the order.
         setConfirmedMessage("Payment confirmed! Your order is being placed...");
@@ -77,7 +82,7 @@ export default function PaymentModal({ isOpen, onClose, order, onPaymentSuccess 
         paymentMethod: "counter",
         paidAt: null
       });
-      setConfirmedMessage("Payment at Counter requested! You can pay cash or card at the counter.");
+      setConfirmedMessage("Pay at Counter selected! Please pay cash at the counter; staff will settle your bill.");
       // Notify parent of success (parent handles navigation)
       if (onPaymentSuccess) onPaymentSuccess();
     } catch (err) {

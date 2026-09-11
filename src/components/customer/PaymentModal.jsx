@@ -689,12 +689,12 @@ export default function PaymentModal({
                     {isRazorpayLoading ? (
                       <>
                         <Loader2 size={16} style={{ animation: "spin 0.8s linear infinite" }} />
-                        <span>Connecting Gateway...</span>
+                        <span>Opening UPI Gateway...</span>
                       </>
                     ) : (
                       <>
                         <Smartphone size={16} />
-                        <span>Pay Rs.{amount} via Razorpay</span>
+                        <span>⚡ Pay Rs.{amount} with UPI / Apps</span>
                       </>
                     )}
                   </button>

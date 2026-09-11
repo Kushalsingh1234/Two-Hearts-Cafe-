@@ -129,15 +129,39 @@ export const launchRazorpayCheckout = async ({
       }
     },
     prefill: {
-      name: order.customerName || "",
-      contact: order.customerPhone || ""
+      name: order.customerName || (order.tableNumber ? `Guest Table #${order.tableNumber}` : "Guest"),
+      contact: order.customerPhone || "9876543210",
+      email: order.customerEmail || "guest@twoheartscafe.in"
+    },
+    readonly: {
+      contact: true,
+      email: true,
+      name: true
+    },
+    config: {
+      display: {
+        blocks: {
+          upi: {
+            name: "Pay via UPI / QR",
+            instruments: [
+              {
+                method: "upi"
+              }
+            ]
+          }
+        },
+        sequence: ["block.upi"],
+        preferences: {
+          show_default_blocks: true
+        }
+      }
     },
     notes: {
       cafe: "Two Hearts Cafe",
       tableNumber: order.tableNumber || "Takeaway"
     },
     theme: {
-      color: "#1C1917"
+      color: "#16a34a"
     },
     modal: {
       ondismiss: function () {

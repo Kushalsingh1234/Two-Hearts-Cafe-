@@ -150,14 +150,14 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
     setMobileDishIdx(clamped);
   };
 
-  // Auto-rotate stories preview every 5.5s (like professional sites)
+  // Auto-rotate stories and ambience preview every 4 seconds automatically without getting stuck on hover
   useEffect(() => {
-    if (isPaused || isGalleryOpen) return;
+    if (isGalleryOpen) return;
     const interval = setInterval(() => {
       setActiveStoryIdx((prev) => (prev + 1) % CAFE_STORIES.length);
-    }, 5500);
+    }, 4000);
     return () => clearInterval(interval);
-  }, [isPaused, isGalleryOpen]);
+  }, [isGalleryOpen, activeStoryIdx]);
 
   // Lock body scroll and listen for Escape key when gallery modal is open
   useEffect(() => {
@@ -1283,11 +1283,7 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
             const isHorizontal = currentStory.orientation === "horizontal";
 
             return (
-              <div
-                onMouseEnter={() => setIsPaused(true)}
-                onMouseLeave={() => setIsPaused(false)}
-                style={{ display: "flex", flexDirection: "column", gap: 20 }}
-              >
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                 {/* Main Spotlight Card in rich luxury dark green */}
                 {isHorizontal ? (
                   <div
@@ -1515,6 +1511,30 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                           }}>
                             Space {String(activeStoryIdx + 1).padStart(2, "0")} / {String(CAFE_STORIES.length).padStart(2, "0")}
                           </span>
+                        </div>
+                        {/* Interactive space indicator dots */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
+                          {CAFE_STORIES.map((st, idx) => (
+                            <button
+                              key={st.id || idx}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveStoryIdx(idx);
+                              }}
+                              aria-label={`Go to space ${idx + 1}`}
+                              style={{
+                                width: activeStoryIdx === idx ? 22 : 6,
+                                height: 6,
+                                borderRadius: 3,
+                                backgroundColor: activeStoryIdx === idx ? "#8AE6B0" : "rgba(255, 255, 255, 0.25)",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: 0,
+                                transition: "all 0.3s ease"
+                              }}
+                            />
+                          ))}
                         </div>
                         <h3
                           className="cafe-story-title"
@@ -1852,6 +1872,30 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                         }}>
                           Space {String(activeStoryIdx + 1).padStart(2, "0")} / {String(CAFE_STORIES.length).padStart(2, "0")}
                         </span>
+                      </div>
+                      {/* Interactive space indicator dots */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 12 }}>
+                        {CAFE_STORIES.map((st, idx) => (
+                          <button
+                            key={st.id || idx}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveStoryIdx(idx);
+                            }}
+                            aria-label={`Go to space ${idx + 1}`}
+                            style={{
+                              width: activeStoryIdx === idx ? 22 : 6,
+                              height: 6,
+                              borderRadius: 3,
+                              backgroundColor: activeStoryIdx === idx ? "#8AE6B0" : "rgba(255, 255, 255, 0.25)",
+                              border: "none",
+                              cursor: "pointer",
+                              padding: 0,
+                              transition: "all 0.3s ease"
+                            }}
+                          />
+                        ))}
                       </div>
 
                       <h3

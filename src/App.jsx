@@ -22,6 +22,7 @@ import { subscribeMenuItems, subscribeLiveOrders } from "./firebase/services";
 import { subscribeAuth, logoutUser } from "./firebase/auth";
 import { INITIAL_MENU_ITEMS } from "./data/seedMenu";
 import { triggerOrderNotification } from "./utils/notifications";
+import { soundNotifier } from "./utils/audio";
 import { updatePageSEO } from "./utils/seo";
 
 export default function App() {
@@ -182,28 +183,50 @@ export default function App() {
 
   const knownStaffOrderIdsRef = useRef(new Set());
   const isInitialStaffLoadRef = useRef(true);
+  const prevPlacedCountRef = useRef(0);
 
-  // Global order notification & ting chime for staff when logged in
+  // Global order notification & repeating ting chime for staff until orders are accepted/rejected
   useEffect(() => {
     if (!currentUser) {
+      soundNotifier.stopRepeatingChime();
       isInitialStaffLoadRef.current = true;
       return;
     }
 
+    const unhandledOrders = (orders || []).filter((o) => o && o.status === "placed");
+    const placedCount = unhandledOrders.length;
+
+    // If new orders arrived while alarm was silenced, resume sound immediately
+    if (placedCount > prevPlacedCountRef.current) {
+      soundNotifier.resumeAlarm();
+    }
+    prevPlacedCountRef.current = placedCount;
+
+    // Send push notification for genuinely newly arrived orders
     if (isInitialStaffLoadRef.current) {
       orders.forEach((o) => knownStaffOrderIdsRef.current.add(o.id));
       isInitialStaffLoadRef.current = false;
-      return;
+    } else {
+      orders.forEach((order) => {
+        if (!knownStaffOrderIdsRef.current.has(order.id)) {
+          knownStaffOrderIdsRef.current.add(order.id);
+          if (order.status === "placed") {
+            triggerOrderNotification(order);
+          }
+        }
+      });
     }
 
-    orders.forEach((order) => {
-      if (!knownStaffOrderIdsRef.current.has(order.id)) {
-        knownStaffOrderIdsRef.current.add(order.id);
-        if (order.status === "placed") {
-          triggerOrderNotification(order);
-        }
-      }
-    });
+    // Keep ting sound chiming continuously every 3s until owner accepts or rejects all orders
+    if (placedCount > 0) {
+      soundNotifier.startRepeatingChime(3000);
+    } else {
+      soundNotifier.stopRepeatingChime();
+    }
+
+    return () => {
+      soundNotifier.stopRepeatingChime();
+    };
   }, [orders, currentUser]);
 
   // Compute active orders for current table (QR ordering only)

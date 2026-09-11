@@ -23,7 +23,8 @@ import {
   Table as TableIcon,
   AlertCircle,
   TrendingUp,
-  CreditCard
+  CreditCard,
+  Ban
 } from "lucide-react";
 import OnlineOrderDetailModal from "./OnlineOrderDetailModal";
 import { updateOnlineOrder } from "../../firebase/services";
@@ -916,6 +917,44 @@ export default function OnlineOrdersManager({ orders = [], onRefresh }) {
                         </button>
                       );
                     })()}
+
+                    {/* Quick Reject Button for newly placed online orders */}
+                    {ord.status === "placed" && (
+                      <button
+                        type="button"
+                        disabled={actionLoadingId === ord.id}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`Reject / Cancel online order #${ord.orderNumber || ord.id.slice(0, 7)}?`)) {
+                            setActionLoadingId(ord.id);
+                            try {
+                              await updateOnlineOrder(ord.id, { status: "cancelled" });
+                            } finally {
+                              setActionLoadingId(null);
+                            }
+                          }
+                        }}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: "var(--radius-pill)",
+                          backgroundColor: "#FFFFFF",
+                          color: "#DC2626",
+                          border: "1px solid #DC2626",
+                          fontSize: 11.5,
+                          fontFamily: "var(--font-serif)",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          transition: "all 0.15s ease"
+                        }}
+                        title="Reject this order"
+                      >
+                        <Ban size={12} />
+                        <span>Reject</span>
+                      </button>
+                    )}
 
                     {/* View Details Icon */}
                     <button

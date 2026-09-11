@@ -143,6 +143,17 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
     return () => clearTimeout(timer);
   }, [latestPaymentAlert]);
 
+  const [soundState, setSoundState] = useState({
+    isRepeating: soundNotifier.isRepeating,
+    isMuted: soundNotifier.isMuted,
+    isSilenced: soundNotifier.isTemporarilySilenced
+  });
+
+  // Real-time subscription to sound notifier state
+  useEffect(() => {
+    return soundNotifier.subscribe(setSoundState);
+  }, []);
+
   useEffect(() => {
     if (isInitialLoadRef.current) {
       orders.forEach((o) => {
@@ -156,7 +167,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
     }
 
     orders.forEach((order) => {
-      // 1. New incoming order alert
+      // 1. New incoming order alert (push notification)
       if (!knownOrderIdsRef.current.has(order.id)) {
         knownOrderIdsRef.current.add(order.id);
         if (order.status === "placed") {
@@ -182,9 +193,13 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
   }, [orders]);
 
   const handleToggleMute = () => {
-    const muted = soundNotifier.toggleMute();
-    setIsMuted(muted);
+    soundNotifier.toggleMute();
   };
+
+  // Placed / unaccepted orders count
+  const unhandledPlacedOrders = useMemo(() => {
+    return (orders || []).filter((o) => o && o.status === "placed");
+  }, [orders]);
 
   const handleTestChime = () => {
     triggerOrderNotification({
@@ -588,6 +603,29 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
             <span>{isScreenAwake ? "Screen Awake: ON" : "Keep Screen Awake"}</span>
           </button>
 
+          {/* Sound Mute/Unmute Toggle */}
+          <button
+            onClick={handleToggleMute}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "5px 12px",
+              borderRadius: "var(--radius-pill)",
+              backgroundColor: soundState.isMuted ? "#FEF2F2" : "#FAF7F2",
+              border: soundState.isMuted ? "1px solid #FCA5A5" : "1px solid var(--color-border-frame)",
+              fontFamily: "var(--font-serif)",
+              fontSize: 12,
+              fontWeight: 700,
+              color: soundState.isMuted ? "#DC2626" : "var(--color-ink)",
+              cursor: "pointer"
+            }}
+            title={soundState.isMuted ? "Audio is Muted - Click to Unmute" : "Audio is Active - Click to Mute"}
+          >
+            {soundState.isMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
+            <span>{soundState.isMuted ? "Sound: Muted" : "Sound: ON"}</span>
+          </button>
+
           {/* PWA Install Button */}
           {!isAlreadyInstalled && (
             <button
@@ -615,6 +653,75 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
           )}
         </div>
       </div>
+
+      {/* Active Unaccepted Orders Chime Alert Banner */}
+      {unhandledPlacedOrders.length > 0 && (
+        <div
+          style={{
+            backgroundColor: "#FEF2F2",
+            border: "2px solid #DC2626",
+            borderRadius: 10,
+            padding: "12px 18px",
+            marginBottom: 20,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 12,
+            boxShadow: "0 6px 20px -4px rgba(220, 38, 38, 0.25)"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 24, lineHeight: 1 }}>
+              🔔
+            </span>
+            <div>
+              <div style={{ fontFamily: "var(--font-serif)", fontSize: 14, fontWeight: 800, color: "#991B1B" }}>
+                {unhandledPlacedOrders.length} New Order{unhandledPlacedOrders.length > 1 ? "s" : ""} Awaiting Acceptance!
+              </div>
+              <div style={{ fontSize: 12, color: "#B91C1C", marginTop: 2 }}>
+                {soundState.isSilenced
+                  ? "Ting chime is temporarily silenced. Accept or reject the orders to complete."
+                  : soundState.isMuted
+                  ? "Audio is muted. Orders are waiting below for confirmation."
+                  : "Ting chime will continuously ring until you accept or reject all orders."}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {soundState.isRepeating && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (soundState.isSilenced) {
+                    soundNotifier.resumeAlarm();
+                  } else {
+                    soundNotifier.silenceAlarm();
+                  }
+                }}
+                style={{
+                  padding: "7px 16px",
+                  borderRadius: "var(--radius-pill)",
+                  backgroundColor: soundState.isSilenced ? "#15803D" : "#FFFFFF",
+                  color: soundState.isSilenced ? "#FFFFFF" : "#DC2626",
+                  border: soundState.isSilenced ? "none" : "1.5px solid #DC2626",
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6
+                }}
+              >
+                {soundState.isSilenced ? <Volume2 size={13} /> : <VolumeX size={13} />}
+                <span>{soundState.isSilenced ? "Resume Ting Chime" : "Silence Ting Chime"}</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* KPI Stats - Table Orders (only shown on Table Feed tab, Online Orders tab has its own dedicated KPI grid) */}
       {activeTab === "orders" && (

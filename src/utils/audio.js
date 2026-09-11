@@ -6,6 +6,10 @@ class AudioNotifier {
     this.isMuted = false;
     this.isUnlocked = false;
     this.wakeLock = null;
+    this.repeatInterval = null;
+    this.isRepeating = false;
+    this.isTemporarilySilenced = false;
+    this.listeners = new Set();
 
     if (typeof window !== "undefined") {
       this.setupAutoUnlock();
@@ -65,7 +69,7 @@ class AudioNotifier {
 
   // Play the signature Two Hearts Cafe reception desk "Ting!" chime
   playChime() {
-    if (this.isMuted) return;
+    if (this.isMuted || this.isTemporarilySilenced) return;
 
     // 1. Trigger strong phone vibration pattern
     if (typeof navigator !== "undefined" && navigator.vibrate) {
@@ -213,8 +217,74 @@ class AudioNotifier {
     }
   }
 
+  // Continuous repeating chime until order is accepted/rejected
+  startRepeatingChime(intervalMs = 3000) {
+    if (this.repeatInterval) return; // already chiming
+    this.isTemporarilySilenced = false;
+    this.isRepeating = true;
+    this.notifyListeners();
+
+    // Play immediately first time
+    this.playChime();
+
+    this.repeatInterval = setInterval(() => {
+      this.playChime();
+    }, intervalMs);
+  }
+
+  // Stop the repeating chime when all placed orders are accepted or rejected
+  stopRepeatingChime() {
+    if (this.repeatInterval) {
+      clearInterval(this.repeatInterval);
+      this.repeatInterval = null;
+    }
+    this.isRepeating = false;
+    this.isTemporarilySilenced = false;
+    this.notifyListeners();
+  }
+
+  // Temporarily snooze/silence the active ringing
+  silenceAlarm() {
+    this.isTemporarilySilenced = true;
+    this.notifyListeners();
+  }
+
+  // Un-silence the alarm
+  resumeAlarm() {
+    this.isTemporarilySilenced = false;
+    this.notifyListeners();
+    if (this.isRepeating) {
+      this.playChime();
+    }
+  }
+
+  subscribe(callback) {
+    this.listeners.add(callback);
+    callback({
+      isRepeating: this.isRepeating,
+      isMuted: this.isMuted,
+      isSilenced: this.isTemporarilySilenced
+    });
+    return () => this.listeners.delete(callback);
+  }
+
+  notifyListeners() {
+    this.listeners.forEach((fn) => {
+      try {
+        fn({
+          isRepeating: this.isRepeating,
+          isMuted: this.isMuted,
+          isSilenced: this.isTemporarilySilenced
+        });
+      } catch (e) {
+        console.warn("AudioNotifier listener error:", e);
+      }
+    });
+  }
+
   toggleMute() {
     this.isMuted = !this.isMuted;
+    this.notifyListeners();
     return this.isMuted;
   }
 }

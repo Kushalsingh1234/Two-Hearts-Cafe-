@@ -4,6 +4,7 @@ import {
   saveMenuItem,
   deleteMenuItem,
   toggleItemAvailability,
+  toggleItemSpecial,
   seedMenuToFirestore,
   updateMenuItemPrice
 } from "../../firebase/services";
@@ -132,6 +133,11 @@ export default function MenuManager({ menuItems }) {
   const handleToggleStock = async (item) => {
     const nextAvailability = item.isAvailable === false ? true : false;
     await toggleItemAvailability(item.id, nextAvailability, item);
+  };
+
+  const handleToggleSpecial = async (item) => {
+    const nextSpecial = !item.isSpecial;
+    await toggleItemSpecial(item.id, nextSpecial, item);
   };
 
   const handleDelete = async (itemId) => {
@@ -667,11 +673,11 @@ export default function MenuManager({ menuItems }) {
 
               {/* Items Table for this Category */}
               <div style={{ overflowX: "auto", width: "100%" }}>
-                <div style={{ minWidth: 620 }}>
+                <div style={{ minWidth: 700 }}>
                   {/* Table Column Headers */}
                   <div style={{
                     display: "grid",
-                    gridTemplateColumns: "minmax(200px, 2fr) 140px 130px 170px",
+                    gridTemplateColumns: "minmax(190px, 2fr) 140px 105px 120px 165px",
                     padding: "10px 18px",
                     borderBottom: "1px solid var(--border-color)",
                     fontFamily: "var(--font-serif)",
@@ -682,7 +688,8 @@ export default function MenuManager({ menuItems }) {
                     letterSpacing: 0.5
                   }}>
                     <div>Dish & Recipe</div>
-                    <div>Price (Click to edit)</div>
+                    <div>Price</div>
+                    <div>Special Tag</div>
                     <div>Stock Status</div>
                     <div style={{ textAlign: "right" }}>Actions</div>
                   </div>
@@ -693,7 +700,7 @@ export default function MenuManager({ menuItems }) {
                       key={item.id}
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "minmax(200px, 2fr) 140px 130px 170px",
+                        gridTemplateColumns: "minmax(190px, 2fr) 140px 105px 120px 165px",
                         alignItems: "center",
                         padding: "12px 18px",
                         borderBottom: "1px dashed var(--color-border-subtle)",
@@ -712,6 +719,24 @@ export default function MenuManager({ menuItems }) {
                           }}>
                             {item.name}
                           </span>
+                          {item.isSpecial && (
+                            <span style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              border: "1.5px solid #8C533E",
+                              borderRadius: 4,
+                              padding: "0 6px 1px 6px",
+                              fontSize: 11,
+                              fontFamily: "var(--font-serif)",
+                              fontStyle: "italic",
+                              fontWeight: 600,
+                              color: "#7A442D",
+                              backgroundColor: "#FAF7F2",
+                              lineHeight: 1.2
+                            }}>
+                              Special
+                            </span>
+                          )}
                           {item.rating ? (
                             <span style={{
                               display: "inline-flex",
@@ -995,6 +1020,45 @@ export default function MenuManager({ menuItems }) {
                             </div>
                           );
                         })()}
+                      </div>
+
+                      {/* Special Tag Toggle Button */}
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSpecial(item)}
+                          title={item.isSpecial ? "Special tag is ON — Click to remove" : "Click to enable 'Special' tag on QR Menu"}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 5,
+                            padding: "3px 8px 4px 8px",
+                            borderRadius: 4,
+                            fontFamily: "var(--font-serif)",
+                            fontSize: 12.5,
+                            fontStyle: "italic",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            backgroundColor: item.isSpecial ? "#FAF7F2" : "#FFFFFF",
+                            color: item.isSpecial ? "#7A442D" : "#9CA3AF",
+                            border: item.isSpecial ? "1.5px solid #8C533E" : "1.2px dashed #D1D5DB",
+                            boxShadow: item.isSpecial ? "0 1px 4px rgba(140, 83, 62, 0.15)" : "none",
+                            transition: "all 0.18s ease"
+                          }}
+                        >
+                          <span>Special</span>
+                          {item.isSpecial ? (
+                            <span style={{
+                              width: 5,
+                              height: 5,
+                              borderRadius: "50%",
+                              backgroundColor: "#8C533E",
+                              display: "inline-block"
+                            }} />
+                          ) : (
+                            <span style={{ fontStyle: "normal", fontSize: 9.5, opacity: 0.7 }}>OFF</span>
+                          )}
+                        </button>
                       </div>
 
                       {/* Stock Toggle */}
@@ -1373,6 +1437,61 @@ export default function MenuManager({ menuItems }) {
                     resize: "none"
                   }}
                 />
+              </div>
+
+              {/* Special Tag Switcher inside modal */}
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "10px 14px",
+                backgroundColor: formData.isSpecial ? "#FAF7F2" : "#fff",
+                border: formData.isSpecial ? "1.5px solid #8C533E" : "1px solid var(--color-border-frame)",
+                borderRadius: 4,
+                transition: "all 0.18s ease"
+              }}>
+                <div>
+                  <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, color: "var(--color-ink)", display: "flex", alignItems: "center", gap: 8 }}>
+                    <span>Chef's Special Badge</span>
+                    <span style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      border: formData.isSpecial ? "1.5px solid #8C533E" : "1px dashed #d1d5db",
+                      borderRadius: 4,
+                      padding: "0 6px 1px 6px",
+                      fontSize: 11.5,
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontWeight: 600,
+                      color: formData.isSpecial ? "#7A442D" : "#9ca3af",
+                      backgroundColor: formData.isSpecial ? "#FAF7F2" : "transparent"
+                    }}>
+                      Special
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11.5, fontStyle: "italic", color: "var(--color-bronze)", marginTop: 2 }}>
+                    Shows the elegant [ Special ] tag at the front of this dish in the QR table menu
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, isSpecial: !formData.isSpecial })}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: "var(--radius-pill)",
+                    fontFamily: "var(--font-serif)",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    backgroundColor: formData.isSpecial ? "#8C533E" : "#fff",
+                    color: formData.isSpecial ? "#ffffff" : "var(--color-ink)",
+                    border: formData.isSpecial ? "none" : "1px solid var(--color-border-frame)",
+                    boxShadow: "var(--shadow-sm)"
+                  }}
+                >
+                  {formData.isSpecial ? "✓ Special On" : "+ Enable Special"}
+                </button>
               </div>
 
               {/* Stock Status Selector inside modal */}

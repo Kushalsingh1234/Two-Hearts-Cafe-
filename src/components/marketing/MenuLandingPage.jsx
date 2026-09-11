@@ -608,20 +608,18 @@ export default function MenuLandingPage({
                           <span style={{
                             display: "inline-flex",
                             alignItems: "center",
-                            gap: 3,
-                            backgroundColor: "rgba(250, 247, 242, 0.96)",
-                            backdropFilter: "blur(6px)",
-                            border: "1px solid var(--color-bronze)",
-                            borderRadius: "var(--radius-pill)",
-                            padding: "2px 8px",
-                            fontSize: 10,
+                            border: "1.5px solid #8C533E",
+                            borderRadius: 4,
+                            padding: "1px 7px 2px 7px",
+                            fontSize: 12,
                             fontFamily: "var(--font-serif)",
                             fontStyle: "italic",
-                            fontWeight: 700,
-                            color: "var(--color-bronze)"
+                            fontWeight: 600,
+                            color: "#7A442D",
+                            backgroundColor: "transparent",
+                            lineHeight: 1.2
                           }}>
-                            <Flame size={10} />
-                            Specialty
+                            Special
                           </span>
                         )}
                       </div>

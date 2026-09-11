@@ -234,6 +234,37 @@ export const toggleItemAvailability = async (itemId, isAvailable, fallbackItem =
 };
 
 /**
+ * Toggle menu item special tag (Chef's Special / Featured on QR menu)
+ */
+export const toggleItemSpecial = async (itemId, isSpecial, fallbackItem = null) => {
+  const local = getLocalData(LOCAL_STORAGE_MENU_KEY, INITIAL_MENU_ITEMS);
+  const existingLocal = local.find((it) => it.id === itemId);
+  const seedItem = INITIAL_MENU_ITEMS.find((it) => it.id === itemId);
+  const fullItem = {
+    ...(seedItem || {}),
+    ...(fallbackItem || {}),
+    ...(existingLocal || {}),
+    id: itemId,
+    isSpecial: Boolean(isSpecial),
+    updatedAt: new Date().toISOString()
+  };
+
+  const updated = local.map((it) => (it.id === itemId ? { ...it, ...fullItem, isSpecial: Boolean(isSpecial) } : it));
+  if (!local.some((it) => it.id === itemId)) {
+    updated.push(fullItem);
+  }
+  setLocalData(LOCAL_STORAGE_MENU_KEY, updated);
+  window.dispatchEvent(new CustomEvent("twohearts_menu_updated"));
+
+  try {
+    const docRef = doc(db, MENU_COLLECTION, itemId);
+    await setDoc(docRef, fullItem, { merge: true });
+  } catch (err) {
+    console.warn("Firestore toggleItemSpecial error, preserved in local storage:", err);
+  }
+};
+
+/**
  * Quick update menu item price (and optional portion pricing)
  */
 export const updateMenuItemPrice = async (itemId, newPrice, newPortions = undefined) => {

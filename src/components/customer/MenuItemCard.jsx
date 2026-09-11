@@ -82,13 +82,18 @@ export default function MenuItemCard({
             )}
             {item.isSpecial && !isOutOfStock && (
               <span style={{
-                fontSize: 10,
+                display: "inline-flex",
+                alignItems: "center",
+                fontSize: 12,
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
-                color: "var(--color-bronze)",
-                border: "1px solid var(--color-bronze)",
-                padding: "0 4px",
-                borderRadius: 2
+                fontWeight: 600,
+                color: "#7A442D",
+                border: "1.5px solid #8C533E",
+                padding: "1px 7px 2px 7px",
+                borderRadius: 4,
+                backgroundColor: "transparent",
+                lineHeight: 1.2
               }}>
                 Special
               </span>

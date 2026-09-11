@@ -92,7 +92,7 @@ export const launchRazorpayCheckout = async ({
   // 1. Backend creates order
   const orderDetails = await createRazorpayOrder(order);
 
-  const fallbackKey = import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_TapHf0ydwP8n0G";
+  const fallbackKey = import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_live_TapcjhmmAonwtG";
   const keyToUse = orderDetails.key_id || fallbackKey;
 
   const orderTitle = order.orderType === "delivery"

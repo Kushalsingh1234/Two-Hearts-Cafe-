@@ -84,9 +84,23 @@ export default function SiteNavbar({ currentPage, setPage }) {
   };
 
   useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
-      const isScrolled = (window.scrollY || document.documentElement.scrollTop || 0) > 15;
-      setScrolled((prev) => (prev !== isScrolled ? isScrolled : prev));
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const y = window.scrollY || document.documentElement.scrollTop || 0;
+          setScrolled((prev) => {
+            // Hysteresis deadband: activate only when scrolling down past 45px,
+            // deactivate only when scrolling back up to the top (< 15px).
+            // This completely eliminates oscillation/fluctuation near the threshold.
+            if (!prev && y > 45) return true;
+            if (prev && y < 15) return false;
+            return prev;
+          });
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
@@ -121,7 +135,10 @@ export default function SiteNavbar({ currentPage, setPage }) {
         WebkitBackdropFilter: "blur(12px)",
         borderBottom: `1px solid ${scrolled ? "rgba(138, 87, 56, 0.22)" : "rgba(138, 87, 56, 0.16)"}`,
         boxShadow: scrolled ? "0 4px 20px rgba(28, 25, 23, 0.08)" : "0 2px 10px rgba(28, 25, 23, 0.04)",
-        transition: "all 0.25s ease"
+        transition: "background-color 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease",
+        transform: "translateZ(0)",
+        WebkitTransform: "translateZ(0)",
+        willChange: "transform"
       }}
     >
       <div className="site-container site-navbar-container" style={{
@@ -231,18 +248,19 @@ export default function SiteNavbar({ currentPage, setPage }) {
           <button
             type="button"
             onClick={() => handleNavClick("cart")}
-            className="touch-target-44 site-navbar-cart-btn"
+            className="site-navbar-cart-btn"
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 8,
-              padding: "8px 14px",
-              minHeight: 44,
+              gap: 5,
+              padding: "4px 10px",
+              minHeight: 28,
+              height: 28,
               borderRadius: "var(--radius-pill)",
-              border: `1.5px solid ${cartCount > 0 ? "var(--color-bronze)" : "var(--border-color)"}`,
+              border: `1.2px solid ${cartCount > 0 ? "var(--color-bronze)" : "var(--border-color)"}`,
               backgroundColor: cartCount > 0 ? "var(--color-bronze-light)" : "#FFFFFF",
               color: cartCount > 0 ? "var(--color-bronze-dark)" : "var(--color-ink)",
-              fontSize: 12,
+              fontSize: 11,
               fontFamily: "var(--font-serif)",
               fontWeight: 700,
               cursor: "pointer",
@@ -251,20 +269,20 @@ export default function SiteNavbar({ currentPage, setPage }) {
             title="View Delivery Basket"
           >
             <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-              <ShoppingBag size={15} style={{ color: cartCount > 0 ? "var(--color-bronze-dark)" : "var(--color-bronze)" }} />
+              <ShoppingBag size={13} style={{ color: cartCount > 0 ? "var(--color-bronze-dark)" : "var(--color-bronze)" }} />
               {cartCount > 0 && (
                 <span
                   className="cart-badge"
                   style={{
                   position: "absolute",
-                  top: -8,
-                  right: -9,
+                  top: -6,
+                  right: -7,
                   backgroundColor: "var(--color-bronze)",
                   color: "#FFFFFF",
-                  fontSize: 9,
+                  fontSize: 8,
                   fontWeight: 700,
-                  width: 15,
-                  height: 15,
+                  width: 13,
+                  height: 13,
                   borderRadius: "50%",
                   display: "flex",
                   alignItems: "center",
@@ -297,18 +315,19 @@ export default function SiteNavbar({ currentPage, setPage }) {
               <button
                 type="button"
                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                className="touch-target-44 site-navbar-profile-btn"
+                className="site-navbar-profile-btn"
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 6,
-                  padding: "5px 10px 5px 6px",
-                  minHeight: 44,
+                  gap: 5,
+                  padding: "3px 8px 3px 4px",
+                  minHeight: 28,
+                  height: 28,
                   borderRadius: "var(--radius-pill)",
-                  border: `1.5px solid ${profileMenuOpen || currentPage === "profile" ? "var(--color-bronze)" : "var(--border-color)"}`,
+                  border: `1.2px solid ${profileMenuOpen || currentPage === "profile" ? "var(--color-bronze)" : "var(--border-color)"}`,
                   backgroundColor: profileMenuOpen || currentPage === "profile" ? "var(--color-bronze-light)" : "#FFFFFF",
                   color: "var(--color-ink)",
-                  fontSize: 12,
+                  fontSize: 11,
                   fontFamily: "var(--font-serif)",
                   fontWeight: 700,
                   cursor: "pointer",
@@ -319,15 +338,15 @@ export default function SiteNavbar({ currentPage, setPage }) {
                 <div
                   className="site-navbar-avatar"
                   style={{
-                    width: 28,
-                    height: 28,
+                    width: 20,
+                    height: 20,
                     borderRadius: "50%",
                     backgroundColor: "var(--color-bronze)",
                     color: "#FFFFFF",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: 11,
+                    fontSize: 9,
                     fontWeight: 700,
                     overflow: "hidden"
                   }}
@@ -549,16 +568,17 @@ export default function SiteNavbar({ currentPage, setPage }) {
             <button
               type="button"
               onClick={() => openAuthModal(() => handleNavClick("profile"))}
-              className="btn-pill-outline touch-target-44 site-navbar-signin-btn"
+              className="btn-pill-outline site-navbar-signin-btn"
               style={{
-                padding: "8px 16px",
-                minHeight: 44,
-                fontSize: 12,
-                borderWidth: 1.2
+                padding: "4px 10px",
+                minHeight: 28,
+                height: 28,
+                fontSize: 10.5,
+                borderWidth: 1.1
               }}
               title="Sign in with Google (Gmail)"
             >
-              <User size={13} />
+              <User size={12} />
               <span className="signin-text-label">Sign In</span>
             </button>
           )}

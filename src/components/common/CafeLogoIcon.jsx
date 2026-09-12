@@ -6,8 +6,6 @@ export default function CafeLogoIcon({ size = 40 }) {
       style={{
         width: size,
         height: size,
-        borderRadius: "50%",
-        overflow: "hidden",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -20,9 +18,9 @@ export default function CafeLogoIcon({ size = 40 }) {
         src="/logo.png"
         alt="Two Hearts Cafe Emblem"
         style={{
-          width: "138%",
-          height: "138%",
-          objectFit: "cover",
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
           mixBlendMode: "multiply",
           display: "block"
         }}

@@ -83,11 +83,16 @@ export default function OrderCard({
   };
 
   const handleRejectAddition = async () => {
-    const summaryText =
-      activeAdditionItems.map((i) => `${i.quantity || 1}× ${i.name}`).join(", ") || "these items";
+    const additionSummary =
+      activeAdditionItems.map((i) => `${i.quantity || 1}× ${i.name}`).join(", ") || "these newly added items";
+    const acceptedDishes = (order.items || [])
+      .filter((it) => !activeAdditionItems.some((a) => (a.id && it.id && String(a.id) === String(it.id)) || (a.name && it.name && a.name.trim().toLowerCase() === it.name.trim().toLowerCase())))
+      .map((i) => `${i.quantity || 1}× ${i.name}`)
+      .join(", ") || "earlier dishes";
+
     if (
       !confirm(
-        `Reject addition (${summaryText}) from Table #${order.tableNumber}? These items will be removed from the table's total bill.`
+        `Reject ONLY the new addition (${additionSummary}) from Table #${order.tableNumber}?\n\n✓ The previously accepted dishes (${acceptedDishes}) will remain active and untouched in the kitchen.`
       )
     ) {
       return;
@@ -233,6 +238,20 @@ export default function OrderCard({
               <span style={{ fontSize: 13, fontFamily: "var(--font-serif)", fontWeight: 700, color: "var(--color-ink)" }}>Updated Total Table Bill:</span>
               <strong style={{ fontSize: 18, color: "var(--color-ink)" }}>Rs.{order.total}</strong>
             </div>
+
+            {/* Note clarifying that only newly added items are rejected */}
+            <div style={{
+              fontSize: 11.5,
+              fontFamily: "var(--font-serif)",
+              color: "#4b5563",
+              backgroundColor: "#f9fafb",
+              border: "1px dashed #d1d5db",
+              borderRadius: 4,
+              padding: "6px 9px",
+              lineHeight: 1.35
+            }}>
+              💡 <strong>Rejecting</strong> will remove <em>only</em> these new items. Previously accepted dishes remain active in the kitchen.
+            </div>
           </div>
 
           {/* Actions: Accept & Prepare / Reject Addition */}
@@ -268,14 +287,14 @@ export default function OrderCard({
               onClick={handleRejectAddition}
               disabled={isProcessingAddition}
               style={{
-                flex: 1,
+                flex: 1.4,
                 backgroundColor: "#fff",
                 color: "#dc2626",
                 border: "1.5px solid #dc2626",
-                padding: "11px 12px",
+                padding: "11px 10px",
                 borderRadius: "var(--radius-pill)",
                 fontFamily: "var(--font-serif)",
-                fontSize: 12.5,
+                fontSize: 12,
                 fontWeight: 700,
                 letterSpacing: 0.5,
                 textTransform: "uppercase",
@@ -285,9 +304,10 @@ export default function OrderCard({
                 gap: 4,
                 cursor: "pointer"
               }}
+              title="Reject only this new addition while keeping accepted dishes"
             >
               <X size={15} />
-              <span>Reject</span>
+              <span>Reject Addition</span>
             </button>
           </div>
         </div>

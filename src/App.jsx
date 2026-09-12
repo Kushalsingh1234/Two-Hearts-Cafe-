@@ -20,6 +20,7 @@ import SignInPage from "./components/auth/SignInPage";
 import UserProfilePage from "./components/profile/UserProfilePage";
 import { subscribeMenuItems, subscribeLiveOrders } from "./firebase/services";
 import { subscribeAuth, logoutUser, getStaffSession, saveStaffSession } from "./firebase/auth";
+import { INITIAL_MENU_ITEMS } from "./data/seedMenu";
 import {
   triggerOrderNotification,
   triggerTableAdditionNotification,

@@ -8,10 +8,6 @@ import LiveOrderTracker from "./LiveOrderTracker";
 import CafeLogoIcon from "../common/CafeLogoIcon";
 import { CAFE_INFO } from "../../data/seedMenu";
 import { placeOrAppendTableOrder, requestCounterBill } from "../../firebase/services";
-import {
-  triggerTableAdditionNotification,
-  triggerCounterBillRequestedNotification
-} from "../../utils/notifications";
 import PaymentChoiceModal from "./PaymentChoiceModal";
 import PaymentModal from "./PaymentModal";
 
@@ -197,10 +193,6 @@ export default function CustomerView({
         origin: { y: 0.6 }
       });
 
-      if (result.isAppended) {
-        triggerTableAdditionNotification(activeOrd, result.newItems);
-      }
-
       // Automatically display payment choice pop-up immediately after sending order
       setPaymentChoiceOrder(activeOrd);
       setIsPaymentChoiceOpen(true);
@@ -222,8 +214,7 @@ export default function CustomerView({
     if (!targetOrder || !targetOrder.id) return;
     setIsSubmittingCounter(true);
     try {
-      const updated = await requestCounterBill(targetOrder.id);
-      triggerCounterBillRequestedNotification(updated);
+      await requestCounterBill(targetOrder.id);
       setIsPaymentChoiceOpen(false);
     } catch (err) {
       console.error("Counter bill request failed:", err);

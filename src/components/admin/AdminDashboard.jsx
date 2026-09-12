@@ -260,10 +260,73 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
   const tableOrders = orders.filter((ord) => !isOnlineOrder(ord));
   const onlineOrders = orders.filter(isOnlineOrder);
 
+  // Guarantee strictly at most ONE active card per table on the admin board
+  const mergedActiveTableOrders = useMemo(() => {
+    const activeRaw = tableOrders.filter(
+      (ord) => ord && ord.status !== "settled" && ord.status !== "cancelled"
+    );
+
+    const tableMap = new Map();
+    // Sort oldest first so initial order forms base card and additions merge cleanly
+    const sorted = [...activeRaw].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+    sorted.forEach((ord) => {
+      const tbl = String(ord.tableNumber);
+      if (!tableMap.has(tbl)) {
+        tableMap.set(tbl, { ...ord });
+      } else {
+        const existing = tableMap.get(tbl);
+        const mergedItems = [...(existing.items || [])];
+        (ord.items || []).forEach((newItem) => {
+          const idx = mergedItems.findIndex(
+            (it) =>
+              it.id === newItem.id &&
+              it.name === newItem.name &&
+              !it.specialInstructions &&
+              !newItem.specialInstructions
+          );
+          if (idx >= 0) {
+            mergedItems[idx] = {
+              ...mergedItems[idx],
+              quantity: (Number(mergedItems[idx].quantity) || 1) + (Number(newItem.quantity) || 1)
+            };
+          } else {
+            mergedItems.push({ ...newItem });
+          }
+        });
+        const total = mergedItems.reduce(
+          (sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1),
+          0
+        );
+
+        tableMap.set(tbl, {
+          ...existing,
+          items: mergedItems,
+          total,
+          subtotal: total,
+          paymentStatus:
+            ord.paymentStatus === "paid_online" || existing.paymentStatus === "paid_online"
+              ? "paid_online"
+              : ord.paymentStatus === "pay_at_counter" || existing.paymentStatus === "pay_at_counter"
+              ? "pay_at_counter"
+              : "pending",
+          billRequested: Boolean(ord.billRequested || existing.billRequested),
+          lastAdditionSummary:
+            ord.lastAdditionSummary ||
+            ord.items?.map((it) => `${it.quantity || 1}× ${it.name}`).join(", ") ||
+            existing.lastAdditionSummary,
+          updatedAt: ord.updatedAt || existing.updatedAt
+        });
+      }
+    });
+
+    return Array.from(tableMap.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  }, [tableOrders]);
+
   // Stats calculation for table orders
-  const tableNewOrdersCount = tableOrders.filter((o) => o.status === "placed").length;
-  const tablePreparingCount = tableOrders.filter((o) => o.status === "preparing").length;
-  const tableServedCount = tableOrders.filter((o) => o.status === "served").length;
+  const tableNewOrdersCount = mergedActiveTableOrders.filter((o) => o.status === "placed").length;
+  const tablePreparingCount = mergedActiveTableOrders.filter((o) => o.status === "preparing").length;
+  const tableServedCount = mergedActiveTableOrders.filter((o) => o.status === "served").length;
   const tableSettledCount = tableOrders.filter((o) => o.status === "settled").length;
   const tableTotalRevenue = tableOrders
     .filter((o) => o.status !== "cancelled")
@@ -275,24 +338,28 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
   ).length;
   const onlineNewCount = onlineOrders.filter((o) => o.status === "placed").length;
 
-  // Filtered table orders
-  const filteredTableOrders = tableOrders.filter((ord) => {
+  // Filtered table orders: strictly one card per table for active orders
+  const filteredTableOrders = useMemo(() => {
+    let sourceList;
     if (orderStatusFilter === "active") {
-      if (ord.status === "settled" || ord.status === "cancelled") return false;
+      sourceList = mergedActiveTableOrders;
     } else if (orderStatusFilter === "settled") {
-      if (ord.status !== "settled") return false;
-    } else if (orderStatusFilter !== "all" && ord.status !== orderStatusFilter) {
-      return false;
+      sourceList = tableOrders.filter((ord) => ord.status === "settled");
+    } else if (orderStatusFilter === "all") {
+      sourceList = tableOrders;
+    } else {
+      sourceList = mergedActiveTableOrders.filter((ord) => ord.status === orderStatusFilter);
     }
-    if (tableFilter !== "all" && String(ord.tableNumber) !== String(tableFilter)) {
-      return false;
-    }
-    return true;
-  });
 
-  const uniqueTables = Array.from(new Set(tableOrders.map((o) => String(o.tableNumber)))).sort(
-    (a, b) => Number(a) - Number(b)
-  );
+    if (tableFilter !== "all") {
+      sourceList = sourceList.filter((ord) => String(ord.tableNumber) === String(tableFilter));
+    }
+    return sourceList;
+  }, [orderStatusFilter, tableFilter, mergedActiveTableOrders, tableOrders]);
+
+  const uniqueTables = Array.from(
+    new Set([...tableOrders.map((o) => String(o.tableNumber))])
+  ).sort((a, b) => Number(a) - Number(b));
 
   return (
     <div className="admin-dashboard-container" style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 16px 80px 16px" }}>

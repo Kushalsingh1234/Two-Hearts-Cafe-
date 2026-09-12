@@ -13,7 +13,33 @@ class AudioNotifier {
 
     if (typeof window !== "undefined") {
       this.setupAutoUnlock();
+      this.setupVisibilityHandler();
     }
+  }
+
+  // Auto-resume AudioContext and trigger chime when returning from background or unlocking phone
+  setupVisibilityHandler() {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+
+    const handleResume = () => {
+      this.initContext();
+      if (this.audioCtx && this.audioCtx.state === "suspended") {
+        this.audioCtx.resume().catch(() => {});
+      }
+      // If alarm is currently repeating, chime immediately upon returning to foreground
+      if (this.isRepeating && !this.isMuted && !this.isTemporarilySilenced) {
+        this.playChime();
+      }
+    };
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        handleResume();
+      }
+    });
+
+    window.addEventListener("focus", handleResume);
+    window.addEventListener("pageshow", handleResume);
   }
 
   // Pre-load HTML5 audio element for instant hardware-accelerated playback

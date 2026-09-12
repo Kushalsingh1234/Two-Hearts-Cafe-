@@ -21,7 +21,7 @@ export default function OrderCard({ order, onUpdateStatus }) {
   const isSettled = order.status === "settled";
 
   const isPaidOnline = order.paymentStatus === "paid_online";
-  const isPayAtCounter = order.paymentStatus === "pay_at_counter";
+  const isPayAtCounter = order.paymentStatus === "pay_at_counter" || Boolean(order.billRequested);
   const utr = order.paymentDetails?.utr;
 
   return (
@@ -103,7 +103,23 @@ export default function OrderCard({ order, onUpdateStatus }) {
               <Building2 size={10} />
               <span>Counter Pay</span>
             </span>
-          ) : null}
+          ) : (
+            <span style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 11,
+              fontFamily: "var(--font-serif)",
+              fontWeight: 600,
+              padding: "2px 8px",
+              borderRadius: "var(--radius-pill)",
+              backgroundColor: "#f5f5f4",
+              color: "#78716c",
+              border: "1px solid #e7e5e4"
+            }}>
+              <span>Dining (Unpaid)</span>
+            </span>
+          )}
 
           <span style={{
             fontFamily: "var(--font-serif)",
@@ -113,14 +129,31 @@ export default function OrderCard({ order, onUpdateStatus }) {
             textTransform: "uppercase",
             padding: "2px 8px",
             borderRadius: "var(--radius-pill)",
-            border: "1px solid var(--color-border-frame)",
-            backgroundColor: "#fff",
-            color: "var(--color-ink)"
+            backgroundColor: isPlaced ? "#fee2e2" : isPreparing ? "#dbeafe" : isServed ? "#dcfce7" : "#e5e7eb",
+            color: isPlaced ? "#dc2626" : isPreparing ? "#1d4ed8" : isServed ? "#15803d" : "#374151"
           }}>
             {isPlaced ? "● New Order" : order.status}
           </span>
         </div>
       </div>
+
+      {/* Latest Addition Highlight Badge */}
+      {order.lastAdditionSummary && (
+        <div style={{
+          backgroundColor: "#ecfdf5",
+          borderBottom: "1px dashed #10b981",
+          padding: "6px 16px",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          fontFamily: "var(--font-serif)",
+          fontSize: 12,
+          fontWeight: 700,
+          color: "#047857"
+        }}>
+          <span>+ Item Added: {order.lastAdditionSummary}</span>
+        </div>
+      )}
 
       {/* Special Kitchen Notes */}
       {order.specialInstructions && (
@@ -210,7 +243,7 @@ export default function OrderCard({ order, onUpdateStatus }) {
               </div>
             ) : (
               <span style={{ fontSize: 12, fontStyle: "italic", color: "var(--color-bronze)" }}>
-                Payment pending at table
+                Bill not requested yet
               </span>
             )}
           </div>

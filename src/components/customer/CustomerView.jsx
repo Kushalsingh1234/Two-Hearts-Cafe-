@@ -7,7 +7,13 @@ import CartDrawer from "./CartDrawer";
 import LiveOrderTracker from "./LiveOrderTracker";
 import CafeLogoIcon from "../common/CafeLogoIcon";
 import { CAFE_INFO } from "../../data/seedMenu";
-import { placeOrder } from "../../firebase/services";
+import { placeOrAppendTableOrder, requestCounterBill } from "../../firebase/services";
+import {
+  triggerTableAdditionNotification,
+  triggerCounterBillRequestedNotification
+} from "../../utils/notifications";
+import PaymentChoiceModal from "./PaymentChoiceModal";
+import PaymentModal from "./PaymentModal";
 
 export default function CustomerView({
   tableNumber,
@@ -24,6 +30,10 @@ export default function CustomerView({
   const [cartItems, setCartItems] = useState([]);
   const [isPlacing, setIsPlacing] = useState(false);
   const [isTrackerOpen, setIsTrackerOpen] = useState(false);
+  const [isPaymentChoiceOpen, setIsPaymentChoiceOpen] = useState(false);
+  const [paymentChoiceOrder, setPaymentChoiceOrder] = useState(null);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isSubmittingCounter, setIsSubmittingCounter] = useState(false);
 
   // Dynamic categories computed from menuItems
   const categoriesList = useMemo(() => {
@@ -173,9 +183,10 @@ export default function CustomerView({
   const handlePlaceOrder = async (orderPayload) => {
     setIsPlacing(true);
     try {
-      const created = await placeOrder(orderPayload);
-      if (created && created.id) {
-        addSessionOrderId(tableNumber, created.id);
+      const result = await placeOrAppendTableOrder(orderPayload, orders);
+      const activeOrd = result.order;
+      if (activeOrd && activeOrd.id) {
+        addSessionOrderId(tableNumber, activeOrd.id);
       }
       setCartItems([]);
       setIsCartOpen(false);
@@ -186,12 +197,39 @@ export default function CustomerView({
         origin: { y: 0.6 }
       });
 
-      setIsTrackerOpen(true);
+      if (result.isAppended) {
+        triggerTableAdditionNotification(activeOrd, result.newItems);
+      }
+
+      // Automatically display payment choice pop-up immediately after sending order
+      setPaymentChoiceOrder(activeOrd);
+      setIsPaymentChoiceOpen(true);
     } catch (err) {
       console.error("Order error:", err);
       alert("Could not place order. Please alert staff.");
     } finally {
       setIsPlacing(false);
+    }
+  };
+
+  const handleChooseOnlinePay = () => {
+    setIsPaymentChoiceOpen(false);
+    setIsPaymentModalOpen(true);
+  };
+
+  const handleChooseCounterPay = async () => {
+    const targetOrder = paymentChoiceOrder || customerActiveOrders[0];
+    if (!targetOrder || !targetOrder.id) return;
+    setIsSubmittingCounter(true);
+    try {
+      const updated = await requestCounterBill(targetOrder.id);
+      triggerCounterBillRequestedNotification(updated);
+      setIsPaymentChoiceOpen(false);
+    } catch (err) {
+      console.error("Counter bill request failed:", err);
+      alert("Could not notify staff. Please request at the counter.");
+    } finally {
+      setIsSubmittingCounter(false);
     }
   };
 
@@ -232,36 +270,121 @@ export default function CustomerView({
       padding: "12px 14px 110px 14px",
       boxSizing: "border-box"
     }}>
-      {/* Live Order Active Banner if table has an active in-kitchen order */}
-      {customerActiveOrders.length > 0 ? (
-        <div
-          onClick={() => setIsTrackerOpen(true)}
-          style={{
-            marginBottom: 12,
-            backgroundColor: "var(--color-bronze)",
-            color: "#fff",
-            borderRadius: "var(--radius-sm)",
-            padding: "8px 12px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            cursor: "pointer",
-            boxShadow: "var(--shadow-sm)"
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "#a7f3d0" }} />
-            <span>
-              <strong>Order #{customerActiveOrders[0].orderNumber || customerActiveOrders[0].id.slice(0, 5)}:</strong> Status: {customerActiveOrders[0].status.toUpperCase()}
-              {customerActiveOrders[0].paymentStatus === "paid_online" ? " (UPI Paid)" : ""}
-            </span>
+      {/* Sticky Top Banner: Bill Pending or Active Order or Settled */}
+      {customerActiveOrders.length > 0 ? (() => {
+        const activeOrd = customerActiveOrders[0];
+        const isPaid = activeOrd.paymentStatus === "paid_online";
+        const isCounterRequested = activeOrd.paymentStatus === "pay_at_counter" || activeOrd.billRequested;
+
+        if (isPaid) {
+          return (
+            <div
+              onClick={() => setIsTrackerOpen(true)}
+              style={{
+                marginBottom: 12,
+                backgroundColor: "#14532d",
+                color: "#f0fdf4",
+                borderRadius: "var(--radius-sm)",
+                padding: "10px 14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                cursor: "pointer",
+                border: "1.2px solid #22c55e",
+                boxShadow: "var(--shadow-sm)"
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5 }}>
+                <CheckCircle2 size={16} color="#86efac" />
+                <span>
+                  <strong>Table #{tableNumber} • UPI Paid (₹{activeOrd.total})</strong> — Kitchen: {activeOrd.status.toUpperCase()}
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11.5, textDecoration: "underline", color: "#86efac" }}>
+                <span>Track Order</span>
+                <ChevronRight size={14} />
+              </div>
+            </div>
+          );
+        }
+
+        if (isCounterRequested) {
+          return (
+            <div
+              onClick={() => {
+                setPaymentChoiceOrder(activeOrd);
+                setIsPaymentChoiceOpen(true);
+              }}
+              style={{
+                marginBottom: 12,
+                backgroundColor: "#78350f",
+                color: "#fef3c7",
+                borderRadius: "var(--radius-sm)",
+                padding: "10px 14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                cursor: "pointer",
+                border: "1.2px solid #f59e0b",
+                boxShadow: "var(--shadow-sm)"
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5 }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#fbbf24" }} />
+                <span>
+                  <strong>Table #{tableNumber} • Cash Bill Requested (₹{activeOrd.total})</strong>
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11.5, textDecoration: "underline", color: "#fde68a" }}>
+                <span>Pay Online / Change</span>
+                <ChevronRight size={14} />
+              </div>
+            </div>
+          );
+        }
+
+        // Bill Pending: Customer has ordered and food is cooking, payment choice pending
+        return (
+          <div
+            onClick={() => {
+              setPaymentChoiceOrder(activeOrd);
+              setIsPaymentChoiceOpen(true);
+            }}
+            style={{
+              marginBottom: 12,
+              backgroundColor: "var(--color-bronze-dark, #5C3826)",
+              color: "#FAF7F2",
+              borderRadius: "var(--radius-sm)",
+              padding: "10px 14px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              cursor: "pointer",
+              border: "1.5px solid var(--color-bronze)",
+              boxShadow: "0 2px 8px rgba(138, 87, 56, 0.25)"
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5 }}>
+              <span style={{
+                backgroundColor: "#FAF7F2",
+                color: "var(--color-bronze-dark)",
+                fontSize: 10,
+                fontWeight: 800,
+                padding: "2px 6px",
+                borderRadius: "var(--radius-pill)"
+              }}>
+                BILL PENDING
+              </span>
+              <span>
+                <strong>Bill Pending: ₹{activeOrd.total} (Table #{tableNumber})</strong>
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 700, textDecoration: "underline", color: "#FEE2C7" }}>
+              <span>Pay Online or Cash ➜</span>
+            </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, textDecoration: "underline" }}>
-            <span>Track & Pay Bill</span>
-            <ChevronRight size={13} />
-          </div>
-        </div>
-      ) : customerSettledOrders.length > 0 ? (
+        );
+      })() : customerSettledOrders.length > 0 ? (
         <div
           onClick={() => setIsTrackerOpen(true)}
           style={{
@@ -574,6 +697,32 @@ export default function CustomerView({
         onClose={() => setIsTrackerOpen(false)}
         orders={orders}
         tableNumber={tableNumber}
+      />
+
+      {/* Immediate Payment Choice Modal (Appears upon sending order or tapping Bill Pending bar) */}
+      <PaymentChoiceModal
+        isOpen={isPaymentChoiceOpen}
+        onClose={() => setIsPaymentChoiceOpen(false)}
+        order={paymentChoiceOrder || customerActiveOrders[0]}
+        tableNumber={tableNumber}
+        onChooseOnlinePay={handleChooseOnlinePay}
+        onChooseCounterPay={handleChooseCounterPay}
+        isSubmittingCounter={isSubmittingCounter}
+      />
+
+      {/* Online Payment Flow Modal (UPI / QR / Razorpay) */}
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        order={paymentChoiceOrder || customerActiveOrders[0]}
+        onPaymentSuccess={() => {
+          setIsPaymentModalOpen(false);
+          setIsTrackerOpen(true);
+        }}
+        onOpenInvoice={() => {
+          setIsPaymentModalOpen(false);
+          setIsTrackerOpen(true);
+        }}
       />
     </div>
   );

@@ -2,6 +2,18 @@ import React from "react";
 import { ShoppingBag, Utensils, ArrowLeft } from "lucide-react";
 import CafeLogoIcon from "./CafeLogoIcon";
 
+const checkIsPwa = () => {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: window-controls-overlay)").matches ||
+    window.matchMedia("(display-mode: minimal-ui)").matches ||
+    window.navigator.standalone === true ||
+    new URLSearchParams(window.location.search).get("pwa") === "1" ||
+    new URLSearchParams(window.location.search).get("pwa") === "true"
+  );
+};
+
 export default function Navbar({
   currentView,
   setView,
@@ -9,8 +21,22 @@ export default function Navbar({
   cartCount,
   onOpenCart,
   activeOrderCount,
-  onOpenTracker
+  onOpenTracker,
+  isPwa: propIsPwa
 }) {
+  const isPwa = propIsPwa !== undefined ? propIsPwa : checkIsPwa();
+  const isAdminOrPwa = currentView === "admin" || isPwa;
+
+  const handleLogoClick = (e) => {
+    if (isAdminOrPwa) {
+      e.preventDefault();
+      // Stay on admin dashboard without reloading or navigating to website
+      if (currentView !== "admin") {
+        setView("admin");
+      }
+    }
+  };
+
   return (
     <header style={{
       position: "sticky",
@@ -35,14 +61,16 @@ export default function Navbar({
       }}>
         {/* Brand with Official Cafe Emblem Icon */}
         <a
-          href="/"
+          href={isAdminOrPwa ? "/?admin=true" : "/"}
+          onClick={handleLogoClick}
           style={{
             display: "flex",
             alignItems: "center",
             gap: 10,
-            textDecoration: "none"
+            textDecoration: "none",
+            cursor: isAdminOrPwa ? "default" : "pointer"
           }}
-          title="Two Hearts Cafe"
+          title={isAdminOrPwa ? "Two Hearts Staff & Kitchen Hub" : "Two Hearts Cafe"}
         >
           <CafeLogoIcon size={38} />
           <div style={{ display: "flex", flexDirection: "column" }}>
@@ -156,8 +184,8 @@ export default function Navbar({
                 )}
               </button>
             </>
-          ) : (
-            /* Staff Dashboard Mode: Back to Table Menu button */
+          ) : !isPwa ? (
+            /* Staff Dashboard Mode: Back to Table Menu button (browser mode only, hidden in PWA) */
             <button
               onClick={() => {
                 const url = new URL(window.location.href);
@@ -183,7 +211,7 @@ export default function Navbar({
               <ArrowLeft size={13} />
               <span>Customer View</span>
             </button>
-          )}
+          ) : null}
         </div>
       </div>
     </header>

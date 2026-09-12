@@ -7,6 +7,7 @@ import android.content.Context;
 import android.graphics.Color;
 import android.media.AudioAttributes;
 import android.net.Uri;
+import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 
@@ -17,6 +18,18 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         createNotificationChannels();
+
+        // Start 24/7 background order monitoring foreground service
+        try {
+            Intent serviceIntent = new Intent(this, OrderMonitorService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent);
+            } else {
+                startService(serviceIntent);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void createNotificationChannels() {

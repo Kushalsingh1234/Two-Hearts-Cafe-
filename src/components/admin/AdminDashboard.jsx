@@ -36,6 +36,7 @@ import {
   subscribeInstallPrompt,
   promptPwaInstall
 } from "../../utils/notifications";
+import { isNativeApp } from "../../utils/nativePush";
 
 export default function AdminDashboard({ orders, menuItems, currentUser, onLogout }) {
   const [activeTab, setActiveTab] = useState(() => {
@@ -887,36 +888,67 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
           </button>
 
           {/* 24/7 Background Order Monitor */}
-          <button
-            onClick={handleToggleBackgroundMonitor}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "5px 12px",
-              borderRadius: "var(--radius-pill)",
-              backgroundColor: soundState.isBackgroundActive ? "#f0fdf4" : "#FAF7F2",
-              border: soundState.isBackgroundActive ? "1px solid #86efac" : "1px solid var(--color-border-frame)",
-              fontFamily: "var(--font-serif)",
-              fontSize: 12,
-              fontWeight: 700,
-              color: soundState.isBackgroundActive ? "#15803d" : "var(--color-ink)",
-              cursor: "pointer"
-            }}
-            title="24/7 Background Audio Monitor keeps phone awake and orders chiming even when app is in background or phone is locked"
-          >
-            <span
+          {isNativeApp() ? (
+            <div
               style={{
-                display: "inline-block",
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                backgroundColor: soundState.isBackgroundActive ? "#22c55e" : "#9ca3af",
-                boxShadow: soundState.isBackgroundActive ? "0 0 6px #22c55e" : "none"
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "5px 12px",
+                borderRadius: "var(--radius-pill)",
+                backgroundColor: "#f0fdf4",
+                border: "1px solid #86efac",
+                fontFamily: "var(--font-serif)",
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#15803d"
               }}
-            />
-            <span>{soundState.isBackgroundActive ? "Background: ACTIVE" : "Background: OFF"}</span>
-          </button>
+              title="Native Android Kitchen Service is running 24/7 in the background"
+            >
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 7,
+                  height: 7,
+                  borderRadius: "50%",
+                  backgroundColor: "#22c55e",
+                  boxShadow: "0 0 6px #22c55e"
+                }}
+              />
+              <span>Monitor: ACTIVE (Native)</span>
+            </div>
+          ) : (
+            <button
+              onClick={handleToggleBackgroundMonitor}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "5px 12px",
+                borderRadius: "var(--radius-pill)",
+                backgroundColor: soundState.isBackgroundActive ? "#f0fdf4" : "#FAF7F2",
+                border: soundState.isBackgroundActive ? "1px solid #86efac" : "1px solid var(--color-border-frame)",
+                fontFamily: "var(--font-serif)",
+                fontSize: 12,
+                fontWeight: 700,
+                color: soundState.isBackgroundActive ? "#15803d" : "var(--color-ink)",
+                cursor: "pointer"
+              }}
+              title="24/7 Background Audio Monitor keeps phone awake and orders chiming even when app is in background or phone is locked"
+            >
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 7,
+                  height: 7,
+                  borderRadius: "50%",
+                  backgroundColor: soundState.isBackgroundActive ? "#22c55e" : "#9ca3af",
+                  boxShadow: soundState.isBackgroundActive ? "0 0 6px #22c55e" : "none"
+                }}
+              />
+              <span>{soundState.isBackgroundActive ? "Background: ACTIVE" : "Background: OFF"}</span>
+            </button>
+          )}
 
           {/* Sound Mute/Unmute Toggle */}
           <button
@@ -941,8 +973,8 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
             <span>{soundState.isMuted ? "Sound: Muted" : "Sound: ON"}</span>
           </button>
 
-          {/* PWA Install Button */}
-          {!isAlreadyInstalled && (
+          {/* PWA Install Button (only on web browser, hidden in native app) */}
+          {!isAlreadyInstalled && !isNativeApp() && (
             <button
               onClick={handleInstallApp}
               style={{
@@ -969,8 +1001,8 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
         </div>
       </div>
 
-      {/* 24/7 Background Alerts Activation Card (shown if background audio monitor or notification permission is not yet active) */}
-      {(!soundState.isBackgroundActive || notifPermission !== "granted") && (
+      {/* 24/7 Background Alerts Activation Card (shown ONLY on Web PWA if background audio monitor or notification permission is not yet active) */}
+      {!isNativeApp() && (!soundState.isBackgroundActive || notifPermission !== "granted") && (
         <div
           style={{
             backgroundColor: "#eff6ff",

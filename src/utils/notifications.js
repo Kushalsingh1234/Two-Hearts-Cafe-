@@ -1,5 +1,18 @@
-// Two Hearts Cafe - Background Order Notification & PWA Manager
 import { soundNotifier } from "./audio";
+import { isNativeApp } from "./nativePush";
+
+/**
+ * Check whether current page/tab is an active staff/admin panel
+ * Returns false on customer views so customers never receive notifications, chimes, or vibrations
+ */
+export const isStaffNotificationTarget = () => {
+  if (typeof window === "undefined") return false;
+  if (isNativeApp()) return true;
+  const search = window.location.search || "";
+  const hash = window.location.hash || "";
+  const pathname = window.location.pathname.toLowerCase();
+  return search.includes("admin") || hash.includes("admin") || pathname.includes("admin");
+};
 
 let swRegistration = null;
 let deferredInstallPrompt = null;
@@ -102,6 +115,9 @@ export const getNotificationPermission = () => {
  * Trigger Rich Order Notification (with Ting Chime, Vibration & System Banner)
  */
 export const triggerOrderNotification = async (order) => {
+  // STRICT GUARD: Customer end must NEVER hear ting chime, feel vibration, or receive order popups
+  if (!isStaffNotificationTarget()) return;
+
   // 1. Instantly play the signature cafe Ting! bell chime & vibrate
   soundNotifier.playChime();
 
@@ -185,6 +201,9 @@ export const triggerOrderNotification = async (order) => {
  * Plays bright payment chime, vibrates, and triggers system push notification
  */
 export const triggerPaymentNotification = async (order) => {
+  // STRICT GUARD: Customer end must NEVER hear payment chime or feel vibration
+  if (!isStaffNotificationTarget()) return;
+
   // 1. Play signature payment success chime
   soundNotifier.playPaymentSuccessChime();
 
@@ -244,6 +263,9 @@ export const triggerPaymentNotification = async (order) => {
  * Trigger Notification when additional dishes are added to an existing active table order
  */
 export const triggerTableAdditionNotification = async (order, newItems = []) => {
+  // STRICT GUARD: Customer end must NEVER hear addition chime or feel vibration
+  if (!isStaffNotificationTarget()) return;
+
   // 1. Play signature cafe ting chime
   soundNotifier.playChime();
 
@@ -322,6 +344,9 @@ export const triggerTableAdditionNotification = async (order, newItems = []) => 
  * Trigger Notification when customer requests a physical Cash/Counter bill
  */
 export const triggerCounterBillRequestedNotification = async (order) => {
+  // STRICT GUARD: Customer end must NEVER hear bill request chime or feel vibration
+  if (!isStaffNotificationTarget()) return;
+
   // 1. Play signature cafe ting chime
   soundNotifier.playChime();
 

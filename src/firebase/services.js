@@ -777,7 +777,36 @@ export const placeOnlineDeliveryOrder = async (payload) => {
 };
 
 /**
+ * Direct fetch of all live orders from Firestore (used for background wake-up and watchdog catch-up)
+ */
+export const pollLatestOrders = async (onSuccess) => {
+  try {
+    const q = collection(db, ORDERS_COLLECTION);
+    const snapshot = await getDocs(q);
+    firestorePermissionErrorDetected = false;
+    const orders = snapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    }));
+    orders.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    setLocalData(LOCAL_STORAGE_ORDERS_KEY, orders);
+    if (onSuccess) {
+      onSuccess(orders);
+    }
+    return orders;
+  } catch (err) {
+    console.warn("Manual pollLatestOrders fallback to local:", err.message);
+    const local = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+    if (onSuccess) {
+      onSuccess(local);
+    }
+    return local;
+  }
+};
+
+/**
  * Subscribe to live orders (for Kitchen / Owner Live Dashboard)
+ * Includes real-time Firestore onSnapshot + 12s background watchdog + instant visibility wake-up resync
  */
 export const subscribeLiveOrders = (onSuccess, onError) => {
   let isUnsubscribed = false;
@@ -816,12 +845,35 @@ export const subscribeLiveOrders = (onSuccess, onError) => {
     window.addEventListener("twohearts_new_order", handleLocalSync);
     window.addEventListener("twohearts_order_updated", handleLocalSync);
 
+    // Watchdog interval: every 12 seconds check Firestore directly to catch orders even if WebSocket paused
+    const watchdogTimer = setInterval(() => {
+      if (!isUnsubscribed) {
+        pollLatestOrders(onSuccess).catch(() => {});
+      }
+    }, 12000);
+
+    // Instant catch-up on visibility resume, window focus, pageshow, and online reconnection
+    const handleWakeupSync = () => {
+      if (!isUnsubscribed) {
+        pollLatestOrders(onSuccess).catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", handleWakeupSync);
+    window.addEventListener("focus", handleWakeupSync);
+    window.addEventListener("pageshow", handleWakeupSync);
+    window.addEventListener("online", handleWakeupSync);
+
     return () => {
       isUnsubscribed = true;
       unsubscribe();
+      clearInterval(watchdogTimer);
       window.removeEventListener("storage", handleLocalSync);
       window.removeEventListener("twohearts_new_order", handleLocalSync);
       window.removeEventListener("twohearts_order_updated", handleLocalSync);
+      document.removeEventListener("visibilitychange", handleWakeupSync);
+      window.removeEventListener("focus", handleWakeupSync);
+      window.removeEventListener("pageshow", handleWakeupSync);
+      window.removeEventListener("online", handleWakeupSync);
     };
   } catch (err) {
     console.warn("Live orders setup error:", err);

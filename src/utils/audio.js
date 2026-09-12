@@ -1,14 +1,18 @@
-// Dual-engine luxury cafe bell chime with mobile auto-unlock, WakeLock, and vibration
+// Dual-engine luxury cafe bell chime with mobile auto-unlock, WakeLock, MediaSession, and 24/7 background keep-alive
 class AudioNotifier {
   constructor() {
     this.audioCtx = null;
     this.audioElement = null;
+    this.backgroundAudio = null;
+    this.isBackgroundActive = false;
     this.isMuted = false;
     this.isUnlocked = false;
     this.wakeLock = null;
+    this.isScreenAwake = false;
     this.repeatInterval = null;
     this.isRepeating = false;
     this.isTemporarilySilenced = false;
+    this.lastChimePlayedAt = 0;
     this.listeners = new Set();
 
     if (typeof window !== "undefined") {
@@ -17,7 +21,7 @@ class AudioNotifier {
     }
   }
 
-  // Auto-resume AudioContext and trigger chime when returning from background or unlocking phone
+  // Auto-resume AudioContext and re-acquire locks when returning from background or unlocking phone
   setupVisibilityHandler() {
     if (typeof window === "undefined" || typeof document === "undefined") return;
 
@@ -26,6 +30,17 @@ class AudioNotifier {
       if (this.audioCtx && this.audioCtx.state === "suspended") {
         this.audioCtx.resume().catch(() => {});
       }
+
+      // Re-verify background audio keep-alive if it was active
+      if (this.isBackgroundActive && this.backgroundAudio && this.backgroundAudio.paused) {
+        this.backgroundAudio.play().catch(() => {});
+      }
+
+      // Auto re-acquire wake lock on resume
+      if (this.isScreenAwake) {
+        this.requestWakeLock().catch(() => {});
+      }
+
       // If alarm is currently repeating, chime immediately upon returning to foreground
       if (this.isRepeating && !this.isMuted && !this.isTemporarilySilenced) {
         this.playChime();
@@ -55,6 +70,22 @@ class AudioNotifier {
     return this.audioElement;
   }
 
+  // Dedicated background audio keep-alive element
+  getBackgroundAudio() {
+    if (!this.backgroundAudio && typeof window !== "undefined") {
+      try {
+        this.backgroundAudio = new Audio("/audio/silent.wav");
+        this.backgroundAudio.loop = true;
+        // Near-zero volume keeps audio subsystem alive without audible noise
+        this.backgroundAudio.volume = 0.01;
+        this.backgroundAudio.preload = "auto";
+      } catch (e) {
+        console.warn("Background keep-alive audio element error:", e);
+      }
+    }
+    return this.backgroundAudio;
+  }
+
   // Auto-unlock AudioContext on first user interaction (touch, click, keydown)
   setupAutoUnlock() {
     const unlock = () => {
@@ -63,14 +94,22 @@ class AudioNotifier {
       if (el) {
         // Silent play to unlock iOS Safari & Android Chrome audio policy
         el.volume = 0;
-        el.play().then(() => {
-          el.pause();
-          el.currentTime = 0;
-          el.volume = 1;
-          this.isUnlocked = true;
-        }).catch(() => {});
+        el.play()
+          .then(() => {
+            el.pause();
+            el.currentTime = 0;
+            el.volume = 1;
+            this.isUnlocked = true;
+          })
+          .catch(() => {});
       }
       this.isUnlocked = true;
+
+      // Also start background monitor if requested or in admin context
+      if (typeof window !== "undefined" && window.location.search.includes("admin")) {
+        this.startBackgroundMonitor().catch(() => {});
+      }
+
       window.removeEventListener("click", unlock);
       window.removeEventListener("touchstart", unlock);
       window.removeEventListener("keydown", unlock);
@@ -93,6 +132,77 @@ class AudioNotifier {
     }
   }
 
+  /**
+   * Start 24/7 Background Audio Monitor using MediaSession
+   * Prevents mobile browsers (Android Chrome, iOS Safari) from suspending the PWA JS runtime
+   * and killing the Firestore realtime connection when app is in background or phone is locked.
+   */
+  async startBackgroundMonitor() {
+    try {
+      this.initContext();
+      const bg = this.getBackgroundAudio();
+      if (bg) {
+        // Register MediaSession metadata so mobile OS treats the PWA as an active media service
+        if (typeof navigator !== "undefined" && "mediaSession" in navigator) {
+          try {
+            navigator.mediaSession.metadata = new MediaMetadata({
+              title: "Kitchen Order Monitor - ACTIVE",
+              artist: "Two Hearts Cafe",
+              album: "Live Kitchen & Reception Alert Service",
+              artwork: [
+                { src: "/images/pwa/icon-192.png", sizes: "192x192", type: "image/png" },
+                { src: "/images/pwa/icon-512.png", sizes: "512x512", type: "image/png" }
+              ]
+            });
+
+            navigator.mediaSession.setActionHandler("play", () => {
+              this.startBackgroundMonitor();
+            });
+            navigator.mediaSession.setActionHandler("pause", () => {
+              this.stopBackgroundMonitor();
+            });
+          } catch (e) {
+            console.warn("MediaSession setup fallback:", e);
+          }
+        }
+
+        const promise = bg.play();
+        if (promise !== undefined) {
+          await promise;
+        }
+        this.isBackgroundActive = true;
+        this.isUnlocked = true;
+        this.notifyListeners();
+      }
+
+      // Automatically request screen wake lock as well
+      await this.requestWakeLock();
+      return true;
+    } catch (err) {
+      console.warn("Could not start background audio monitor (user gesture needed):", err);
+      return false;
+    }
+  }
+
+  stopBackgroundMonitor() {
+    if (this.backgroundAudio) {
+      try {
+        this.backgroundAudio.pause();
+      } catch (e) {}
+    }
+    this.isBackgroundActive = false;
+    this.notifyListeners();
+  }
+
+  toggleBackgroundMonitor() {
+    if (this.isBackgroundActive) {
+      this.stopBackgroundMonitor();
+    } else {
+      this.startBackgroundMonitor();
+    }
+    return this.isBackgroundActive;
+  }
+
   // Play the signature Two Hearts Cafe reception desk "Ting!" chime
   playChime() {
     if (this.isMuted || this.isTemporarilySilenced) return;
@@ -106,14 +216,11 @@ class AudioNotifier {
     // 1. Trigger strong phone vibration pattern
     if (typeof navigator !== "undefined" && navigator.vibrate) {
       try {
-        navigator.vibrate([300, 100, 300, 100, 500]);
-      } catch (e) {
-        // Ignore vibration errors
-      }
+        navigator.vibrate([400, 150, 400, 150, 600]);
+      } catch (e) {}
     }
 
     // 2. Play HTML5 Audio Element (/audio/ting.mp3)
-    let playedHtml5 = false;
     const el = this.getAudioElement();
     if (el) {
       try {
@@ -121,9 +228,7 @@ class AudioNotifier {
         el.volume = 1;
         const promise = el.play();
         if (promise !== undefined) {
-          promise.then(() => {
-            playedHtml5 = true;
-          }).catch((err) => {
+          promise.catch((err) => {
             console.warn("HTML5 audio play prevented by policy, using synthesizer:", err);
             this.playSynthesizedBell();
           });
@@ -192,7 +297,7 @@ class AudioNotifier {
     // Trigger double vibration for mobile counter devices
     if (typeof navigator !== "undefined" && navigator.vibrate) {
       try {
-        navigator.vibrate([150, 80, 250]);
+        navigator.vibrate([200, 100, 300]);
       } catch (e) {}
     }
 
@@ -230,11 +335,16 @@ class AudioNotifier {
       try {
         if (!this.wakeLock) {
           this.wakeLock = await navigator.wakeLock.request("screen");
+          this.isScreenAwake = true;
           this.wakeLock.addEventListener("release", () => {
             this.wakeLock = null;
+            this.isScreenAwake = false;
+            this.notifyListeners();
           });
+          this.notifyListeners();
           return true;
         }
+        return true;
       } catch (err) {
         console.warn("Screen Wake Lock could not be obtained:", err.message);
       }
@@ -247,6 +357,8 @@ class AudioNotifier {
       this.wakeLock.release().catch(() => {});
       this.wakeLock = null;
     }
+    this.isScreenAwake = false;
+    this.notifyListeners();
   }
 
   // Continuous repeating chime until order is accepted/rejected
@@ -295,7 +407,9 @@ class AudioNotifier {
     callback({
       isRepeating: this.isRepeating,
       isMuted: this.isMuted,
-      isSilenced: this.isTemporarilySilenced
+      isSilenced: this.isTemporarilySilenced,
+      isBackgroundActive: this.isBackgroundActive,
+      isScreenAwake: this.isScreenAwake
     });
     return () => this.listeners.delete(callback);
   }
@@ -306,7 +420,9 @@ class AudioNotifier {
         fn({
           isRepeating: this.isRepeating,
           isMuted: this.isMuted,
-          isSilenced: this.isTemporarilySilenced
+          isSilenced: this.isTemporarilySilenced,
+          isBackgroundActive: this.isBackgroundActive,
+          isScreenAwake: this.isScreenAwake
         });
       } catch (e) {
         console.warn("AudioNotifier listener error:", e);
@@ -322,4 +438,3 @@ class AudioNotifier {
 }
 
 export const soundNotifier = new AudioNotifier();
-

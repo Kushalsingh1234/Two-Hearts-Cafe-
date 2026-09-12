@@ -1,6 +1,18 @@
-import React, { useState } from "react";
-import { Clock, CheckCircle2, ChefHat, AlertCircle, Receipt, Smartphone, Building2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import {
+  Clock,
+  CheckCircle2,
+  ChefHat,
+  AlertCircle,
+  Receipt,
+  Smartphone,
+  Building2,
+  X,
+  PlusCircle,
+  Sparkles
+} from "lucide-react";
 import DigitalInvoiceModal from "../customer/DigitalInvoiceModal";
+import { acceptOrderAddition, rejectOrderAddition } from "../../firebase/services";
 
 function formatTimeAgo(dateString) {
   if (!dateString) return "Just now";
@@ -12,7 +24,12 @@ function formatTimeAgo(dateString) {
   return `${diffHours}h ago`;
 }
 
-export default function OrderCard({ order, onUpdateStatus }) {
+export default function OrderCard({
+  order,
+  onUpdateStatus,
+  onAcceptAddition,
+  onRejectAddition
+}) {
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
 
   const isPlaced = order.status === "placed";
@@ -24,20 +41,262 @@ export default function OrderCard({ order, onUpdateStatus }) {
   const isPayAtCounter = order.paymentStatus === "pay_at_counter" || Boolean(order.billRequested);
   const utr = order.paymentDetails?.utr;
 
+  // Identify if this order has an addition awaiting staff review / action
+  const pendingAddition =
+    order.pendingAddition && order.pendingAddition.status !== "accepted" && order.pendingAddition.status !== "rejected"
+      ? order.pendingAddition
+      : order.status === "placed" && order.additions && order.additions.length > 0 && order.additions[order.additions.length - 1].status !== "accepted"
+      ? order.additions[order.additions.length - 1]
+      : null;
+
+  const hasPendingAddition = Boolean(pendingAddition && pendingAddition.items && pendingAddition.items.length > 0);
+  const [isAdditionModalOpen, setIsAdditionModalOpen] = useState(true);
+  const [isProcessingAddition, setIsProcessingAddition] = useState(false);
+
+  // Automatically pop up on the table card whenever a new addition arrives
+  useEffect(() => {
+    if (hasPendingAddition) {
+      setIsAdditionModalOpen(true);
+    }
+  }, [order.pendingAddition?.id, order.lastItemAddedAt]);
+
+  const activeAdditionItems = pendingAddition?.items || [];
+  const additionTotal =
+    pendingAddition?.amount ||
+    activeAdditionItems.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0);
+  const additionNotes = pendingAddition?.notes || "";
+
+  const handleAcceptAddition = async () => {
+    setIsProcessingAddition(true);
+    try {
+      if (onAcceptAddition) {
+        await onAcceptAddition(order.id, pendingAddition?.id);
+      } else {
+        await acceptOrderAddition(order.id, pendingAddition?.id);
+      }
+      setIsAdditionModalOpen(false);
+    } catch (err) {
+      console.error("Failed to accept addition:", err);
+    } finally {
+      setIsProcessingAddition(false);
+    }
+  };
+
+  const handleRejectAddition = async () => {
+    const summaryText =
+      activeAdditionItems.map((i) => `${i.quantity || 1}× ${i.name}`).join(", ") || "these items";
+    if (
+      !confirm(
+        `Reject addition (${summaryText}) from Table #${order.tableNumber}? These items will be removed from the table's total bill.`
+      )
+    ) {
+      return;
+    }
+    setIsProcessingAddition(true);
+    try {
+      if (onRejectAddition) {
+        await onRejectAddition(order.id, pendingAddition?.id);
+      } else {
+        await rejectOrderAddition(order.id, pendingAddition?.id);
+      }
+      setIsAdditionModalOpen(false);
+    } catch (err) {
+      console.error("Failed to reject addition:", err);
+    } finally {
+      setIsProcessingAddition(false);
+    }
+  };
+
   return (
     <div style={{
+      position: "relative",
       backgroundColor: "#ffffff",
-      borderRadius: 4,
-      border: isPlaced ? "2px solid var(--color-bronze)" : "1.5px solid var(--color-border-frame)",
-      boxShadow: "var(--shadow-sheet)",
+      borderRadius: 6,
+      border: hasPendingAddition ? "2.5px solid var(--color-bronze)" : isPlaced ? "2px solid var(--color-bronze)" : "1.5px solid var(--color-border-frame)",
+      boxShadow: hasPendingAddition ? "0 8px 24px rgba(138, 87, 56, 0.22)" : "var(--shadow-sheet)",
       display: "flex",
       flexDirection: "column",
       overflow: "hidden"
     }}>
+      {/* 1. Interactive Addition Pop-up Overlay right on the table card */}
+      {hasPendingAddition && isAdditionModalOpen && (
+        <div
+          className="animate-fade-in"
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 35,
+            backgroundColor: "rgba(255, 255, 255, 0.98)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            padding: "16px",
+            boxSizing: "border-box",
+            borderRadius: 6,
+            border: "2px solid var(--color-bronze)",
+            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.25)"
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1.5px dashed var(--color-border-frame)", paddingBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{
+                backgroundColor: "var(--color-bronze)",
+                color: "#fff",
+                borderRadius: "50%",
+                width: 30,
+                height: 30,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 15,
+                fontWeight: 800,
+                flexShrink: 0
+              }}>
+                🔔
+              </div>
+              <div>
+                <div style={{ fontFamily: "var(--font-serif)", fontSize: 14, fontWeight: 800, color: "var(--color-ink)", letterSpacing: 0.5 }}>
+                  TABLE #{order.tableNumber} — NEW ITEM ADDED!
+                </div>
+                <div style={{ fontSize: 11, fontFamily: "var(--font-serif)", color: "var(--color-bronze)", fontStyle: "italic" }}>
+                  Customer ordered more dishes for kitchen
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsAdditionModalOpen(false)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "var(--color-bronze)",
+                cursor: "pointer",
+                padding: "4px 8px",
+                fontSize: 12,
+                fontFamily: "var(--font-serif)",
+                fontWeight: 600,
+                textDecoration: "underline"
+              }}
+              title="Minimize to view previous dishes"
+            >
+              Minimize
+            </button>
+          </div>
+
+          {/* Body: Added items itemized */}
+          <div style={{ flex: 1, padding: "12px 0", overflowY: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{
+              backgroundColor: "#fdf8f3",
+              border: "1.2px solid #fed7aa",
+              borderRadius: 6,
+              padding: "12px 14px"
+            }}>
+              <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: 0.5, color: "var(--color-bronze-dark)", textTransform: "uppercase", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                <Sparkles size={14} color="var(--color-bronze)" />
+                <span>Newly Added Items:</span>
+              </div>
+              {activeAdditionItems.map((item, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    fontSize: 13.5,
+                    fontFamily: "var(--font-serif)",
+                    padding: "4px 0",
+                    borderBottom: idx < activeAdditionItems.length - 1 ? "1px dashed #fed7aa" : "none"
+                  }}
+                >
+                  <span style={{ fontWeight: 700, color: "var(--color-ink)" }}>
+                    {item.quantity || 1}× {item.name}
+                  </span>
+                  <span style={{ fontWeight: 600, color: "var(--color-bronze-dark)" }}>
+                    Rs.{(Number(item.price) || 0) * (Number(item.quantity) || 1)}
+                  </span>
+                </div>
+              ))}
+              {additionNotes && (
+                <div style={{ fontSize: 12, fontStyle: "italic", color: "var(--color-bronze-dark)", marginTop: 8, paddingTop: 6, borderTop: "1px dashed #fed7aa" }}>
+                  Note: "{additionNotes}"
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 4px" }}>
+              <span style={{ fontSize: 12.5, fontFamily: "var(--font-serif)", color: "var(--color-bronze)" }}>Addition Amount:</span>
+              <strong style={{ fontSize: 15, color: "#15803d" }}>+Rs.{additionTotal}</strong>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 4px", borderTop: "1.2px solid var(--color-border-frame)" }}>
+              <span style={{ fontSize: 13, fontFamily: "var(--font-serif)", fontWeight: 700, color: "var(--color-ink)" }}>Updated Total Table Bill:</span>
+              <strong style={{ fontSize: 18, color: "var(--color-ink)" }}>Rs.{order.total}</strong>
+            </div>
+          </div>
+
+          {/* Actions: Accept & Prepare / Reject Addition */}
+          <div style={{ display: "flex", gap: 10, paddingTop: 8, borderTop: "1.2px solid var(--color-border-frame)" }}>
+            <button
+              onClick={handleAcceptAddition}
+              disabled={isProcessingAddition}
+              style={{
+                flex: 2,
+                backgroundColor: "var(--color-bronze)",
+                color: "#fff",
+                border: "none",
+                padding: "11px 14px",
+                borderRadius: "var(--radius-pill)",
+                fontFamily: "var(--font-serif)",
+                fontSize: 13,
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                cursor: "pointer",
+                boxShadow: "0 2px 6px rgba(138, 87, 56, 0.3)"
+              }}
+            >
+              <ChefHat size={16} />
+              <span>{isProcessingAddition ? "Processing..." : "Accept & Prepare"}</span>
+            </button>
+
+            <button
+              onClick={handleRejectAddition}
+              disabled={isProcessingAddition}
+              style={{
+                flex: 1,
+                backgroundColor: "#fff",
+                color: "#dc2626",
+                border: "1.5px solid #dc2626",
+                padding: "11px 12px",
+                borderRadius: "var(--radius-pill)",
+                fontFamily: "var(--font-serif)",
+                fontSize: 12.5,
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 4,
+                cursor: "pointer"
+              }}
+            >
+              <X size={15} />
+              <span>Reject</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header: Table Number & Time */}
       <div style={{
         padding: "12px 16px",
-        backgroundColor: isPlaced ? "#FDF8F3" : isPreparing ? "#F0F5FA" : isServed ? "#F2FAF4" : "#F7F3EB",
+        backgroundColor: hasPendingAddition ? "#FEF3C7" : isPlaced ? "#FDF8F3" : isPreparing ? "#F0F5FA" : isServed ? "#F2FAF4" : "#F7F3EB",
         borderBottom: "1.2px solid var(--color-border-frame)",
         display: "flex",
         alignItems: "center",
@@ -45,7 +304,7 @@ export default function OrderCard({ order, onUpdateStatus }) {
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{
-            backgroundColor: isPlaced ? "var(--color-bronze)" : isPreparing ? "#2563eb" : isServed ? "#15803d" : "#444",
+            backgroundColor: hasPendingAddition ? "#b45309" : isPlaced ? "var(--color-bronze)" : isPreparing ? "#2563eb" : isServed ? "#15803d" : "#444",
             color: "#fff",
             fontFamily: "var(--font-serif)",
             fontWeight: 800,
@@ -129,16 +388,51 @@ export default function OrderCard({ order, onUpdateStatus }) {
             textTransform: "uppercase",
             padding: "2px 8px",
             borderRadius: "var(--radius-pill)",
-            backgroundColor: isPlaced ? "#fee2e2" : isPreparing ? "#dbeafe" : isServed ? "#dcfce7" : "#e5e7eb",
-            color: isPlaced ? "#dc2626" : isPreparing ? "#1d4ed8" : isServed ? "#15803d" : "#374151"
+            backgroundColor: hasPendingAddition ? "#fed7aa" : isPlaced ? "#fee2e2" : isPreparing ? "#dbeafe" : isServed ? "#dcfce7" : "#e5e7eb",
+            color: hasPendingAddition ? "#9a3412" : isPlaced ? "#dc2626" : isPreparing ? "#1d4ed8" : isServed ? "#15803d" : "#374151"
           }}>
-            {isPlaced ? "● New Order" : order.status}
+            {hasPendingAddition ? "● Item Added" : isPlaced ? "● New Order" : order.status}
           </span>
         </div>
       </div>
 
-      {/* Latest Addition Highlight Badge */}
-      {order.lastAdditionSummary && (
+      {/* Minimized Addition Review Banner */}
+      {hasPendingAddition && !isAdditionModalOpen && (
+        <div style={{
+          backgroundColor: "#fff7ed",
+          borderBottom: "1.5px solid #f97316",
+          padding: "8px 16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontFamily: "var(--font-serif)", fontWeight: 700, color: "#c2410c" }}>
+            <PlusCircle size={14} />
+            <span>New Item Added: {order.lastAdditionSummary || activeAdditionItems.map(i => `${i.quantity || 1}× ${i.name}`).join(", ")}</span>
+          </div>
+          <button
+            onClick={() => setIsAdditionModalOpen(true)}
+            style={{
+              backgroundColor: "#c2410c",
+              color: "#fff",
+              border: "none",
+              padding: "4px 12px",
+              borderRadius: "var(--radius-pill)",
+              fontSize: 11,
+              fontFamily: "var(--font-serif)",
+              fontWeight: 700,
+              cursor: "pointer",
+              boxShadow: "0 1px 4px rgba(194, 65, 12, 0.25)"
+            }}
+          >
+            Review Addition
+          </button>
+        </div>
+      )}
+
+      {/* Item Added Badge (if addition already accepted) */}
+      {!hasPendingAddition && order.lastAdditionSummary && (
         <div style={{
           backgroundColor: "#ecfdf5",
           borderBottom: "1px dashed #10b981",
@@ -255,14 +549,74 @@ export default function OrderCard({ order, onUpdateStatus }) {
 
         {/* Status Buttons */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {isPlaced && (
+          {/* Initial Placed Order: Accept & Prepare + Reject side-by-side */}
+          {isPlaced && !hasPendingAddition && (
+            <div style={{ display: "flex", gap: 8, width: "100%" }}>
+              <button
+                onClick={() => onUpdateStatus(order.id, "preparing")}
+                style={{
+                  flex: 2,
+                  backgroundColor: "var(--color-bronze)",
+                  color: "#fff",
+                  padding: "9px 12px",
+                  borderRadius: "var(--radius-pill)",
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  letterSpacing: 0.5,
+                  textTransform: "uppercase",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  border: "none",
+                  cursor: "pointer"
+                }}
+              >
+                <ChefHat size={15} />
+                <span>Accept & Prepare</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  if (confirm(`Reject/Cancel order for Table #${order.tableNumber}?`)) {
+                    onUpdateStatus(order.id, "cancelled");
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  backgroundColor: "#fff",
+                  border: "1.5px solid #dc2626",
+                  color: "#dc2626",
+                  padding: "9px 12px",
+                  borderRadius: "var(--radius-pill)",
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: 0.5,
+                  textTransform: "uppercase",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 4,
+                  cursor: "pointer"
+                }}
+              >
+                <X size={14} />
+                <span>Reject</span>
+              </button>
+            </div>
+          )}
+
+          {/* Addition Pending Action: Review & Accept Button */}
+          {isPlaced && hasPendingAddition && !isAdditionModalOpen && (
             <button
-              onClick={() => onUpdateStatus(order.id, "preparing")}
+              onClick={() => setIsAdditionModalOpen(true)}
               style={{
                 flex: 1,
                 backgroundColor: "var(--color-bronze)",
                 color: "#fff",
-                padding: "9px 12px",
+                padding: "10px 14px",
                 borderRadius: "var(--radius-pill)",
                 fontFamily: "var(--font-serif)",
                 fontSize: 13,
@@ -274,11 +628,12 @@ export default function OrderCard({ order, onUpdateStatus }) {
                 justifyContent: "center",
                 gap: 6,
                 border: "none",
-                cursor: "pointer"
+                cursor: "pointer",
+                boxShadow: "0 2px 6px rgba(138, 87, 56, 0.3)"
               }}
             >
               <ChefHat size={15} />
-              <span>Accept & Prepare</span>
+              <span>Review & Accept Addition</span>
             </button>
           )}
 
@@ -427,29 +782,6 @@ export default function OrderCard({ order, onUpdateStatus }) {
                 <span>View Digital Bill</span>
               </button>
             </div>
-          )}
-
-          {isPlaced && (
-            <button
-              onClick={() => {
-                if (confirm("Reject/Cancel this order?")) {
-                  onUpdateStatus(order.id, "cancelled");
-                }
-              }}
-              style={{
-                backgroundColor: "#fff",
-                border: "1px solid #dc2626",
-                color: "#dc2626",
-                padding: "8px 12px",
-                borderRadius: "var(--radius-pill)",
-                fontFamily: "var(--font-serif)",
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer"
-              }}
-            >
-              Reject
-            </button>
           )}
         </div>
       </div>

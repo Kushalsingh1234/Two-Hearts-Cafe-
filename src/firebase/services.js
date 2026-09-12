@@ -439,16 +439,22 @@ export const placeOrAppendTableOrder = async (orderPayload, existingOrders = [])
     );
     const newTotal = newSubtotal;
 
+    const additionAmount = newItems.reduce(
+      (sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1),
+      0
+    );
+
     const additionRecord = {
+      id: `add_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
       items: newItems,
       addedAt: now.toISOString(),
       timestamp: Date.now(),
-      notes: orderPayload.specialInstructions || ""
+      notes: orderPayload.specialInstructions || "",
+      summary: lastAdditionSummary,
+      amount: additionAmount,
+      previousStatus: existingOrder.status || "preparing",
+      status: "pending"
     };
-
-    const lastAdditionSummary = newItems
-      .map((it) => `${it.quantity || 1}× ${it.name}`)
-      .join(", ");
 
     const updatePayload = {
       items: mergedItems,
@@ -461,6 +467,7 @@ export const placeOrAppendTableOrder = async (orderPayload, existingOrders = [])
           : (orderPayload.paymentStatus || "pending"),
       billRequested: false, // Reset bill requested since more food was ordered!
       additions: [...(existingOrder.additions || []), additionRecord],
+      pendingAddition: additionRecord,
       lastItemAddedAt: now.toISOString(),
       lastAdditionSummary,
       updatedAt: now.toISOString(),
@@ -506,6 +513,118 @@ export const placeOrAppendTableOrder = async (orderPayload, existingOrders = [])
     billRequested: false
   });
   return { isAppended: false, order: created, newItems };
+};
+
+/**
+ * Staff accepts new items added to an active table order
+ */
+export const acceptOrderAddition = async (orderId, additionId) => {
+  const updatedAt = new Date().toISOString();
+  const cachedOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+  const existingOrder = cachedOrders.find((o) => o.id === orderId);
+
+  let updatedAdditions = [];
+  if (existingOrder && existingOrder.additions) {
+    updatedAdditions = existingOrder.additions.map((a) =>
+      (!additionId || a.id === additionId) ? { ...a, status: "accepted" } : a
+    );
+  }
+
+  const updatePayload = {
+    status: "preparing",
+    pendingAddition: null,
+    additions: updatedAdditions,
+    updatedAt
+  };
+
+  try {
+    const docRef = doc(db, ORDERS_COLLECTION, orderId);
+    await updateDoc(docRef, updatePayload);
+  } catch (err) {
+    console.warn("Firestore acceptOrderAddition fallback:", err);
+  }
+
+  const updated = cachedOrders.map((ord) =>
+    ord.id === orderId ? { ...ord, ...updatePayload } : ord
+  );
+  setLocalData(LOCAL_STORAGE_ORDERS_KEY, updated);
+  window.dispatchEvent(new CustomEvent("twohearts_order_updated", { detail: updatePayload }));
+  return updated.find((o) => o.id === orderId);
+};
+
+/**
+ * Staff rejects new items added to an active table order
+ * Removes the added dishes, reduces the bill total, and restores previous status
+ */
+export const rejectOrderAddition = async (orderId, additionId) => {
+  const updatedAt = new Date().toISOString();
+  const cachedOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+  const existingOrder = cachedOrders.find((o) => o.id === orderId);
+  if (!existingOrder) return null;
+
+  // Identify target addition to reject
+  const targetAddition =
+    existingOrder.pendingAddition && (!additionId || existingOrder.pendingAddition.id === additionId)
+      ? existingOrder.pendingAddition
+      : (existingOrder.additions || []).find((a) => a.id === additionId) ||
+        (existingOrder.additions && existingOrder.additions.length > 0
+          ? existingOrder.additions[existingOrder.additions.length - 1]
+          : null);
+
+  const rejectedItems = targetAddition?.items || [];
+  let currentItems = [...(existingOrder.items || [])];
+
+  // Remove the quantities of rejected items
+  rejectedItems.forEach((rej) => {
+    const idx = currentItems.findIndex((it) => it.id === rej.id && it.name === rej.name);
+    if (idx >= 0) {
+      const remainingQty = (Number(currentItems[idx].quantity) || 1) - (Number(rej.quantity) || 1);
+      if (remainingQty <= 0) {
+        currentItems.splice(idx, 1);
+      } else {
+        currentItems[idx] = { ...currentItems[idx], quantity: remainingQty };
+      }
+    }
+  });
+
+  const newSubtotal = currentItems.reduce(
+    (sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1),
+    0
+  );
+  const newTotal = newSubtotal;
+
+  const updatedAdditions = (existingOrder.additions || []).map((a) =>
+    (!additionId || a.id === additionId || a.id === targetAddition?.id)
+      ? { ...a, status: "rejected" }
+      : a
+  );
+
+  const prevStatus = targetAddition?.previousStatus || (currentItems.length > 0 ? "preparing" : "cancelled");
+
+  const updatePayload = {
+    items: currentItems,
+    subtotal: newSubtotal,
+    total: newTotal,
+    status: prevStatus,
+    pendingAddition: null,
+    lastAdditionSummary: null,
+    additions: updatedAdditions,
+    updatedAt
+  };
+
+  try {
+    const docRef = doc(db, ORDERS_COLLECTION, orderId);
+    await updateDoc(docRef, updatePayload);
+  } catch (err) {
+    console.warn("Firestore rejectOrderAddition fallback:", err);
+  }
+
+  const updated = cachedOrders.map((ord) =>
+    ord.id === orderId ? { ...ord, ...updatePayload } : ord
+  );
+  setLocalData(LOCAL_STORAGE_ORDERS_KEY, updated);
+  window.dispatchEvent(new CustomEvent("twohearts_order_updated", { detail: updatePayload }));
+  return updated.find((o) => o.id === orderId);
 };
 
 /**

@@ -253,7 +253,9 @@ export default function SiteNavbar({ currentPage, setPage }) {
             <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
               <ShoppingBag size={15} style={{ color: cartCount > 0 ? "var(--color-bronze-dark)" : "var(--color-bronze)" }} />
               {cartCount > 0 && (
-                <span style={{
+                <span
+                  className="cart-badge"
+                  style={{
                   position: "absolute",
                   top: -8,
                   right: -9,
@@ -315,6 +317,7 @@ export default function SiteNavbar({ currentPage, setPage }) {
                 title={`Account menu for ${customerUser.name || "Customer"}`}
               >
                 <div
+                  className="site-navbar-avatar"
                   style={{
                     width: 28,
                     height: 28,

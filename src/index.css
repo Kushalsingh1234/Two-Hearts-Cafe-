@@ -367,7 +367,17 @@ html {
 }
 
 .popular-cards-desktop {
-  display: grid;
+  display: block;
+  position: relative;
+}
+
+.popular-scroll-track {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.popular-scroll-track::-webkit-scrollbar {
+  display: none;
 }
 
 .popular-cards-mobile {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   ArrowRight,
   Sparkles,
@@ -69,8 +69,9 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
   const [isStoryExpanded, setIsStoryExpanded] = useState(false);
   const [activeTestimonialIdx, setActiveTestimonialIdx] = useState(0);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [popularLimit, setPopularLimit] = useState(3);
+  const popularScrollRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
   const [isMobileCategoryOpen, setIsMobileCategoryOpen] = useState(false);
   const [heroBannerIdx, setHeroBannerIdx] = useState(0);
   const [mobileDishIdx, setMobileDishIdx] = useState(0);
@@ -122,13 +123,49 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
     return menuItems.filter((item) => item.category === selectedPreviewCat);
   }, [selectedPreviewCat, menuItems]);
 
-  // Reset mobile carousel to start when category filter changes
+  // Check side scrolling boundary states for popular dishes
+  const checkPopularScroll = useCallback(() => {
+    const el = popularScrollRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setCanScrollLeft(scrollLeft > 10);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 10);
+  }, []);
+
+  useEffect(() => {
+    checkPopularScroll();
+    const el = popularScrollRef.current;
+    if (el) {
+      el.addEventListener("scroll", checkPopularScroll, { passive: true });
+      window.addEventListener("resize", checkPopularScroll);
+    }
+    return () => {
+      if (el) el.removeEventListener("scroll", checkPopularScroll);
+      window.removeEventListener("resize", checkPopularScroll);
+    };
+  }, [popularDishes, checkPopularScroll]);
+
+  // Reset desktop side scroller and mobile carousel to start when category filter changes
   useEffect(() => {
     setMobileDishIdx(0);
     if (mobileCarouselRef.current) {
       mobileCarouselRef.current.scrollTo({ left: 0, behavior: "smooth" });
     }
-  }, [selectedPreviewCat]);
+    if (popularScrollRef.current) {
+      popularScrollRef.current.scrollTo({ left: 0, behavior: "smooth" });
+    }
+    const timer = setTimeout(checkPopularScroll, 120);
+    return () => clearTimeout(timer);
+  }, [selectedPreviewCat, checkPopularScroll]);
+
+  const scrollPopularDishes = (direction) => {
+    if (!popularScrollRef.current) return;
+    const scrollAmount = popularScrollRef.current.clientWidth * 0.75;
+    popularScrollRef.current.scrollBy({
+      left: direction === "left" ? -scrollAmount : scrollAmount,
+      behavior: "smooth"
+    });
+  };
 
   const handleMobileScroll = (e) => {
     const el = e.currentTarget;
@@ -587,7 +624,6 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                   key={tab.id}
                   onClick={() => {
                     setSelectedPreviewCat(tab.id);
-                    setPopularLimit(3);
                   }}
                   style={{
                     padding: "8px 20px",
@@ -676,7 +712,6 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                       type="button"
                       onClick={() => {
                         setSelectedPreviewCat(tab.id);
-                        setPopularLimit(3);
                         setIsMobileCategoryOpen(false);
                       }}
                       style={{
@@ -700,17 +735,113 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
             )}
           </div>
 
-          {/* Desktop Real Dishes Grid (3 cards per row) */}
+          {/* Desktop Real Dishes Side-Scrolling Carousel */}
           <div
             className="popular-cards-desktop"
             style={{
-              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-              gap: 22
+              position: "relative",
+              width: "100%"
             }}
           >
-            {popularDishes
-              .slice(0, popularLimit)
-              .map((item) => {
+            {/* Floating Left Arrow Button */}
+            <button
+              type="button"
+              onClick={() => scrollPopularDishes("left")}
+              aria-label="Previous dishes"
+              style={{
+                position: "absolute",
+                left: -16,
+                top: "45%",
+                transform: "translateY(-50%)",
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid var(--border-color)",
+                color: "var(--color-ink)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: canScrollLeft ? "pointer" : "default",
+                opacity: canScrollLeft ? 1 : 0,
+                pointerEvents: canScrollLeft ? "auto" : "none",
+                boxShadow: "0 6px 20px rgba(28, 25, 23, 0.12)",
+                transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+                zIndex: 10
+              }}
+              onMouseEnter={(e) => {
+                if (canScrollLeft) {
+                  e.currentTarget.style.transform = "translateY(-50%) scale(1.08)";
+                  e.currentTarget.style.boxShadow = "0 8px 24px rgba(28, 25, 23, 0.18)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (canScrollLeft) {
+                  e.currentTarget.style.transform = "translateY(-50%) scale(1.0)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(28, 25, 23, 0.12)";
+                }
+              }}
+            >
+              <ChevronLeft size={20} />
+            </button>
+
+            {/* Floating Right Arrow Button */}
+            <button
+              type="button"
+              onClick={() => scrollPopularDishes("right")}
+              aria-label="Next dishes"
+              style={{
+                position: "absolute",
+                right: -16,
+                top: "45%",
+                transform: "translateY(-50%)",
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid var(--border-color)",
+                color: "var(--color-ink)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: canScrollRight ? "pointer" : "default",
+                opacity: canScrollRight ? 1 : 0,
+                pointerEvents: canScrollRight ? "auto" : "none",
+                boxShadow: "0 6px 20px rgba(28, 25, 23, 0.12)",
+                transition: "all 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+                zIndex: 10
+              }}
+              onMouseEnter={(e) => {
+                if (canScrollRight) {
+                  e.currentTarget.style.transform = "translateY(-50%) scale(1.08)";
+                  e.currentTarget.style.boxShadow = "0 8px 24px rgba(28, 25, 23, 0.18)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (canScrollRight) {
+                  e.currentTarget.style.transform = "translateY(-50%) scale(1.0)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(28, 25, 23, 0.12)";
+                }
+              }}
+            >
+              <ChevronRight size={20} />
+            </button>
+
+            {/* Side-scrolling Track */}
+            <div
+              ref={popularScrollRef}
+              className="popular-scroll-track"
+              style={{
+                display: "flex",
+                gap: 22,
+                overflowX: "auto",
+                scrollSnapType: "x mandatory",
+                scrollBehavior: "smooth",
+                WebkitOverflowScrolling: "touch",
+                padding: "8px 4px 20px 4px"
+              }}
+            >
+              {popularDishes.map((item) => {
                 const photoUrl = getDishPhoto(item);
 
                 return (
@@ -718,9 +849,14 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                     key={item.id}
                     className="bistro-card bistro-card-hover"
                     style={{
+                      flex: "0 0 clamp(290px, 30vw, 350px)",
+                      width: "clamp(290px, 30vw, 350px)",
+                      scrollSnapAlign: "start",
                       display: "flex",
                       flexDirection: "column",
-                      backgroundColor: "#FFFFFF"
+                      backgroundColor: "#FFFFFF",
+                      borderRadius: 16,
+                      overflow: "hidden"
                     }}
                   >
                     <div style={{ position: "relative", height: 225, overflow: "hidden" }}>
@@ -859,59 +995,18 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                   </div>
                 );
               })}
+            </div>
           </div>
 
-          {/* Desktop View More & View Full Menu CTA */}
+          {/* Desktop View Full Menu CTA (View More removed, side-scrolling enabled) */}
           <div
             className="popular-cta-desktop"
             style={{
               alignItems: "center",
               justifyContent: "center",
-              gap: 12,
-              marginTop: 36,
-              flexWrap: "wrap"
+              marginTop: 28
             }}
           >
-            {popularDishes.length > 3 && popularLimit < popularDishes.length && (
-              <button
-                type="button"
-                onClick={() => setPopularLimit((prev) => Math.min(prev + 6, popularDishes.length))}
-                className="btn-pill-outline touch-target-44"
-                style={{
-                  padding: "12px 26px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  backgroundColor: "#FFFFFF"
-                }}
-                title="View more dishes in this category"
-              >
-                <span>View More</span>
-                <ChevronDown size={15} />
-              </button>
-            )}
-
-            {popularLimit > 3 && (
-              <button
-                type="button"
-                onClick={() => {
-                  setPopularLimit(3);
-                  const sec = document.getElementById("popular-dishes-section");
-                  if (sec) sec.scrollIntoView({ behavior: "smooth" });
-                }}
-                className="btn-pill-outline touch-target-44"
-                style={{
-                  padding: "12px 26px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  backgroundColor: "#FFFFFF"
-                }}
-                title="Show fewer dishes"
-              >
-                <span>Show Less</span>
-                <ChevronUp size={15} />
-              </button>
-            )}
-
             <button
               type="button"
               onClick={() => handleNav("menu")}
@@ -920,7 +1015,7 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
               title="Browse complete menu"
             >
               <BookOpen size={14} />
-              <span>View Full Menu ({menuItems.length} Dishes)</span>
+              <span>View Full Menu</span>
             </button>
           </div>
 
@@ -1196,7 +1291,7 @@ export default function HomePage({ setPage, menuItems = INITIAL_MENU_ITEMS }) {
                 title="Browse complete menu"
               >
                 <BookOpen size={14} />
-                <span>View Full Menu ({menuItems.length} Dishes)</span>
+                <span>View Full Menu</span>
               </button>
             </div>
           </div>

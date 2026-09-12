@@ -252,7 +252,13 @@ export default function App() {
       return;
     }
 
-    const unhandledOrders = (orders || []).filter((o) => o && o.status === "placed");
+    const unhandledOrders = (orders || []).filter((o) =>
+      o && (
+        o.status === "placed" ||
+        (o.additions && o.additions.some((a) => a.status === "pending")) ||
+        (o.pendingAddition && o.pendingAddition.status === "pending")
+      )
+    );
     const placedCount = unhandledOrders.length;
 
     // If new orders or table additions arrived while alarm was silenced, resume sound immediately

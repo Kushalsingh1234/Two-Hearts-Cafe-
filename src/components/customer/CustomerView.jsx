@@ -701,7 +701,7 @@ export default function CustomerView({
         isSubmittingCounter={isSubmittingCounter}
       />
 
-      {/* Online Payment Flow Modal (UPI / QR / Razorpay) */}
+      {/* Online Payment Flow Modal (UPI / Standee QR) */}
       <PaymentModal
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}

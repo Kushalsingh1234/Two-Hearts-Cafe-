@@ -41,40 +41,37 @@ export default function OrderCard({
   const isPayAtCounter = order.paymentStatus === "pay_at_counter" || Boolean(order.billRequested);
   const utr = order.paymentDetails?.utr;
 
-  // Identify if this order has an addition awaiting staff review / action
-  const pendingAddition =
-    order.pendingAddition && order.pendingAddition.status !== "accepted" && order.pendingAddition.status !== "rejected"
-      ? order.pendingAddition
-      : order.status === "placed" && order.additions && order.additions.length > 0 && order.additions[order.additions.length - 1].status !== "accepted"
-      ? order.additions[order.additions.length - 1]
-      : null;
+  // Identify all additions currently awaiting staff action for this table
+  const pendingAdditions = useMemo(() => {
+    const list = [];
+    (order.additions || []).forEach((a) => {
+      if (a && a.status === "pending" && a.items && a.items.length > 0) {
+        list.push(a);
+      }
+    });
+    if (
+      order.pendingAddition &&
+      order.pendingAddition.status === "pending" &&
+      order.pendingAddition.items &&
+      order.pendingAddition.items.length > 0 &&
+      !list.some((a) => a.id === order.pendingAddition.id)
+    ) {
+      list.push(order.pendingAddition);
+    }
+    return list;
+  }, [order.additions, order.pendingAddition]);
 
-  const hasPendingAddition = Boolean(pendingAddition && pendingAddition.items && pendingAddition.items.length > 0);
-  const [isAdditionModalOpen, setIsAdditionModalOpen] = useState(true);
+  const hasPendingAddition = pendingAdditions.length > 0;
   const [isProcessingAddition, setIsProcessingAddition] = useState(false);
 
-  // Automatically pop up on the table card whenever a new addition arrives
-  useEffect(() => {
-    if (hasPendingAddition) {
-      setIsAdditionModalOpen(true);
-    }
-  }, [order.pendingAddition?.id, order.lastItemAddedAt]);
-
-  const activeAdditionItems = pendingAddition?.items || [];
-  const additionTotal =
-    pendingAddition?.amount ||
-    activeAdditionItems.reduce((sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0);
-  const additionNotes = pendingAddition?.notes || "";
-
-  const handleAcceptAddition = async () => {
+  const handleAcceptAddition = async (additionId) => {
     setIsProcessingAddition(true);
     try {
       if (onAcceptAddition) {
-        await onAcceptAddition(order.id, pendingAddition?.id);
+        await onAcceptAddition(order.id, additionId);
       } else {
-        await acceptOrderAddition(order.id, pendingAddition?.id);
+        await acceptOrderAddition(order.id, additionId);
       }
-      setIsAdditionModalOpen(false);
     } catch (err) {
       console.error("Failed to accept addition:", err);
     } finally {
@@ -82,11 +79,20 @@ export default function OrderCard({
     }
   };
 
-  const handleRejectAddition = async () => {
+  const handleRejectAddition = async (targetAddition) => {
     const additionSummary =
-      activeAdditionItems.map((i) => `${i.quantity || 1}× ${i.name}`).join(", ") || "these newly added items";
+      (targetAddition?.items || []).map((i) => `${i.quantity || 1}× ${i.name}`).join(", ") ||
+      targetAddition?.summary ||
+      "these newly added items";
     const acceptedDishes = (order.items || [])
-      .filter((it) => !activeAdditionItems.some((a) => (a.id && it.id && String(a.id) === String(it.id)) || (a.name && it.name && a.name.trim().toLowerCase() === it.name.trim().toLowerCase())))
+      .filter(
+        (it) =>
+          !(targetAddition?.items || []).some(
+            (a) =>
+              (a.id && it.id && String(a.id) === String(it.id)) ||
+              (a.name && it.name && a.name.trim().toLowerCase() === it.name.trim().toLowerCase())
+          )
+      )
       .map((i) => `${i.quantity || 1}× ${i.name}`)
       .join(", ") || "earlier dishes";
 
@@ -100,11 +106,10 @@ export default function OrderCard({
     setIsProcessingAddition(true);
     try {
       if (onRejectAddition) {
-        await onRejectAddition(order.id, pendingAddition?.id);
+        await onRejectAddition(order.id, targetAddition?.id);
       } else {
-        await rejectOrderAddition(order.id, pendingAddition?.id);
+        await rejectOrderAddition(order.id, targetAddition?.id);
       }
-      setIsAdditionModalOpen(false);
     } catch (err) {
       console.error("Failed to reject addition:", err);
     } finally {
@@ -117,201 +122,12 @@ export default function OrderCard({
       position: "relative",
       backgroundColor: "#ffffff",
       borderRadius: 6,
-      border: hasPendingAddition ? "2.5px solid var(--color-bronze)" : isPlaced ? "2px solid var(--color-bronze)" : "1.5px solid var(--color-border-frame)",
-      boxShadow: hasPendingAddition ? "0 8px 24px rgba(138, 87, 56, 0.22)" : "var(--shadow-sheet)",
+      border: hasPendingAddition ? "2.5px solid #F59E0B" : isPlaced ? "2px solid var(--color-bronze)" : "1.5px solid var(--color-border-frame)",
+      boxShadow: hasPendingAddition ? "0 8px 24px rgba(245, 158, 11, 0.22)" : "var(--shadow-sheet)",
       display: "flex",
       flexDirection: "column",
       overflow: "hidden"
     }}>
-      {/* 1. Interactive Addition Pop-up Overlay right on the table card */}
-      {hasPendingAddition && isAdditionModalOpen && (
-        <div
-          className="animate-fade-in"
-          style={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 35,
-            backgroundColor: "rgba(255, 255, 255, 0.98)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            padding: "16px",
-            boxSizing: "border-box",
-            borderRadius: 6,
-            border: "2px solid var(--color-bronze)",
-            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.25)"
-          }}
-        >
-          {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1.5px dashed var(--color-border-frame)", paddingBottom: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{
-                backgroundColor: "var(--color-bronze)",
-                color: "#fff",
-                borderRadius: "50%",
-                width: 30,
-                height: 30,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 15,
-                fontWeight: 800,
-                flexShrink: 0
-              }}>
-                🔔
-              </div>
-              <div>
-                <div style={{ fontFamily: "var(--font-serif)", fontSize: 14, fontWeight: 800, color: "var(--color-ink)", letterSpacing: 0.5 }}>
-                  TABLE #{order.tableNumber} — NEW ITEM ADDED!
-                </div>
-                <div style={{ fontSize: 11, fontFamily: "var(--font-serif)", color: "var(--color-bronze)", fontStyle: "italic" }}>
-                  Customer ordered more dishes for kitchen
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setIsAdditionModalOpen(false)}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "var(--color-bronze)",
-                cursor: "pointer",
-                padding: "4px 8px",
-                fontSize: 12,
-                fontFamily: "var(--font-serif)",
-                fontWeight: 600,
-                textDecoration: "underline"
-              }}
-              title="Minimize to view previous dishes"
-            >
-              Minimize
-            </button>
-          </div>
-
-          {/* Body: Added items itemized */}
-          <div style={{ flex: 1, padding: "12px 0", overflowY: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{
-              backgroundColor: "#fdf8f3",
-              border: "1.2px solid #fed7aa",
-              borderRadius: 6,
-              padding: "12px 14px"
-            }}>
-              <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: 0.5, color: "var(--color-bronze-dark)", textTransform: "uppercase", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
-                <Sparkles size={14} color="var(--color-bronze)" />
-                <span>Newly Added Items:</span>
-              </div>
-              {activeAdditionItems.map((item, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    fontSize: 13.5,
-                    fontFamily: "var(--font-serif)",
-                    padding: "4px 0",
-                    borderBottom: idx < activeAdditionItems.length - 1 ? "1px dashed #fed7aa" : "none"
-                  }}
-                >
-                  <span style={{ fontWeight: 700, color: "var(--color-ink)" }}>
-                    {item.quantity || 1}× {item.name}
-                  </span>
-                  <span style={{ fontWeight: 600, color: "var(--color-bronze-dark)" }}>
-                    Rs.{(Number(item.price) || 0) * (Number(item.quantity) || 1)}
-                  </span>
-                </div>
-              ))}
-              {additionNotes && (
-                <div style={{ fontSize: 12, fontStyle: "italic", color: "var(--color-bronze-dark)", marginTop: 8, paddingTop: 6, borderTop: "1px dashed #fed7aa" }}>
-                  Note: "{additionNotes}"
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px 4px" }}>
-              <span style={{ fontSize: 12.5, fontFamily: "var(--font-serif)", color: "var(--color-bronze)" }}>Addition Amount:</span>
-              <strong style={{ fontSize: 15, color: "#15803d" }}>+Rs.{additionTotal}</strong>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 4px", borderTop: "1.2px solid var(--color-border-frame)" }}>
-              <span style={{ fontSize: 13, fontFamily: "var(--font-serif)", fontWeight: 700, color: "var(--color-ink)" }}>Updated Total Table Bill:</span>
-              <strong style={{ fontSize: 18, color: "var(--color-ink)" }}>Rs.{order.total}</strong>
-            </div>
-
-            {/* Note clarifying that only newly added items are rejected */}
-            <div style={{
-              fontSize: 11.5,
-              fontFamily: "var(--font-serif)",
-              color: "#4b5563",
-              backgroundColor: "#f9fafb",
-              border: "1px dashed #d1d5db",
-              borderRadius: 4,
-              padding: "6px 9px",
-              lineHeight: 1.35
-            }}>
-              💡 <strong>Rejecting</strong> will remove <em>only</em> these new items. Previously accepted dishes remain active in the kitchen.
-            </div>
-          </div>
-
-          {/* Actions: Accept & Prepare / Reject Addition */}
-          <div style={{ display: "flex", gap: 10, paddingTop: 8, borderTop: "1.2px solid var(--color-border-frame)" }}>
-            <button
-              onClick={handleAcceptAddition}
-              disabled={isProcessingAddition}
-              style={{
-                flex: 2,
-                backgroundColor: "var(--color-bronze)",
-                color: "#fff",
-                border: "none",
-                padding: "11px 14px",
-                borderRadius: "var(--radius-pill)",
-                fontFamily: "var(--font-serif)",
-                fontSize: 13,
-                fontWeight: 700,
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                cursor: "pointer",
-                boxShadow: "0 2px 6px rgba(138, 87, 56, 0.3)"
-              }}
-            >
-              <ChefHat size={16} />
-              <span>{isProcessingAddition ? "Processing..." : "Accept & Prepare"}</span>
-            </button>
-
-            <button
-              onClick={handleRejectAddition}
-              disabled={isProcessingAddition}
-              style={{
-                flex: 1.4,
-                backgroundColor: "#fff",
-                color: "#dc2626",
-                border: "1.5px solid #dc2626",
-                padding: "11px 10px",
-                borderRadius: "var(--radius-pill)",
-                fontFamily: "var(--font-serif)",
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 4,
-                cursor: "pointer"
-              }}
-              title="Reject only this new addition while keeping accepted dishes"
-            >
-              <X size={15} />
-              <span>Reject Addition</span>
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Header: Table Number & Time */}
       <div style={{
@@ -411,43 +227,173 @@ export default function OrderCard({
             backgroundColor: hasPendingAddition ? "#fed7aa" : isPlaced ? "#fee2e2" : isPreparing ? "#dbeafe" : isServed ? "#dcfce7" : "#e5e7eb",
             color: hasPendingAddition ? "#9a3412" : isPlaced ? "#dc2626" : isPreparing ? "#1d4ed8" : isServed ? "#15803d" : "#374151"
           }}>
-            {hasPendingAddition ? "● Item Added" : isPlaced ? "● New Order" : order.status}
+            {hasPendingAddition ? `● ${pendingAdditions.length} New Addition${pendingAdditions.length > 1 ? "s" : ""}` : isPlaced ? "● New Order" : order.status}
           </span>
         </div>
       </div>
 
-      {/* Minimized Addition Review Banner */}
-      {hasPendingAddition && !isAdditionModalOpen && (
+      {/* Dedicated Section: SEPARATE Accept & Reject Option for EVERY new addition from this table */}
+      {hasPendingAddition && (
         <div style={{
-          backgroundColor: "#fff7ed",
-          borderBottom: "1.5px solid #f97316",
-          padding: "8px 16px",
+          backgroundColor: "#FFFBEB",
+          borderBottom: "1.5px solid #F59E0B",
+          padding: "10px 14px",
           display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8
+          flexDirection: "column",
+          gap: 10
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontFamily: "var(--font-serif)", fontWeight: 700, color: "#c2410c" }}>
-            <PlusCircle size={14} />
-            <span>New Item Added: {order.lastAdditionSummary || activeAdditionItems.map(i => `${i.quantity || 1}× ${i.name}`).join(", ")}</span>
+          <div style={{
+            fontSize: 11.5,
+            fontWeight: 800,
+            letterSpacing: 0.5,
+            color: "#92400E",
+            textTransform: "uppercase",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Sparkles size={14} color="#D97706" />
+              <span>New Additions from Table ({pendingAdditions.length})</span>
+            </div>
+            <span style={{ fontSize: 11, fontStyle: "italic", color: "#B45309", fontWeight: 500 }}>
+              Review each addition below
+            </span>
           </div>
-          <button
-            onClick={() => setIsAdditionModalOpen(true)}
-            style={{
-              backgroundColor: "#c2410c",
-              color: "#fff",
-              border: "none",
-              padding: "4px 12px",
-              borderRadius: "var(--radius-pill)",
-              fontSize: 11,
-              fontFamily: "var(--font-serif)",
-              fontWeight: 700,
-              cursor: "pointer",
-              boxShadow: "0 1px 4px rgba(194, 65, 12, 0.25)"
-            }}
-          >
-            Review Addition
-          </button>
+
+          {pendingAdditions.map((addition, idx) => {
+            const additionItems = addition.items || [];
+            const additionAmount =
+              addition.amount ||
+              additionItems.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0);
+            const additionTime = addition.addedAt
+              ? new Date(addition.addedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+              : "";
+
+            return (
+              <div
+                key={addition.id || idx}
+                style={{
+                  backgroundColor: "#ffffff",
+                  border: "1.5px solid #F59E0B",
+                  borderRadius: 6,
+                  padding: "10px 12px",
+                  boxShadow: "0 2px 5px rgba(245, 158, 11, 0.12)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{
+                      backgroundColor: "#FEF3C7",
+                      color: "#92400E",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      padding: "2px 6px",
+                      borderRadius: 3,
+                      textTransform: "uppercase"
+                    }}>
+                      Addition #{idx + 1}
+                    </span>
+                    {additionTime && (
+                      <span style={{ fontSize: 11, color: "#78716c" }}>
+                        {additionTime}
+                      </span>
+                    )}
+                  </div>
+                  <strong style={{ fontSize: 13.5, color: "#15803d" }}>
+                    +Rs.{additionAmount}
+                  </strong>
+                </div>
+
+                {/* Dishes itemized in this addition */}
+                <div style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 3,
+                  backgroundColor: "#FDF8F3",
+                  padding: "6px 8px",
+                  borderRadius: 4,
+                  border: "1px dashed #fed7aa"
+                }}>
+                  {additionItems.map((it, itIdx) => (
+                    <div key={itIdx} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontFamily: "var(--font-serif)" }}>
+                      <span style={{ fontWeight: 700, color: "var(--color-ink)" }}>
+                        {it.quantity || 1}× {it.name}
+                      </span>
+                      <span style={{ fontWeight: 600, color: "var(--color-bronze-dark)" }}>
+                        Rs.{(Number(it.price) || 0) * (Number(it.quantity) || 1)}
+                      </span>
+                    </div>
+                  ))}
+                  {addition.notes && (
+                    <div style={{ fontSize: 11.5, fontStyle: "italic", color: "#92400E", marginTop: 2 }}>
+                      Note: "{addition.notes}"
+                    </div>
+                  )}
+                </div>
+
+                {/* Separate Accept and Reject buttons for THIS addition */}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => handleAcceptAddition(addition.id)}
+                    disabled={isProcessingAddition}
+                    style={{
+                      flex: 1.6,
+                      backgroundColor: "var(--color-bronze)",
+                      color: "#fff",
+                      border: "none",
+                      padding: "8px 10px",
+                      borderRadius: "var(--radius-pill)",
+                      fontFamily: "var(--font-serif)",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      letterSpacing: 0.5,
+                      textTransform: "uppercase",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 5,
+                      cursor: "pointer",
+                      boxShadow: "0 2px 4px rgba(138, 87, 56, 0.25)"
+                    }}
+                  >
+                    <ChefHat size={14} />
+                    <span>Accept Addition</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleRejectAddition(addition)}
+                    disabled={isProcessingAddition}
+                    style={{
+                      flex: 1,
+                      backgroundColor: "#fff",
+                      color: "#dc2626",
+                      border: "1.2px solid #dc2626",
+                      padding: "8px 8px",
+                      borderRadius: "var(--radius-pill)",
+                      fontFamily: "var(--font-serif)",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      letterSpacing: 0.5,
+                      textTransform: "uppercase",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 4,
+                      cursor: "pointer"
+                    }}
+                    title="Reject only this addition. Accepted dishes stay active."
+                  >
+                    <X size={14} />
+                    <span>Reject</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -626,35 +572,6 @@ export default function OrderCard({
                 <span>Reject</span>
               </button>
             </div>
-          )}
-
-          {/* Addition Pending Action: Review & Accept Button */}
-          {isPlaced && hasPendingAddition && !isAdditionModalOpen && (
-            <button
-              onClick={() => setIsAdditionModalOpen(true)}
-              style={{
-                flex: 1,
-                backgroundColor: "var(--color-bronze)",
-                color: "#fff",
-                padding: "10px 14px",
-                borderRadius: "var(--radius-pill)",
-                fontFamily: "var(--font-serif)",
-                fontSize: 13,
-                fontWeight: 700,
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                border: "none",
-                cursor: "pointer",
-                boxShadow: "0 2px 6px rgba(138, 87, 56, 0.3)"
-              }}
-            >
-              <ChefHat size={15} />
-              <span>Review & Accept Addition</span>
-            </button>
           )}
 
           {isPreparing && (

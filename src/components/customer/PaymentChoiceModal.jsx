@@ -232,10 +232,10 @@ export default function PaymentChoiceModal({
               </div>
               <div>
                 <div style={{ fontFamily: "var(--font-serif)", fontSize: 14, fontWeight: 700 }}>
-                  Pay Online (UPI / QR / Razorpay)
+                  Pay Online (UPI / QR Code)
                 </div>
                 <div style={{ fontSize: 11, color: "#E0D7CD" }}>
-                  Instant digital settlement via PhonePe, GPay, Paytm, or Card
+                  Instant digital payment via PhonePe, GPay, Paytm, or UPI apps
                 </div>
               </div>
             </div>

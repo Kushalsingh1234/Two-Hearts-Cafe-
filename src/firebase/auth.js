@@ -5,7 +5,15 @@ import {
   onAuthStateChanged
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import { Capacitor } from "@capacitor/core";
 import { auth, db } from "./config";
+
+/**
+ * Check if running in native Android/iOS Capacitor environment
+ */
+export const isNativeApp = () => {
+  return typeof window !== "undefined" && Capacitor.isNativePlatform();
+};
 
 // Default Master Staff PIN
 export const DEFAULT_PIN = "2012";
@@ -14,15 +22,21 @@ const SETTINGS_COLLECTION = "cafe_settings";
 const SECURITY_DOC = "security";
 
 export const STAFF_SESSION_KEY = "twohearts_staff_session";
-// Session expires after 24 hours of inactivity or until explicit logout
+// Session expires after 24 hours of inactivity or until explicit logout (Native App only)
 const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Save staff session to both sessionStorage (fast tab/refresh cache)
- * and localStorage (for mobile PWA background restoration without repeated PIN prompts)
+ * Save staff session.
+ * STRICT POLICY:
+ * - Website versions: NO CACHING. Every access to the admin website must prompt for the PIN.
+ * - Native App: Cached in storage to allow 24/7 background order monitoring service.
  */
 export const saveStaffSession = (user) => {
   if (!user) return;
+  // Website version strictly has NO CACHING - every access requires entering the PIN
+  if (!isNativeApp()) {
+    return;
+  }
   try {
     const sessionData = {
       user: {
@@ -42,10 +56,21 @@ export const saveStaffSession = (user) => {
 
 /**
  * Retrieve current active staff session.
- * Survives page refreshes and returning from background.
+ * STRICT POLICY:
+ * - Website versions: NO CACHING. Always returns null so PIN is required every time.
+ * - Native App: Returns cached user session for continuous background operation.
  */
 export const getStaffSession = () => {
   if (typeof window === "undefined") return null;
+
+  // Website version strictly has NO CACHING: every time someone accesses the admin link, they must enter the PIN
+  if (!isNativeApp()) {
+    try {
+      sessionStorage.removeItem(STAFF_SESSION_KEY);
+      localStorage.removeItem(STAFF_SESSION_KEY);
+    } catch {}
+    return null;
+  }
 
   try {
     // 1. Check sessionStorage (active tab / refreshed tab)
@@ -207,25 +232,30 @@ export const logoutUser = async () => {
 /**
  * Subscribe to auth state:
  * Restores active staff session and tracks Firebase auth state.
+ * (Native app only - website version strictly requires PIN every time)
  */
 export const subscribeAuth = (onAuthChange) => {
-  // Check active session immediately
-  const existingUser = getStaffSession();
-  if (existingUser) {
-    onAuthChange(existingUser);
+  if (isNativeApp()) {
+    const existingUser = getStaffSession();
+    if (existingUser) {
+      onAuthChange(existingUser);
+    }
+
+    const unsubscribeFirebase = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        saveStaffSession(user);
+        onAuthChange(user);
+      } else {
+        const activeSession = getStaffSession();
+        onAuthChange(activeSession);
+      }
+    });
+
+    return () => {
+      unsubscribeFirebase();
+    };
   }
 
-  const unsubscribeFirebase = onAuthStateChanged(auth, (user) => {
-    if (user) {
-      saveStaffSession(user);
-      onAuthChange(user);
-    } else {
-      const activeSession = getStaffSession();
-      onAuthChange(activeSession);
-    }
-  });
-
-  return () => {
-    unsubscribeFirebase();
-  };
+  // Website version: strictly do not auto-login, require PIN entry every time
+  return () => {};
 };

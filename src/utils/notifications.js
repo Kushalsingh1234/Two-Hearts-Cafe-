@@ -234,9 +234,14 @@ export const triggerTableAdditionNotification = async (order, newItems = []) => 
 
   if (typeof window === "undefined") return;
 
-  const itemsSummary = newItems.map((it) => `${it.quantity || 1}× ${it.name}`).join(", ") || "New items added";
+  const itemsSummary =
+    (newItems && newItems.length > 0
+      ? newItems.map((it) => `${it.quantity || 1}× ${it.name}`).join(", ")
+      : order.lastAdditionSummary) || "New items added";
   const title = `🔔 Table #${order.tableNumber}: Items Added!`;
   const body = `Added: ${itemsSummary} • Total Bill now: ₹${order.total || 0}`;
+
+  const tag = `addition-${order.id || "tab"}-${Date.now()}`;
 
   try {
     if (!swRegistration && "serviceWorker" in navigator) {
@@ -250,7 +255,7 @@ export const triggerTableAdditionNotification = async (order, newItems = []) => 
         badge: "/images/pwa/badge-72.png",
         sound: "/audio/ting.mp3",
         vibrate: [300, 100, 300, 100, 500],
-        tag: `addition-${order.id || Date.now()}`,
+        tag,
         renotify: true,
         requireInteraction: true,
         data: {
@@ -270,7 +275,7 @@ export const triggerTableAdditionNotification = async (order, newItems = []) => 
         body,
         icon: "/images/pwa/icon-192.png",
         badge: "/images/pwa/badge-72.png",
-        tag: `addition-${order.id || Date.now()}`,
+        tag,
         renotify: true
       });
       notif.onclick = () => {
@@ -294,6 +299,7 @@ export const triggerCounterBillRequestedNotification = async (order) => {
 
   const title = `💵 Table #${order.tableNumber} Requested Cash Bill!`;
   const body = `Total Bill: ₹${order.total || 0} • Customer requested to pay cash at counter`;
+  const tag = `cash-bill-${order.id || "tab"}-${Date.now()}`;
 
   try {
     if (!swRegistration && "serviceWorker" in navigator) {
@@ -307,7 +313,7 @@ export const triggerCounterBillRequestedNotification = async (order) => {
         badge: "/images/pwa/badge-72.png",
         sound: "/audio/ting.mp3",
         vibrate: [300, 100, 300, 100, 500],
-        tag: `cash-bill-${order.id || Date.now()}`,
+        tag,
         renotify: true,
         requireInteraction: true,
         data: {
@@ -327,7 +333,7 @@ export const triggerCounterBillRequestedNotification = async (order) => {
         body,
         icon: "/images/pwa/icon-192.png",
         badge: "/images/pwa/badge-72.png",
-        tag: `cash-bill-${order.id || Date.now()}`,
+        tag,
         renotify: true
       });
       notif.onclick = () => {

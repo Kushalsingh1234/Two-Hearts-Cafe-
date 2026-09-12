@@ -29,6 +29,8 @@ import { soundNotifier } from "../../utils/audio";
 import {
   triggerOrderNotification,
   triggerPaymentNotification,
+  triggerTableAdditionNotification,
+  triggerCounterBillRequestedNotification,
   requestNotificationPermission,
   getNotificationPermission,
   subscribeInstallPrompt,
@@ -128,11 +130,16 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
     return () => unsub();
   }, []);
 
-  // Track known order IDs and paid order IDs so we only alert for genuinely new events
+  // Track known order IDs, paid order IDs, additions, and bill requests
   const knownOrderIdsRef = useRef(new Set());
   const knownPaidOrderIdsRef = useRef(new Set());
+  const knownAdditionsRef = useRef(new Map());
+  const knownBillRequestsRef = useRef(new Set());
   const isInitialLoadRef = useRef(true);
+
   const [latestPaymentAlert, setLatestPaymentAlert] = useState(null);
+  const [latestAdditionAlert, setLatestAdditionAlert] = useState(null);
+  const [latestBillAlert, setLatestBillAlert] = useState(null);
 
   // Auto-dismiss floating payment alert banner after 9 seconds
   useEffect(() => {
@@ -142,6 +149,24 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
     }, 9000);
     return () => clearTimeout(timer);
   }, [latestPaymentAlert]);
+
+  // Auto-dismiss floating table additions alert banner after 10 seconds
+  useEffect(() => {
+    if (!latestAdditionAlert) return;
+    const timer = setTimeout(() => {
+      setLatestAdditionAlert(null);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [latestAdditionAlert]);
+
+  // Auto-dismiss floating cash bill request alert banner after 10 seconds
+  useEffect(() => {
+    if (!latestBillAlert) return;
+    const timer = setTimeout(() => {
+      setLatestBillAlert(null);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [latestBillAlert]);
 
   const [soundState, setSoundState] = useState({
     isRepeating: soundNotifier.isRepeating,
@@ -161,21 +186,68 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
         if (o.paymentStatus === "paid_online" || o.settledMethod === "upi_online") {
           knownPaidOrderIdsRef.current.add(o.id);
         }
+        if (o.lastItemAddedAt) {
+          knownAdditionsRef.current.set(o.id, o.lastItemAddedAt);
+        }
+        if (o.billRequested) {
+          knownBillRequestsRef.current.add(`${o.id}_${o.billRequestedAt || "init"}`);
+        }
       });
       isInitialLoadRef.current = false;
       return;
     }
 
     orders.forEach((order) => {
-      // 1. New incoming order alert (push notification)
+      // 1. New incoming order alert (push notification & chime)
       if (!knownOrderIdsRef.current.has(order.id)) {
         knownOrderIdsRef.current.add(order.id);
+        if (order.lastItemAddedAt) {
+          knownAdditionsRef.current.set(order.id, order.lastItemAddedAt);
+        }
+        if (order.billRequested) {
+          knownBillRequestsRef.current.add(`${order.id}_${order.billRequestedAt || "req"}`);
+        }
         if (order.status === "placed") {
           triggerOrderNotification(order);
         }
+      } else {
+        // 2. Existing order: additional items added from the same table!
+        const prevAddedAt = knownAdditionsRef.current.get(order.id);
+        if (order.lastItemAddedAt && order.lastItemAddedAt !== prevAddedAt) {
+          knownAdditionsRef.current.set(order.id, order.lastItemAddedAt);
+          const additions = order.additions || [];
+          const latestAddition = additions.length > 0 ? additions[additions.length - 1] : null;
+          const newItems = latestAddition?.items || [];
+
+          triggerTableAdditionNotification(order, newItems);
+          setLatestAdditionAlert({
+            id: order.id,
+            tableNumber: order.tableNumber,
+            summary:
+              order.lastAdditionSummary ||
+              (newItems.length > 0
+                ? newItems.map((i) => `${i.quantity || 1}× ${i.name}`).join(", ")
+                : "New dishes added"),
+            total: order.total,
+            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          });
+        }
+
+        // 3. Existing order: cash/counter bill requested by customer!
+        const billKey = `${order.id}_${order.billRequestedAt || "req"}`;
+        if (order.billRequested && !knownBillRequestsRef.current.has(billKey)) {
+          knownBillRequestsRef.current.add(billKey);
+          triggerCounterBillRequestedNotification(order);
+          setLatestBillAlert({
+            id: order.id,
+            tableNumber: order.tableNumber,
+            total: order.total,
+            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          });
+        }
       }
 
-      // 2. Online table scanner payment completed alert (auto-settles bill)
+      // 4. Online table scanner payment completed alert (auto-settles bill)
       const isOnlinePaid = order.paymentStatus === "paid_online" || order.settledMethod === "upi_online";
       if (isOnlinePaid && !knownPaidOrderIdsRef.current.has(order.id)) {
         knownPaidOrderIdsRef.current.add(order.id);
@@ -415,6 +487,132 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
               background: "transparent",
               border: "none",
               color: "#bbf7d0",
+              cursor: "pointer",
+              fontSize: 16,
+              padding: "0 4px",
+              lineHeight: 1
+            }}
+            title="Dismiss notification"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Floating Order Addition Alert Banner */}
+      {latestAdditionAlert && (
+        <div style={{
+          position: "fixed",
+          top: latestPaymentAlert ? 104 : 18,
+          right: 18,
+          zIndex: 9999,
+          maxWidth: 400,
+          backgroundColor: "#064e3b",
+          color: "#ecfdf5",
+          padding: "14px 18px",
+          borderRadius: 12,
+          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.2)",
+          border: "1.5px solid #10b981",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 12,
+          animation: "fadeIn 0.25s ease-out"
+        }}>
+          <div style={{
+            backgroundColor: "#10b981",
+            color: "#022c22",
+            borderRadius: "50%",
+            width: 28,
+            height: 28,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            fontWeight: 900,
+            fontSize: 15
+          }}>
+            🔔
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: 14, fontWeight: 700, letterSpacing: 0.3, marginBottom: 2 }}>
+              Table #{latestAdditionAlert.tableNumber}: Items Added!
+            </div>
+            <div style={{ fontSize: 12.5, opacity: 0.95, lineHeight: 1.4 }}>
+              Added: <strong>{latestAdditionAlert.summary}</strong>
+            </div>
+            <div style={{ fontSize: 11.5, color: "#a7f3d0", marginTop: 4, fontWeight: 600 }}>
+              Total Bill now: ₹{latestAdditionAlert.total} • Order placed for kitchen
+            </div>
+          </div>
+          <button
+            onClick={() => setLatestAdditionAlert(null)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#a7f3d0",
+              cursor: "pointer",
+              fontSize: 16,
+              padding: "0 4px",
+              lineHeight: 1
+            }}
+            title="Dismiss notification"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Floating Cash/Counter Bill Requested Alert Banner */}
+      {latestBillAlert && (
+        <div style={{
+          position: "fixed",
+          top: (latestPaymentAlert ? 86 : 0) + (latestAdditionAlert ? 86 : 0) + 18,
+          right: 18,
+          zIndex: 9999,
+          maxWidth: 400,
+          backgroundColor: "#78350f",
+          color: "#fffbeb",
+          padding: "14px 18px",
+          borderRadius: 12,
+          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.2)",
+          border: "1.5px solid #f59e0b",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 12,
+          animation: "fadeIn 0.25s ease-out"
+        }}>
+          <div style={{
+            backgroundColor: "#f59e0b",
+            color: "#451a03",
+            borderRadius: "50%",
+            width: 28,
+            height: 28,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            fontWeight: 900,
+            fontSize: 15
+          }}>
+            💵
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: 14, fontWeight: 700, letterSpacing: 0.3, marginBottom: 2 }}>
+              Table #{latestBillAlert.tableNumber} Requested Cash Bill!
+            </div>
+            <div style={{ fontSize: 12.5, opacity: 0.95, lineHeight: 1.4 }}>
+              Customer requested to pay cash at counter
+            </div>
+            <div style={{ fontSize: 11.5, color: "#fde68a", marginTop: 4, fontWeight: 600 }}>
+              Total Bill: ₹{latestBillAlert.total}
+            </div>
+          </div>
+          <button
+            onClick={() => setLatestBillAlert(null)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#fde68a",
               cursor: "pointer",
               fontSize: 16,
               padding: "0 4px",

@@ -20,8 +20,11 @@ import SignInPage from "./components/auth/SignInPage";
 import UserProfilePage from "./components/profile/UserProfilePage";
 import { subscribeMenuItems, subscribeLiveOrders } from "./firebase/services";
 import { subscribeAuth, logoutUser, getStaffSession, saveStaffSession } from "./firebase/auth";
-import { INITIAL_MENU_ITEMS } from "./data/seedMenu";
-import { triggerOrderNotification } from "./utils/notifications";
+import {
+  triggerOrderNotification,
+  triggerTableAdditionNotification,
+  triggerCounterBillRequestedNotification
+} from "./utils/notifications";
 import { soundNotifier } from "./utils/audio";
 import { updatePageSEO } from "./utils/seo";
 
@@ -235,6 +238,8 @@ export default function App() {
   }, []);
 
   const knownStaffOrderIdsRef = useRef(new Set());
+  const knownStaffAdditionsRef = useRef(new Map());
+  const knownStaffBillRequestsRef = useRef(new Set());
   const isInitialStaffLoadRef = useRef(true);
   const prevPlacedCountRef = useRef(0);
 
@@ -249,22 +254,59 @@ export default function App() {
     const unhandledOrders = (orders || []).filter((o) => o && o.status === "placed");
     const placedCount = unhandledOrders.length;
 
-    // If new orders arrived while alarm was silenced, resume sound immediately
+    // If new orders or table additions arrived while alarm was silenced, resume sound immediately
     if (placedCount > prevPlacedCountRef.current) {
       soundNotifier.resumeAlarm();
     }
     prevPlacedCountRef.current = placedCount;
 
-    // Send push notification for genuinely newly arrived orders
+    // Send push notification for newly arrived orders, item additions, and cash bill requests
     if (isInitialStaffLoadRef.current) {
-      orders.forEach((o) => knownStaffOrderIdsRef.current.add(o.id));
+      orders.forEach((o) => {
+        knownStaffOrderIdsRef.current.add(o.id);
+        if (o.lastItemAddedAt) {
+          knownStaffAdditionsRef.current.set(o.id, o.lastItemAddedAt);
+        }
+        if (o.billRequested) {
+          knownStaffBillRequestsRef.current.add(`${o.id}_${o.billRequestedAt || "init"}`);
+        }
+      });
       isInitialStaffLoadRef.current = false;
     } else {
       orders.forEach((order) => {
+        // 1. Brand new order (new order ID)
         if (!knownStaffOrderIdsRef.current.has(order.id)) {
           knownStaffOrderIdsRef.current.add(order.id);
+          if (order.lastItemAddedAt) {
+            knownStaffAdditionsRef.current.set(order.id, order.lastItemAddedAt);
+          }
+          if (order.billRequested) {
+            knownStaffBillRequestsRef.current.add(`${order.id}_${order.billRequestedAt || "req"}`);
+          }
           if (order.status === "placed") {
+            soundNotifier.resumeAlarm();
             triggerOrderNotification(order);
+          }
+        } else {
+          // 2. Existing order with NEW items added from the same table!
+          const prevAddedAt = knownStaffAdditionsRef.current.get(order.id);
+          if (order.lastItemAddedAt && order.lastItemAddedAt !== prevAddedAt) {
+            knownStaffAdditionsRef.current.set(order.id, order.lastItemAddedAt);
+            const additions = order.additions || [];
+            const latestAddition = additions.length > 0 ? additions[additions.length - 1] : null;
+            const newItems = latestAddition?.items || [];
+
+            // Resume chime and trigger Ting chime & notification
+            soundNotifier.resumeAlarm();
+            triggerTableAdditionNotification(order, newItems);
+          }
+
+          // 3. Existing order with Counter Cash Bill requested!
+          const billKey = `${order.id}_${order.billRequestedAt || "req"}`;
+          if (order.billRequested && !knownStaffBillRequestsRef.current.has(billKey)) {
+            knownStaffBillRequestsRef.current.add(billKey);
+            soundNotifier.resumeAlarm();
+            triggerCounterBillRequestedNotification(order);
           }
         }
       });

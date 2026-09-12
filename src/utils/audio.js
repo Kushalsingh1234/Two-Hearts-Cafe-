@@ -97,6 +97,12 @@ class AudioNotifier {
   playChime() {
     if (this.isMuted || this.isTemporarilySilenced) return;
 
+    const nowTime = Date.now();
+    if (this.lastChimePlayedAt && nowTime - this.lastChimePlayedAt < 350) {
+      return;
+    }
+    this.lastChimePlayedAt = nowTime;
+
     // 1. Trigger strong phone vibration pattern
     if (typeof navigator !== "undefined" && navigator.vibrate) {
       try {

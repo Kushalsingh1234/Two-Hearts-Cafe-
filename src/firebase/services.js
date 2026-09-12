@@ -464,8 +464,13 @@ export const placeOrAppendTableOrder = async (orderPayload, existingOrders = [])
       lastItemAddedAt: now.toISOString(),
       lastAdditionSummary,
       updatedAt: now.toISOString(),
-      // Reset status to 'preparing' so kitchen prepares new dishes
-      status: existingOrder.status === "served" ? "preparing" : existingOrder.status
+      // Reset status to 'placed' so admin panel rings repeating chime and staff accepts new additions
+      status: "placed",
+      specialInstructions: orderPayload.specialInstructions
+        ? (existingOrder.specialInstructions
+            ? `${existingOrder.specialInstructions} | Add: ${orderPayload.specialInstructions}`
+            : orderPayload.specialInstructions)
+        : (existingOrder.specialInstructions || "")
     };
 
     try {

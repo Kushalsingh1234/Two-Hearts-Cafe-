@@ -7,7 +7,7 @@ import CartDrawer from "./CartDrawer";
 import LiveOrderTracker from "./LiveOrderTracker";
 import CafeLogoIcon from "../common/CafeLogoIcon";
 import { CAFE_INFO } from "../../data/seedMenu";
-import { placeOrAppendTableOrder, requestCounterBill } from "../../firebase/services";
+import { placeOrAppendTableOrder, requestCounterBill, markPaymentInitiated } from "../../firebase/services";
 import PaymentChoiceModal from "./PaymentChoiceModal";
 import PaymentModal from "./PaymentModal";
 
@@ -205,6 +205,10 @@ export default function CustomerView({
   };
 
   const handleChooseOnlinePay = () => {
+    const targetOrder = paymentChoiceOrder || customerActiveOrders[0];
+    if (targetOrder && targetOrder.id) {
+      markPaymentInitiated(targetOrder.id, "UPI / QR").catch(() => {});
+    }
     setIsPaymentChoiceOpen(false);
     setIsPaymentModalOpen(true);
   };

@@ -29,6 +29,7 @@ import { soundNotifier } from "../../utils/audio";
 import {
   triggerOrderNotification,
   triggerPaymentNotification,
+  triggerPaymentInitiatedNotification,
   triggerTableAdditionNotification,
   triggerCounterBillRequestedNotification,
   requestNotificationPermission,
@@ -136,6 +137,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
   const knownPaidOrderIdsRef = useRef(new Set());
   const knownAdditionsRef = useRef(new Map());
   const knownBillRequestsRef = useRef(new Set());
+  const knownPaymentInitiatedRef = useRef(new Set());
   const isInitialLoadRef = useRef(true);
 
   const [latestPaymentAlert, setLatestPaymentAlert] = useState(null);
@@ -197,6 +199,9 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
         if (o.billRequested) {
           knownBillRequestsRef.current.add(`${o.id}_${o.billRequestedAt || "init"}`);
         }
+        if (o.paymentInitiated) {
+          knownPaymentInitiatedRef.current.add(`${o.id}_${o.paymentInitiatedAt || "init"}`);
+        }
       });
       isInitialLoadRef.current = false;
       return;
@@ -211,6 +216,9 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
         }
         if (order.billRequested) {
           knownBillRequestsRef.current.add(`${order.id}_${order.billRequestedAt || "req"}`);
+        }
+        if (order.paymentInitiated) {
+          knownPaymentInitiatedRef.current.add(`${order.id}_${order.paymentInitiatedAt || "req"}`);
         }
         if (order.status === "placed") {
           triggerOrderNotification(order);
@@ -250,9 +258,16 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
             time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
           });
         }
+
+        // 4. Existing order: online payment initiated (UPI/QR)
+        const payInitKey = `${order.id}_${order.paymentInitiatedAt || "req"}`;
+        if (order.paymentInitiated && order.paymentStatus !== "paid_online" && order.status !== "settled" && !knownPaymentInitiatedRef.current.has(payInitKey)) {
+          knownPaymentInitiatedRef.current.add(payInitKey);
+          triggerPaymentInitiatedNotification(order);
+        }
       }
 
-      // 4. Online table scanner payment completed alert (auto-settles bill)
+      // 5. Online table scanner payment completed alert (auto-settles bill)
       const isOnlinePaid = order.paymentStatus === "paid_online" || order.settledMethod === "upi_online";
       if (isOnlinePaid && !knownPaidOrderIdsRef.current.has(order.id)) {
         knownPaidOrderIdsRef.current.add(order.id);

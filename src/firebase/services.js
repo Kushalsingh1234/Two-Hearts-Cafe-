@@ -541,6 +541,10 @@ export const dispatchOrderPushNotification = async (order, alertType = "new_orde
     } else if (alertType === "cash_bill") {
       title = `💵 Table #${order.tableNumber} Requested Cash Bill!`;
       body = `Bill Total: ₹${order.total || 0} • Pay at counter`;
+    } else if (alertType === "payment_initiated") {
+      const appText = order.paymentInitiatedApp ? ` via ${order.paymentInitiatedApp}` : "";
+      title = `💳 Online Payment Initiated! (${tableText})`;
+      body = `Customer opened UPI/QR payment${appText} for ₹${order.total || 0} • Awaiting completion`;
     }
 
     // Call serverless FCM dispatcher
@@ -765,6 +769,40 @@ export const requestCounterBill = async (orderId) => {
   window.dispatchEvent(new CustomEvent("twohearts_new_order"));
   const finalOrder = updated.find((o) => o.id === orderId) || { id: orderId, ...updatePayload };
   dispatchOrderPushNotification(finalOrder, "cash_bill");
+  return finalOrder;
+};
+
+/**
+ * Customer initiates online payment (UPI / QR)
+ * Alerts staff and admin panel that online payment is in progress (initiated, awaiting completion)
+ */
+export const markPaymentInitiated = async (orderId, upiApp = "UPI / QR") => {
+  if (!orderId) return null;
+  const updatedAt = new Date().toISOString();
+  const updatePayload = {
+    paymentInitiated: true,
+    paymentInitiatedAt: updatedAt,
+    paymentInitiatedApp: upiApp,
+    paymentStatus: "initiated",
+    updatedAt
+  };
+
+  try {
+    const docRef = doc(db, ORDERS_COLLECTION, orderId);
+    await updateDoc(docRef, updatePayload);
+  } catch (err) {
+    console.warn("Firestore markPaymentInitiated fallback to local:", err);
+  }
+
+  const orders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+  const updated = orders.map((ord) =>
+    ord.id === orderId ? { ...ord, ...updatePayload } : ord
+  );
+  setLocalData(LOCAL_STORAGE_ORDERS_KEY, updated);
+  window.dispatchEvent(new CustomEvent("twohearts_order_updated"));
+  window.dispatchEvent(new CustomEvent("twohearts_new_order"));
+  const finalOrder = updated.find((o) => o.id === orderId) || { id: orderId, ...updatePayload };
+  dispatchOrderPushNotification(finalOrder, "payment_initiated");
   return finalOrder;
 };
 

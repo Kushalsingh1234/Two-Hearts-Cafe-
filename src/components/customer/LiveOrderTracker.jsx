@@ -434,6 +434,30 @@ export default function LiveOrderTracker({ isOpen, onClose, orders, tableNumber 
                             Pay Online instead
                           </button>
                         </div>
+                      ) : ord.paymentInitiated ? (
+                        <div style={{
+                          backgroundColor: "#f0fdf4",
+                          border: "1px solid #bbf7d0",
+                          borderRadius: 4,
+                          padding: "8px 12px",
+                          fontSize: 12,
+                          fontFamily: "var(--font-serif)",
+                          color: "#166534",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between"
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <Smartphone size={14} />
+                            <span>Online Payment Initiated ({ord.paymentInitiatedApp || "UPI"})</span>
+                          </div>
+                          <button
+                            onClick={() => setActivePaymentOrder(ord)}
+                            style={{ background: "transparent", border: "none", color: "var(--color-bronze)", textDecoration: "underline", fontSize: 11, cursor: "pointer", fontFamily: "var(--font-serif)" }}
+                          >
+                            Open Payment
+                          </button>
+                        </div>
                       ) : null}
 
                       {/* Pay Online / Settle Bill Button */}

@@ -90,11 +90,10 @@ export default function SiteNavbar({ currentPage, setPage }) {
         window.requestAnimationFrame(() => {
           const y = window.scrollY || document.documentElement.scrollTop || 0;
           setScrolled((prev) => {
-            // Hysteresis deadband: activate only when scrolling down past 45px,
-            // deactivate only when scrolling back up to the top (< 15px).
-            // This completely eliminates oscillation/fluctuation near the threshold.
-            if (!prev && y > 45) return true;
-            if (prev && y < 15) return false;
+            // Reveal sticky mini-navbar after scrolling past the top header (> 85px),
+            // hide it when scrolling back near the top (< 30px).
+            if (!prev && y > 85) return true;
+            if (prev && y < 30) return false;
             return prev;
           });
           ticking = false;
@@ -121,48 +120,43 @@ export default function SiteNavbar({ currentPage, setPage }) {
   };
 
   return (
-    <header
-      id="site-header"
-      className={`site-header ${scrolled ? "is-scrolled site-header-scrolled" : ""} ${currentPage === "menu" ? "site-header-menu-page" : ""}`}
-      style={{
-        position: "-webkit-sticky",
-        position: "sticky",
-        top: 0,
-        zIndex: 50,
-        width: "100%",
-        backgroundColor: scrolled ? "rgba(235, 225, 210, 0.98)" : "rgba(239, 230, 216, 0.96)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        borderBottom: `1px solid ${scrolled ? "rgba(138, 87, 56, 0.22)" : "rgba(138, 87, 56, 0.16)"}`,
-        boxShadow: scrolled ? "0 4px 20px rgba(28, 25, 23, 0.08)" : "0 2px 10px rgba(28, 25, 23, 0.04)",
-        transition: "background-color 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease",
-        transform: "translateZ(0)",
-        WebkitTransform: "translateZ(0)",
-        willChange: "transform"
-      }}
-    >
-      <div className="site-container site-navbar-container" style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingTop: 10,
-        paddingBottom: 10,
-        minHeight: "var(--site-navbar-height, 64px)"
-      }}>
-        {/* Brand Lockup */}
-        <div
-          onClick={() => handleNavClick("home")}
-          className={`site-brand-lockup ${scrolled ? "brand-scrolled" : ""}`}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            cursor: "pointer",
-            userSelect: "none"
-          }}
-          title="Two Hearts Cafe Home"
-        >
-          <div className="site-brand-crest">
+    <>
+      <header
+        id="site-header"
+        className={`site-header ${currentPage === "menu" ? "site-header-menu-page" : ""}`}
+        style={{
+          position: "relative",
+          zIndex: 40,
+          width: "100%",
+          backgroundColor: "rgba(239, 230, 216, 0.96)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          borderBottom: "1px solid rgba(138, 87, 56, 0.16)",
+          boxShadow: "0 2px 10px rgba(28, 25, 23, 0.04)"
+        }}
+      >
+        <div className="site-container site-navbar-container" style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingTop: 10,
+          paddingBottom: 10,
+          minHeight: "var(--site-navbar-height, 64px)"
+        }}>
+          {/* Brand Lockup */}
+          <div
+            onClick={() => handleNavClick("home")}
+            className="site-brand-lockup"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              cursor: "pointer",
+              userSelect: "none"
+            }}
+            title="Two Hearts Cafe Home"
+          >
+            <div className="site-brand-crest">
             <CafeLogoIcon size={42} />
           </div>
           <div className="site-brand-text-col" style={{ display: "flex", flexDirection: "column" }}>
@@ -990,5 +984,201 @@ export default function SiteNavbar({ currentPage, setPage }) {
         }
       `}</style>
     </header>
+
+      {/* 2. Floating Sticky Mini-Bar (Reveals on scroll: Cart, Cafe Name, Login Symbol) */}
+      {currentPage !== "menu" && (
+        <header
+          id="site-sticky-mini-bar"
+          className={`site-sticky-mini-bar ${scrolled ? "is-visible" : ""}`}
+          aria-hidden={!scrolled}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 85,
+            height: 50,
+            backgroundColor: "rgba(239, 230, 216, 0.98)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
+            borderBottom: "1px solid rgba(138, 87, 56, 0.18)",
+            boxShadow: "0 4px 18px rgba(28, 25, 23, 0.08)",
+            transform: scrolled ? "translateY(0)" : "translateY(-100%)",
+            opacity: scrolled ? 1 : 0,
+            pointerEvents: scrolled ? "auto" : "none",
+            transition: "transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease",
+            willChange: "transform, opacity",
+            display: "flex",
+            alignItems: "center"
+          }}
+        >
+          <div
+            className="site-container"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              width: "100%",
+              padding: "0 12px",
+              position: "relative"
+            }}
+          >
+            {/* Left: Cart Button */}
+            <button
+              type="button"
+              onClick={() => handleNavClick("cart")}
+              className="site-mini-cart-btn"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "3px 9px",
+                minHeight: 29,
+                height: 29,
+                borderRadius: "var(--radius-pill)",
+                border: `1.2px solid ${cartCount > 0 ? "var(--color-bronze)" : "var(--border-color)"}`,
+                backgroundColor: cartCount > 0 ? "var(--color-bronze-light)" : "#FFFFFF",
+                color: cartCount > 0 ? "var(--color-bronze-dark)" : "var(--color-ink)",
+                fontSize: 10.5,
+                fontFamily: "var(--font-serif)",
+                fontWeight: 700,
+                cursor: "pointer",
+                boxShadow: "0 1px 3px rgba(28, 25, 23, 0.06)",
+                transition: "all 0.2s ease"
+              }}
+              title="View Delivery Basket"
+            >
+              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                <ShoppingBag size={13} style={{ color: cartCount > 0 ? "var(--color-bronze-dark)" : "var(--color-bronze)" }} />
+                {cartCount > 0 && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: -5,
+                      right: -5,
+                      backgroundColor: "var(--color-bronze)",
+                      color: "#FFFFFF",
+                      fontSize: 8,
+                      fontWeight: 700,
+                      width: 13,
+                      height: 13,
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
+                  >
+                    {cartCount}
+                  </span>
+                )}
+              </div>
+              <span className="cart-text-label">{cartCount > 0 ? `₹${total}` : "Cart"}</span>
+            </button>
+
+            {/* Center: Cafe Name */}
+            <div
+              onClick={() => handleNavClick("home")}
+              style={{
+                cursor: "pointer",
+                userSelect: "none",
+                position: "absolute",
+                left: "50%",
+                transform: "translateX(-50%)",
+                textAlign: "center"
+              }}
+              title="Two Hearts Cafe Home"
+            >
+              <span
+                style={{
+                  fontFamily: "var(--font-script)",
+                  fontSize: 25,
+                  color: "var(--color-bronze)",
+                  lineHeight: 1,
+                  letterSpacing: "0.01em",
+                  whiteSpace: "nowrap"
+                }}
+              >
+                Two Hearts Cafe
+              </span>
+            </div>
+
+            {/* Right: Login Symbol / Profile */}
+            <div style={{ display: "flex", alignItems: "center" }}>
+              {isLoggedIn && customerUser ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== "undefined" && window.innerWidth <= 768) {
+                      setProfileMenuOpen(true);
+                    } else {
+                      handleNavClick("profile");
+                    }
+                  }}
+                  className="site-mini-profile-btn"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 29,
+                    height: 29,
+                    borderRadius: "50%",
+                    border: "1.2px solid var(--border-color)",
+                    backgroundColor: "#FFFFFF",
+                    cursor: "pointer",
+                    boxShadow: "0 1px 3px rgba(28, 25, 23, 0.06)",
+                    padding: 0
+                  }}
+                  title={`Account menu for ${customerUser.name || "Customer"}`}
+                >
+                  <div
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: "50%",
+                      backgroundColor: "var(--color-bronze)",
+                      color: "#FFFFFF",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 9.5,
+                      fontWeight: 700,
+                      overflow: "hidden"
+                    }}
+                  >
+                    {customerUser.avatarUrl ? (
+                      <img src={customerUser.avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      customerUser.avatarMonogram || (customerUser.name ? customerUser.name.charAt(0).toUpperCase() : "U")
+                    )}
+                  </div>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openAuthModal(() => handleNavClick("profile"))}
+                  className="site-mini-signin-btn"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 29,
+                    height: 29,
+                    borderRadius: "50%",
+                    border: "1.2px solid var(--border-color)",
+                    backgroundColor: "#FFFFFF",
+                    cursor: "pointer",
+                    boxShadow: "0 1px 3px rgba(28, 25, 23, 0.06)",
+                    padding: 0
+                  }}
+                  title="Sign in with Google (Gmail)"
+                >
+                  <User size={14} style={{ color: "var(--color-ink)" }} />
+                </button>
+              )}
+            </div>
+          </div>
+        </header>
+      )}
+    </>
   );
 }

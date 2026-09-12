@@ -239,6 +239,45 @@ html {
   cursor: pointer !important;
 }
 
+/* Floating Sticky Mini Navbar (Reveals on scroll) */
+.site-sticky-mini-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 85;
+  height: 50px;
+  background-color: rgba(239, 230, 216, 0.98);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(138, 87, 56, 0.18);
+  box-shadow: 0 4px 18px rgba(28, 25, 23, 0.08);
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
+  will-change: transform, opacity;
+  display: flex;
+  align-items: center;
+}
+
+.site-sticky-mini-bar.is-visible {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.site-mini-cart-btn {
+  position: static !important;
+  transform: none !important;
+}
+
+.site-mini-signin-btn,
+.site-mini-profile-btn {
+  position: static !important;
+  transform: none !important;
+}
+
 /* Boutique Bistro Card */
 .bistro-card {
   background-color: var(--bg-card);
@@ -693,14 +732,14 @@ html {
     margin: 0 auto !important;
   }
 
-  /* 1. Unstick website header on mobile menu page so it scrolls away naturally */
-  #site-header.site-header-menu-page {
+  /* 1. Header is NOT sticky - scrolls away naturally */
+  #site-header {
     position: relative !important;
     top: auto !important;
-    box-shadow: none !important;
+    box-shadow: 0 2px 10px rgba(28, 25, 23, 0.04) !important;
   }
 
-  /* 2. ONLY the search bar stays pinned at top: 0 while scrolling */
+  /* 2. ONLY the search bar stays pinned at top: 0 while scrolling on menu page */
   .menu-search-sticky-bar {
     top: 0 !important;
     z-index: 70 !important;
@@ -737,7 +776,7 @@ html {
     display: none !important;
   }
 
-  /* 4. Centered Stacked Boutique Cafe Brand Lockup & Ultra-Smooth Responsive Header */
+  /* 4. Centered Stacked Boutique Cafe Brand Lockup (Stable & Full Size, No Scroll Shrinking) */
   .site-navbar-container {
     position: relative !important;
     display: flex !important;
@@ -748,9 +787,6 @@ html {
     padding-bottom: 0 !important;
     min-height: 78px !important;
     height: 78px !important;
-    will-change: height, min-height !important;
-    transition: height 0.32s cubic-bezier(0.2, 0.8, 0.25, 1),
-      min-height 0.32s cubic-bezier(0.2, 0.8, 0.25, 1) !important;
   }
 
   .site-brand-lockup {
@@ -761,7 +797,6 @@ html {
     gap: 2px !important;
     text-align: center !important;
     max-width: calc(100% - 150px) !important;
-    will-change: transform !important;
   }
 
   .site-brand-crest {
@@ -773,12 +808,6 @@ html {
     max-height: 42px !important;
     opacity: 1 !important;
     transform: scale(1) translateY(0) !important;
-    transform-origin: center center !important;
-    will-change: transform, opacity, height, max-height !important;
-    transition: height 0.3s cubic-bezier(0.2, 0.8, 0.25, 1),
-      max-height 0.3s cubic-bezier(0.2, 0.8, 0.25, 1),
-      opacity 0.2s ease,
-      transform 0.26s cubic-bezier(0.2, 0.8, 0.25, 1) !important;
   }
 
   .site-brand-text-col {
@@ -793,9 +822,6 @@ html {
     line-height: 1 !important;
     letter-spacing: 0.01em !important;
     color: var(--color-bronze) !important;
-    transform-origin: center center !important;
-    will-change: transform !important;
-    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.25, 1) !important;
   }
 
   .site-brand-tagline {
@@ -809,49 +835,6 @@ html {
     margin-top: 1px !important;
     height: 11px !important;
     max-height: 11px !important;
-    transform: scale(1) !important;
-    transform-origin: center center !important;
-    will-change: transform, opacity, height, max-height !important;
-    transition: height 0.28s cubic-bezier(0.2, 0.8, 0.25, 1),
-      max-height 0.28s cubic-bezier(0.2, 0.8, 0.25, 1),
-      opacity 0.18s ease,
-      transform 0.24s cubic-bezier(0.2, 0.8, 0.25, 1) !important;
-  }
-
-  /* Mobile Scrolled State: smoothly and cleanly transition crest and tagline */
-  .site-header.is-scrolled .site-navbar-container {
-    min-height: 52px !important;
-    height: 52px !important;
-  }
-
-  .site-header.is-scrolled .site-brand-lockup {
-    gap: 0 !important;
-  }
-
-  .site-header.is-scrolled .site-brand-crest {
-    max-height: 0 !important;
-    height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    opacity: 0 !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-    transform: scale(0.4) translateY(-6px) !important;
-  }
-
-  .site-header.is-scrolled .site-brand-tagline {
-    max-height: 0 !important;
-    height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    opacity: 0 !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-    transform: scale(0.5) !important;
-  }
-
-  .site-header.is-scrolled .site-brand-script {
-    transform: scale(0.92) !important;
   }
 
   .site-navbar-actions {

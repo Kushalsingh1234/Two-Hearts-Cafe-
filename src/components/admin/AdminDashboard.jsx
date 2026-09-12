@@ -171,11 +171,15 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
   const [soundState, setSoundState] = useState({
     isRepeating: soundNotifier.isRepeating,
     isMuted: soundNotifier.isMuted,
-    isSilenced: soundNotifier.isTemporarilySilenced
+    isSilenced: soundNotifier.isTemporarilySilenced,
+    isBackgroundActive: soundNotifier.isBackgroundActive,
+    isScreenAwake: soundNotifier.isScreenAwake
   });
 
-  // Real-time subscription to sound notifier state
+  // Real-time subscription to sound notifier state & auto-activate background monitor on admin mount
   useEffect(() => {
+    soundNotifier.requestWakeLock().catch(() => {});
+    soundNotifier.startBackgroundMonitor().catch(() => {});
     return soundNotifier.subscribe(setSoundState);
   }, []);
 
@@ -297,6 +301,15 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
     } else {
       const success = await soundNotifier.requestWakeLock();
       setIsScreenAwake(success);
+    }
+  };
+
+  const handleToggleBackgroundMonitor = async () => {
+    if (soundState.isBackgroundActive) {
+      soundNotifier.stopBackgroundMonitor();
+    } else {
+      await soundNotifier.startBackgroundMonitor();
+      await requestNotificationPermission();
     }
   };
 
@@ -873,6 +886,38 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
             <span>{isScreenAwake ? "Screen Awake: ON" : "Keep Screen Awake"}</span>
           </button>
 
+          {/* 24/7 Background Order Monitor */}
+          <button
+            onClick={handleToggleBackgroundMonitor}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "5px 12px",
+              borderRadius: "var(--radius-pill)",
+              backgroundColor: soundState.isBackgroundActive ? "#f0fdf4" : "#FAF7F2",
+              border: soundState.isBackgroundActive ? "1px solid #86efac" : "1px solid var(--color-border-frame)",
+              fontFamily: "var(--font-serif)",
+              fontSize: 12,
+              fontWeight: 700,
+              color: soundState.isBackgroundActive ? "#15803d" : "var(--color-ink)",
+              cursor: "pointer"
+            }}
+            title="24/7 Background Audio Monitor keeps phone awake and orders chiming even when app is in background or phone is locked"
+          >
+            <span
+              style={{
+                display: "inline-block",
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                backgroundColor: soundState.isBackgroundActive ? "#22c55e" : "#9ca3af",
+                boxShadow: soundState.isBackgroundActive ? "0 0 6px #22c55e" : "none"
+              }}
+            />
+            <span>{soundState.isBackgroundActive ? "Background: ACTIVE" : "Background: OFF"}</span>
+          </button>
+
           {/* Sound Mute/Unmute Toggle */}
           <button
             onClick={handleToggleMute}
@@ -923,6 +968,64 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
           )}
         </div>
       </div>
+
+      {/* 24/7 Background Alerts Activation Card (shown if background audio monitor or notification permission is not yet active) */}
+      {(!soundState.isBackgroundActive || notifPermission !== "granted") && (
+        <div
+          style={{
+            backgroundColor: "#eff6ff",
+            border: "1.5px solid #93c5fd",
+            borderRadius: 10,
+            padding: "12px 18px",
+            marginBottom: 20,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 12,
+            boxShadow: "0 2px 10px rgba(37, 99, 235, 0.08)"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 22 }}>🔔</span>
+            <div>
+              <div style={{ fontFamily: "var(--font-serif)", fontSize: 13, fontWeight: 700, color: "#1e40af" }}>
+                Enable 24/7 Background Order Chime & Notifications
+              </div>
+              <div style={{ fontSize: 12, color: "#3b82f6", marginTop: 2 }}>
+                Ensures you never miss an order even when this phone is locked or the app is kept in the background for minutes.
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              await requestNotificationPermission();
+              await soundNotifier.startBackgroundMonitor();
+              await soundNotifier.requestWakeLock();
+              soundNotifier.playChime();
+            }}
+            style={{
+              padding: "8px 18px",
+              backgroundColor: "#2563eb",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "var(--radius-pill)",
+              fontFamily: "var(--font-serif)",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+              boxShadow: "0 2px 6px rgba(37, 99, 235, 0.3)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6
+            }}
+          >
+            <Volume2 size={13} />
+            <span>Enable 24/7 Background Alerts</span>
+          </button>
+        </div>
+      )}
 
       {/* Active Unaccepted Orders Chime Alert Banner */}
       {unhandledPlacedOrders.length > 0 && (

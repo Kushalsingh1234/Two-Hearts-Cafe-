@@ -1,11 +1,12 @@
 // Two Hearts Cafe - Progressive Web App Service Worker
-const CACHE_NAME = 'two-hearts-v2';
+const CACHE_NAME = 'two-hearts-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/audio/ting.mp3',
   '/audio/ting.wav',
+  '/audio/silent.wav',
   '/images/pwa/icon-192.png',
   '/images/pwa/icon-512.png',
   '/images/pwa/icon.svg',

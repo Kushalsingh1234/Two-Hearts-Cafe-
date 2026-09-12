@@ -244,6 +244,31 @@ export default function App() {
   const isInitialStaffLoadRef = useRef(true);
   const prevPlacedCountRef = useRef(0);
 
+  // Auto-start 24/7 background audio monitor and screen wake lock whenever staff is logged in
+  useEffect(() => {
+    if (currentUser) {
+      soundNotifier.startBackgroundMonitor().catch(() => {});
+      soundNotifier.requestWakeLock().catch(() => {});
+
+      // On first user click/touch anywhere in staff session, ensure background monitor is locked in
+      const unlockBg = () => {
+        if (!soundNotifier.isBackgroundActive) {
+          soundNotifier.startBackgroundMonitor().catch(() => {});
+        }
+      };
+      window.addEventListener("click", unlockBg, { passive: true });
+      window.addEventListener("touchstart", unlockBg, { passive: true });
+
+      return () => {
+        window.removeEventListener("click", unlockBg);
+        window.removeEventListener("touchstart", unlockBg);
+      };
+    } else {
+      soundNotifier.stopBackgroundMonitor();
+      soundNotifier.releaseWakeLock();
+    }
+  }, [currentUser]);
+
   // Global order notification & repeating ting chime for staff until orders are accepted/rejected
   useEffect(() => {
     if (!currentUser) {
@@ -279,6 +304,12 @@ export default function App() {
         }
       });
       isInitialStaffLoadRef.current = false;
+
+      // If staff opens or reloads dashboard and there are pending unhandled orders, notify immediately
+      if (unhandledOrders.length > 0) {
+        soundNotifier.resumeAlarm();
+        triggerOrderNotification(unhandledOrders[0]);
+      }
     } else {
       orders.forEach((order) => {
         // 1. Brand new order (new order ID)

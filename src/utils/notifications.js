@@ -130,7 +130,7 @@ export const triggerOrderNotification = async (order) => {
         icon: "/images/pwa/icon-192.png",
         badge: "/images/pwa/badge-72.png",
         sound: "/audio/ting.mp3",
-        vibrate: [300, 100, 300, 100, 500],
+        vibrate: [400, 150, 400, 150, 600],
         tag: `order-${order.id || Date.now()}`,
         renotify: true,
         requireInteraction: true,
@@ -144,6 +144,21 @@ export const triggerOrderNotification = async (order) => {
   } catch (e) {
     console.warn("SW showNotification fallback:", e);
   }
+
+  // Also post to service worker controller if available for background delivery
+  try {
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: "SHOW_ORDER_NOTIFICATION",
+        title,
+        body,
+        data: {
+          url: "/?admin=true&pwa=1",
+          orderId: order.id
+        }
+      });
+    }
+  } catch (e) {}
 
   // 3. Fallback: Standard window Notification
   if ("Notification" in window && Notification.permission === "granted") {
@@ -254,7 +269,7 @@ export const triggerTableAdditionNotification = async (order, newItems = []) => 
         icon: "/images/pwa/icon-192.png",
         badge: "/images/pwa/badge-72.png",
         sound: "/audio/ting.mp3",
-        vibrate: [300, 100, 300, 100, 500],
+        vibrate: [400, 150, 400, 150, 600],
         tag,
         renotify: true,
         requireInteraction: true,
@@ -268,6 +283,21 @@ export const triggerTableAdditionNotification = async (order, newItems = []) => 
   } catch (e) {
     console.warn("SW addition notification fallback:", e);
   }
+
+  // Post message to service worker controller
+  try {
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: "SHOW_ORDER_NOTIFICATION",
+        title,
+        body,
+        data: {
+          url: "/?admin=true&pwa=1&tab=orders",
+          orderId: order.id
+        }
+      });
+    }
+  } catch (e) {}
 
   if ("Notification" in window && Notification.permission === "granted") {
     try {
@@ -312,7 +342,7 @@ export const triggerCounterBillRequestedNotification = async (order) => {
         icon: "/images/pwa/icon-192.png",
         badge: "/images/pwa/badge-72.png",
         sound: "/audio/ting.mp3",
-        vibrate: [300, 100, 300, 100, 500],
+        vibrate: [400, 150, 400, 150, 600],
         tag,
         renotify: true,
         requireInteraction: true,
@@ -326,6 +356,21 @@ export const triggerCounterBillRequestedNotification = async (order) => {
   } catch (e) {
     console.warn("SW bill request notification fallback:", e);
   }
+
+  // Post message to service worker controller
+  try {
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: "SHOW_ORDER_NOTIFICATION",
+        title,
+        body,
+        data: {
+          url: "/?admin=true&pwa=1&tab=orders",
+          orderId: order.id
+        }
+      });
+    }
+  } catch (e) {}
 
   if ("Notification" in window && Notification.permission === "granted") {
     try {

@@ -24,7 +24,7 @@ import TableQRGenerator from "./TableQRGenerator";
 import ReviewsManager from "./ReviewsManager";
 import ChangePinModal from "./ChangePinModal";
 import OnlineOrdersManager from "./OnlineOrdersManager";
-import { updateOrderStatus, clearAllOrders, subscribeReviews } from "../../firebase/services";
+import { updateOrderStatus, clearAllOrders, subscribeReviews, acceptOrderAddition, rejectOrderAddition } from "../../firebase/services";
 import { soundNotifier } from "../../utils/audio";
 import {
   triggerOrderNotification,
@@ -1346,6 +1346,8 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
                   key={order.id}
                   order={order}
                   onUpdateStatus={updateOrderStatus}
+                  onAcceptAddition={acceptOrderAddition}
+                  onRejectAddition={rejectOrderAddition}
                 />
               ))}
             </div>

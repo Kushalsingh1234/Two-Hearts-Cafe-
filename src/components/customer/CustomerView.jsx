@@ -288,7 +288,7 @@ export default function CustomerView({
               <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5 }}>
                 <CheckCircle2 size={16} color="#86efac" />
                 <span>
-                  <strong>Table #{tableNumber} • UPI Paid (₹{activeOrd.total})</strong> — Kitchen: {activeOrd.status.toUpperCase()}
+                  <strong>Table #{tableNumber} • UPI Paid (₹{activeOrd.total || 0})</strong> — Kitchen: {(activeOrd.status || "preparing").toUpperCase()}
                 </span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11.5, textDecoration: "underline", color: "#86efac" }}>

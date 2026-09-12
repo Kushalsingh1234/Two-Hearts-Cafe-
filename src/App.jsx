@@ -139,16 +139,11 @@ export default function App() {
   const [isTrackerOpen, setIsTrackerOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(() => {
     try {
-      // 1. Restore existing staff session (persists across page refreshes and backgrounding)
-      const existingUser = getStaffSession();
-      if (existingUser) return existingUser;
-
-      // 2. URL pin parameter fallback for direct kiosk linking
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("admin") === "true" && params.get("pin") === "2012") {
-        const staffUser = { email: "staff@twoheartscafe.com", uid: "pin_session" };
-        saveStaffSession(staffUser);
-        return staffUser;
+      // STRICT POLICY: Only the native Android app restores persistent staff session.
+      // Website versions have NO CACHING - every access to admin requires entering the PIN.
+      if (isNativeApp()) {
+        const existingUser = getStaffSession();
+        if (existingUser) return existingUser;
       }
     } catch {}
     return null;
@@ -157,7 +152,7 @@ export default function App() {
   // Subscribe to Firebase Auth state
   useEffect(() => {
     const unsubscribeAuth = subscribeAuth((user) => {
-      if (user) {
+      if (user && isNativeApp()) {
         setCurrentUser(user);
       }
     });
@@ -203,21 +198,27 @@ export default function App() {
 
       if (params.get("admin") === "true" || hash === "admin" || pathname === "admin") {
         setCurrentView("admin");
-      } else if (pathname === "menu" || hash === "menu" || params.get("menu") === "true" || params.get("page") === "menu") {
-        setCurrentView("marketing");
-        setMarketingPage("menu");
-      } else if (pathname === "order" || (params.get("order") === "true" && hash !== "menu") || newTable) {
-        if (newTable) setTableNumber(newTable);
-        setCurrentView("customer");
       } else {
-        setCurrentView("marketing");
-        const validPages = ["home", "about", "menu", "contact", "cart", "checkout", "order-confirmation", "order-status", "sign-in", "profile"];
-        if (validPages.includes(pathname)) {
-          setMarketingPage(pathname);
-        } else if (validPages.includes(hash)) {
-          setMarketingPage(hash);
+        // When leaving admin on website, lock it so accessing the admin link again requires PIN
+        if (!isNativeApp()) {
+          setCurrentUser(null);
+        }
+        if (pathname === "menu" || hash === "menu" || params.get("menu") === "true" || params.get("page") === "menu") {
+          setCurrentView("marketing");
+          setMarketingPage("menu");
+        } else if (pathname === "order" || (params.get("order") === "true" && hash !== "menu") || newTable) {
+          if (newTable) setTableNumber(newTable);
+          setCurrentView("customer");
         } else {
-          setMarketingPage("home");
+          setCurrentView("marketing");
+          const validPages = ["home", "about", "menu", "contact", "cart", "checkout", "order-confirmation", "order-status", "sign-in", "profile"];
+          if (validPages.includes(pathname)) {
+            setMarketingPage(pathname);
+          } else if (validPages.includes(hash)) {
+            setMarketingPage(hash);
+          } else {
+            setMarketingPage("home");
+          }
         }
       }
     };

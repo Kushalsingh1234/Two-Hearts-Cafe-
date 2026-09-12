@@ -253,9 +253,9 @@ export default function SiteNavbar({ currentPage, setPage }) {
               display: "flex",
               alignItems: "center",
               gap: 5,
-              padding: "4px 10px",
-              minHeight: 28,
-              height: 28,
+              padding: "4px 11px",
+              minHeight: 30,
+              height: 30,
               borderRadius: "var(--radius-pill)",
               border: `1.2px solid ${cartCount > 0 ? "var(--color-bronze)" : "var(--border-color)"}`,
               backgroundColor: cartCount > 0 ? "var(--color-bronze-light)" : "#FFFFFF",
@@ -269,7 +269,7 @@ export default function SiteNavbar({ currentPage, setPage }) {
             title="View Delivery Basket"
           >
             <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-              <ShoppingBag size={13} style={{ color: cartCount > 0 ? "var(--color-bronze-dark)" : "var(--color-bronze)" }} />
+              <ShoppingBag size={14} style={{ color: cartCount > 0 ? "var(--color-bronze-dark)" : "var(--color-bronze)" }} />
               {cartCount > 0 && (
                 <span
                   className="cart-badge"
@@ -281,8 +281,8 @@ export default function SiteNavbar({ currentPage, setPage }) {
                   color: "#FFFFFF",
                   fontSize: 8,
                   fontWeight: 700,
-                  width: 13,
-                  height: 13,
+                  width: 14,
+                  height: 14,
                   borderRadius: "50%",
                   display: "flex",
                   alignItems: "center",
@@ -320,9 +320,9 @@ export default function SiteNavbar({ currentPage, setPage }) {
                   display: "flex",
                   alignItems: "center",
                   gap: 5,
-                  padding: "3px 8px 3px 4px",
-                  minHeight: 28,
-                  height: 28,
+                  padding: "3px 9px 3px 4px",
+                  minHeight: 30,
+                  height: 30,
                   borderRadius: "var(--radius-pill)",
                   border: `1.2px solid ${profileMenuOpen || currentPage === "profile" ? "var(--color-bronze)" : "var(--border-color)"}`,
                   backgroundColor: profileMenuOpen || currentPage === "profile" ? "var(--color-bronze-light)" : "#FFFFFF",
@@ -338,15 +338,15 @@ export default function SiteNavbar({ currentPage, setPage }) {
                 <div
                   className="site-navbar-avatar"
                   style={{
-                    width: 20,
-                    height: 20,
+                    width: 21,
+                    height: 21,
                     borderRadius: "50%",
                     backgroundColor: "var(--color-bronze)",
                     color: "#FFFFFF",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: 9,
+                    fontSize: 9.5,
                     fontWeight: 700,
                     overflow: "hidden"
                   }}
@@ -570,15 +570,15 @@ export default function SiteNavbar({ currentPage, setPage }) {
               onClick={() => openAuthModal(() => handleNavClick("profile"))}
               className="btn-pill-outline site-navbar-signin-btn"
               style={{
-                padding: "4px 10px",
-                minHeight: 28,
-                height: 28,
-                fontSize: 10.5,
+                padding: "4px 11px",
+                minHeight: 30,
+                height: 30,
+                fontSize: 11,
                 borderWidth: 1.1
               }}
               title="Sign in with Google (Gmail)"
             >
-              <User size={12} />
+              <User size={13} />
               <span className="signin-text-label">Sign In</span>
             </button>
           )}

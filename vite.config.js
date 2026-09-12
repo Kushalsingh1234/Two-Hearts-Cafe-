@@ -40,6 +40,9 @@ function razorpayDevApiPlugin(env) {
               } else if (parsedUrl === '/api/verify-payment') {
                 const handler = (await import('./api/verify-payment.js')).default
                 return handler(req, res)
+              } else if (parsedUrl === '/api/send-order-push') {
+                const handler = (await import('./api/send-order-push.js')).default
+                return handler(req, res)
               }
             } catch (err) {
               console.error('API dev handler error:', err)
@@ -61,5 +64,10 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   return {
     plugins: [react(), razorpayDevApiPlugin(env)],
+    server: {
+      watch: {
+        ignored: ['**/android/**', '**/*.apk', '**/build-apk/**']
+      }
+    }
   }
 })

@@ -1,0 +1,18 @@
+{
+  "appId": "com.twohearts.admin",
+  "appName": "Two Hearts Cafe Admin",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_launcher_foreground",
+      "iconColor": "#8D2837",
+      "sound": "ting.wav"
+    }
+  }
+}

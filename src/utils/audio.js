@@ -203,9 +203,27 @@ class AudioNotifier {
     return this.isBackgroundActive;
   }
 
+  // Helper to verify that audio/vibration is only played on staff/admin sessions
+  canPlayStaffSound() {
+    if (typeof window === "undefined") return false;
+    // Native Capacitor app is exclusively for cafe staff/admin
+    const isCapacitor =
+      window.Capacitor &&
+      typeof window.Capacitor.isNativePlatform === "function" &&
+      window.Capacitor.isNativePlatform();
+    if (isCapacitor) return true;
+
+    const search = window.location.search || "";
+    const hash = window.location.hash || "";
+    const pathname = window.location.pathname.toLowerCase();
+    return search.includes("admin") || hash.includes("admin") || pathname.includes("admin");
+  }
+
   // Play the signature Two Hearts Cafe reception desk "Ting!" chime
   playChime() {
     if (this.isMuted || this.isTemporarilySilenced) return;
+    // Customer end must NEVER hear the ting chime or feel vibration
+    if (!this.canPlayStaffSound()) return;
 
     const nowTime = Date.now();
     if (this.lastChimePlayedAt && nowTime - this.lastChimePlayedAt < 350) {
@@ -293,6 +311,7 @@ class AudioNotifier {
   // Play bright, celebratory payment success chime (G5 784Hz -> C6 1046Hz -> E6 1318Hz)
   playPaymentSuccessChime() {
     if (this.isMuted) return;
+    if (!this.canPlayStaffSound()) return;
 
     // Trigger double vibration for mobile counter devices
     if (typeof navigator !== "undefined" && navigator.vibrate) {
@@ -363,6 +382,7 @@ class AudioNotifier {
 
   // Continuous repeating chime until order is accepted/rejected
   startRepeatingChime(intervalMs = 3000) {
+    if (!this.canPlayStaffSound()) return;
     if (this.repeatInterval) return; // already chiming
     this.isTemporarilySilenced = false;
     this.isRepeating = true;

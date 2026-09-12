@@ -506,6 +506,7 @@ export const placeOrAppendTableOrder = async (orderPayload, existingOrders = [])
       );
       window.dispatchEvent(new CustomEvent("twohearts_order_updated", { detail: updatedOrder }));
       window.dispatchEvent(new CustomEvent("twohearts_new_order", { detail: updatedOrder }));
+      dispatchOrderPushNotification(updatedOrder, "addition", newItems);
       return { isAppended: true, order: updatedOrder, newItems };
     }
   }
@@ -516,7 +517,49 @@ export const placeOrAppendTableOrder = async (orderPayload, existingOrders = [])
     paymentStatus: orderPayload.paymentStatus || "pending",
     billRequested: false
   });
+  dispatchOrderPushNotification(created, "new_order");
   return { isAppended: false, order: created, newItems };
+};
+
+/**
+ * Dispatch FCM Push Notification to all registered native admin devices
+ */
+export const dispatchOrderPushNotification = async (order, alertType = "new_order", newItems = []) => {
+  try {
+    if (!order) return;
+    const tableText = order.tableNumber ? `Table ${order.tableNumber}` : "Online Order";
+    let title = `🔔 New Order! (${tableText})`;
+    let body = `₹${order.total || 0} • ${(order.items || []).length} items ready for prep`;
+
+    if (alertType === "addition") {
+      const summary =
+        newItems.length > 0
+          ? newItems.map((i) => `${i.quantity || 1}x ${i.name}`).join(", ")
+          : "Items added";
+      title = `🔔 Items Added to Table #${order.tableNumber}!`;
+      body = `Added: ${summary} • Bill: ₹${order.total || 0}`;
+    } else if (alertType === "cash_bill") {
+      title = `💵 Table #${order.tableNumber} Requested Cash Bill!`;
+      body = `Bill Total: ₹${order.total || 0} • Pay at counter`;
+    }
+
+    // Call serverless FCM dispatcher
+    fetch("/api/send-order-push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title,
+        body,
+        orderId: order.id || "",
+        data: {
+          alertType,
+          tableNumber: String(order.tableNumber || "")
+        }
+      })
+    }).catch(() => {});
+  } catch (err) {
+    console.warn("dispatchOrderPushNotification error:", err);
+  }
 };
 
 /**
@@ -720,7 +763,9 @@ export const requestCounterBill = async (orderId) => {
   setLocalData(LOCAL_STORAGE_ORDERS_KEY, updated);
   window.dispatchEvent(new CustomEvent("twohearts_order_updated"));
   window.dispatchEvent(new CustomEvent("twohearts_new_order"));
-  return updated.find((o) => o.id === orderId) || { id: orderId, ...updatePayload };
+  const finalOrder = updated.find((o) => o.id === orderId) || { id: orderId, ...updatePayload };
+  dispatchOrderPushNotification(finalOrder, "cash_bill");
+  return finalOrder;
 };
 
 /**
@@ -764,6 +809,7 @@ export const placeOnlineDeliveryOrder = async (payload) => {
     const currentOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
     setLocalData(LOCAL_STORAGE_ORDERS_KEY, [created, ...currentOrders.filter((o) => o.id !== docRef.id)]);
     window.dispatchEvent(new CustomEvent("twohearts_new_order", { detail: created }));
+    dispatchOrderPushNotification(created, "new_order");
     return created;
   } catch (err) {
     console.warn("Firestore placeOnlineDeliveryOrder fallback to local storage:", err);

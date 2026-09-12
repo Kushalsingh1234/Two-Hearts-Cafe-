@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "753799219299",
+    "project_id": "two-hearts-cafe-1144c",
+    "storage_bucket": "two-hearts-cafe-1144c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:753799219299:android:742554d4beee13152c9056",
+        "android_client_info": {
+          "package_name": "com.twohearts.admin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "753799219299-u2enkg0kuoh3f5agp05rln8fofvcjk2d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALYSBLFoNc1-pBcisCfLrWItu1iiDqjX4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "753799219299-u2enkg0kuoh3f5agp05rln8fofvcjk2d.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -28,6 +28,7 @@ import {
 } from "./utils/notifications";
 import { soundNotifier } from "./utils/audio";
 import { updatePageSEO } from "./utils/seo";
+import { isNativeApp, initNativePush } from "./utils/nativePush";
 
 // Check whether application is running in dedicated PWA mode
 const isPwaMode = () => {
@@ -44,6 +45,13 @@ const isPwaMode = () => {
 
 export default function App() {
   const [isPwa, setIsPwa] = useState(isPwaMode);
+
+  // Initialize Native Android Push Notifications if running in Capacitor
+  useEffect(() => {
+    if (isNativeApp()) {
+      initNativePush();
+    }
+  }, []);
 
   // Monitor standalone PWA display mode changes
   useEffect(() => {
@@ -71,8 +79,8 @@ export default function App() {
 
   // Determine initial view:
   const getInitialView = () => {
-    // If opened as installed PWA, strictly lock to Admin Panel
-    if (isPwaMode()) {
+    // If opened in native Capacitor Android app or installed PWA, strictly lock to Admin Panel
+    if (isNativeApp() || isPwaMode()) {
       return "admin";
     }
 
@@ -244,9 +252,13 @@ export default function App() {
   const isInitialStaffLoadRef = useRef(true);
   const prevPlacedCountRef = useRef(0);
 
-  // Auto-start 24/7 background audio monitor and screen wake lock whenever staff is logged in
+  // Auto-start 24/7 background audio monitor and screen wake lock ONLY when actively in staff session
   useEffect(() => {
-    if (currentUser) {
+    const isStaffSession = Boolean(
+      currentUser && (currentView === "admin" || isPwa || isNativeApp())
+    );
+
+    if (isStaffSession) {
       soundNotifier.startBackgroundMonitor().catch(() => {});
       soundNotifier.requestWakeLock().catch(() => {});
 
@@ -267,11 +279,15 @@ export default function App() {
       soundNotifier.stopBackgroundMonitor();
       soundNotifier.releaseWakeLock();
     }
-  }, [currentUser]);
+  }, [currentUser, currentView, isPwa]);
 
   // Global order notification & repeating ting chime for staff until orders are accepted/rejected
   useEffect(() => {
-    if (!currentUser) {
+    const isStaffSession = Boolean(
+      currentUser && (currentView === "admin" || isPwa || isNativeApp())
+    );
+
+    if (!isStaffSession) {
       soundNotifier.stopRepeatingChime();
       isInitialStaffLoadRef.current = true;
       return;
@@ -360,7 +376,7 @@ export default function App() {
     return () => {
       soundNotifier.stopRepeatingChime();
     };
-  }, [orders, currentUser]);
+  }, [orders, currentUser, currentView, isPwa]);
 
   // Compute active orders for current table (QR ordering only)
   const tableActiveOrders = orders.filter(

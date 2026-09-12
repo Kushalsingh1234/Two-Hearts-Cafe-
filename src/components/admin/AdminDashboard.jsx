@@ -396,7 +396,12 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
   }, [tableOrders]);
 
   // Stats calculation for table orders
-  const tableNewOrdersCount = mergedActiveTableOrders.filter((o) => o.status === "placed").length;
+  const tableNewOrdersCount = mergedActiveTableOrders.filter(
+    (o) =>
+      o.status === "placed" ||
+      (o.additions && o.additions.some((a) => a.status === "pending")) ||
+      (o.pendingAddition && o.pendingAddition.status === "pending")
+  ).length;
   const tablePreparingCount = mergedActiveTableOrders.filter((o) => o.status === "preparing").length;
   const tableServedCount = mergedActiveTableOrders.filter((o) => o.status === "served").length;
   const tableSettledCount = tableOrders.filter((o) => o.status === "settled").length;

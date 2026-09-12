@@ -475,8 +475,8 @@ export const placeOrAppendTableOrder = async (orderPayload, existingOrders = [])
       lastItemAddedAt: now.toISOString(),
       lastAdditionSummary,
       updatedAt: now.toISOString(),
-      // Reset status to 'placed' so admin panel rings repeating chime and staff accepts new additions
-      status: "placed",
+      // Preserve active status if already cooking/served in kitchen so existing order isn't reset to placed
+      status: (existingOrder.status && existingOrder.status !== "placed") ? existingOrder.status : "placed",
       specialInstructions: orderPayload.specialInstructions
         ? (existingOrder.specialInstructions
             ? `${existingOrder.specialInstructions} | Add: ${orderPayload.specialInstructions}`
@@ -525,18 +525,41 @@ export const placeOrAppendTableOrder = async (orderPayload, existingOrders = [])
 export const acceptOrderAddition = async (orderId, additionId) => {
   const updatedAt = new Date().toISOString();
   const cachedOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
-  const existingOrder = cachedOrders.find((o) => o.id === orderId);
+  let existingOrder = cachedOrders.find((o) => o.id === orderId);
+
+  // Direct Firestore fallback if not in local cache
+  if (!existingOrder) {
+    try {
+      const docRef = doc(db, ORDERS_COLLECTION, orderId);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        existingOrder = { id: snap.id, ...snap.data() };
+      }
+    } catch (err) {
+      console.warn("Firestore fetch in acceptOrderAddition fallback:", err);
+    }
+  }
+  if (!existingOrder) return null;
+
+  const targetAdditionId =
+    additionId ||
+    existingOrder.pendingAddition?.id ||
+    (existingOrder.additions?.find((a) => a.status === "pending")?.id);
 
   let updatedAdditions = [];
-  if (existingOrder && existingOrder.additions) {
+  if (existingOrder.additions) {
     updatedAdditions = existingOrder.additions.map((a) =>
-      (!additionId || a.id === additionId) ? { ...a, status: "accepted" } : a
+      (!targetAdditionId || a.id === targetAdditionId) ? { ...a, status: "accepted" } : a
     );
   }
 
+  // Find remaining pending addition if any
+  const nextPending = updatedAdditions.find((a) => a.status === "pending") || null;
+
   const updatePayload = {
     status: "preparing",
-    pendingAddition: null,
+    pendingAddition: nextPending,
+    lastAdditionSummary: nextPending ? nextPending.summary : null,
     additions: updatedAdditions,
     updatedAt
   };
@@ -552,8 +575,10 @@ export const acceptOrderAddition = async (orderId, additionId) => {
     ord.id === orderId ? { ...ord, ...updatePayload } : ord
   );
   setLocalData(LOCAL_STORAGE_ORDERS_KEY, updated);
+  const savedUpdatedOrder = { ...existingOrder, ...updatePayload };
   window.dispatchEvent(new CustomEvent("twohearts_order_updated", { detail: updatePayload }));
-  return updated.find((o) => o.id === orderId);
+  window.dispatchEvent(new CustomEvent("twohearts_new_order", { detail: savedUpdatedOrder }));
+  return savedUpdatedOrder;
 };
 
 /**
@@ -563,17 +588,37 @@ export const acceptOrderAddition = async (orderId, additionId) => {
 export const rejectOrderAddition = async (orderId, additionId) => {
   const updatedAt = new Date().toISOString();
   const cachedOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
-  const existingOrder = cachedOrders.find((o) => o.id === orderId);
+  let existingOrder = cachedOrders.find((o) => o.id === orderId);
+
+  // Direct Firestore fallback if not in local cache
+  if (!existingOrder) {
+    try {
+      const docRef = doc(db, ORDERS_COLLECTION, orderId);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        existingOrder = { id: snap.id, ...snap.data() };
+      }
+    } catch (err) {
+      console.warn("Firestore fetch in rejectOrderAddition fallback:", err);
+    }
+  }
   if (!existingOrder) return null;
 
   // Identify target addition to reject
-  const targetAddition =
-    existingOrder.pendingAddition && (!additionId || existingOrder.pendingAddition.id === additionId)
-      ? existingOrder.pendingAddition
-      : (existingOrder.additions || []).find((a) => a.id === additionId) ||
-        (existingOrder.additions && existingOrder.additions.length > 0
-          ? existingOrder.additions[existingOrder.additions.length - 1]
-          : null);
+  let targetAddition = null;
+  if (additionId) {
+    targetAddition =
+      (existingOrder.additions || []).find((a) => a.id === additionId) ||
+      (existingOrder.pendingAddition?.id === additionId ? existingOrder.pendingAddition : null);
+  }
+  if (!targetAddition) {
+    targetAddition =
+      (existingOrder.additions || []).find((a) => a.status === "pending") ||
+      existingOrder.pendingAddition ||
+      (existingOrder.additions && existingOrder.additions.length > 0
+        ? existingOrder.additions[existingOrder.additions.length - 1]
+        : null);
+  }
 
   const rejectedItems = targetAddition?.items || [];
   let currentItems = [...(existingOrder.items || [])];
@@ -601,19 +646,22 @@ export const rejectOrderAddition = async (orderId, additionId) => {
   );
   const newTotal = newSubtotal;
 
+  const targetId = targetAddition?.id || additionId;
   const updatedAdditions = (existingOrder.additions || []).map((a) =>
-    (!additionId || a.id === additionId || a.id === targetAddition?.id)
-      ? { ...a, status: "rejected" }
-      : a
+    (!targetId || a.id === targetId) ? { ...a, status: "rejected" } : a
   );
 
+  const nextPending = updatedAdditions.find((a) => a.status === "pending") || null;
+
   // CRITICAL: Ensure existing accepted items keep their kitchen status ('preparing', 'ready', etc.)
-  // Only if ALL items on the entire order are removed does the status become 'cancelled'
-  let restoredStatus = targetAddition?.previousStatus;
+  // Never cancel the order unless there are literally 0 items left in total
+  let restoredStatus = existingOrder.status;
   if (currentItems.length === 0) {
     restoredStatus = "cancelled";
-  } else if (!restoredStatus || restoredStatus === "placed") {
-    // Retain active preparation for remaining accepted items
+  } else if (restoredStatus === "placed" && existingOrder.additions?.length > 0) {
+    // If the base order was already accepted or in kitchen, preserve preparing
+    restoredStatus = targetAddition?.previousStatus || "preparing";
+  } else if (!restoredStatus || restoredStatus === "cancelled") {
     restoredStatus = "preparing";
   }
 
@@ -622,8 +670,8 @@ export const rejectOrderAddition = async (orderId, additionId) => {
     subtotal: newSubtotal,
     total: newTotal,
     status: restoredStatus,
-    pendingAddition: null,
-    lastAdditionSummary: null,
+    pendingAddition: nextPending,
+    lastAdditionSummary: nextPending ? nextPending.summary : null,
     additions: updatedAdditions,
     updatedAt
   };
@@ -639,7 +687,7 @@ export const rejectOrderAddition = async (orderId, additionId) => {
     ord.id === orderId ? { ...ord, ...updatePayload } : ord
   );
   setLocalData(LOCAL_STORAGE_ORDERS_KEY, updated);
-  const savedUpdatedOrder = updated.find((o) => o.id === orderId);
+  const savedUpdatedOrder = { ...existingOrder, ...updatePayload };
   window.dispatchEvent(new CustomEvent("twohearts_order_updated", { detail: updatePayload }));
   window.dispatchEvent(new CustomEvent("twohearts_new_order", { detail: savedUpdatedOrder }));
   return savedUpdatedOrder;

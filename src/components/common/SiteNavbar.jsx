@@ -85,7 +85,7 @@ export default function SiteNavbar({ currentPage, setPage }) {
 
   useEffect(() => {
     const handleScroll = () => {
-      const isScrolled = (window.scrollY || document.documentElement.scrollTop || 0) > 30;
+      const isScrolled = (window.scrollY || document.documentElement.scrollTop || 0) > 15;
       setScrolled((prev) => (prev !== isScrolled ? isScrolled : prev));
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -121,7 +121,7 @@ export default function SiteNavbar({ currentPage, setPage }) {
         WebkitBackdropFilter: "blur(12px)",
         borderBottom: `1px solid ${scrolled ? "rgba(138, 87, 56, 0.22)" : "rgba(138, 87, 56, 0.16)"}`,
         boxShadow: scrolled ? "0 4px 20px rgba(28, 25, 23, 0.08)" : "0 2px 10px rgba(28, 25, 23, 0.04)",
-        transition: "background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease"
+        transition: "all 0.25s ease"
       }}
     >
       <div className="site-container site-navbar-container" style={{

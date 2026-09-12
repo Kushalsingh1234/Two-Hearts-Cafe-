@@ -693,31 +693,45 @@ html {
     display: none !important;
   }
 
-  /* 4. Sleek, Stable Mobile Navbar Header (No laggy layout shifts or height collapse on scroll) */
+  /* 4. Centered Stacked Boutique Cafe Brand Lockup & Floating Top-Corner Action Controls */
   .site-navbar-container {
     position: relative !important;
     display: flex !important;
-    flex-direction: row !important;
+    flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    min-height: 54px !important;
-    height: 54px !important;
+    padding-top: 14px !important;
+    padding-bottom: 12px !important;
+    min-height: 86px !important;
+    transition: min-height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      padding 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
 
   .site-brand-lockup {
     display: flex !important;
-    flex-direction: row !important;
+    flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 0 !important;
+    gap: 4px !important;
     text-align: center !important;
     max-width: calc(100% - 150px) !important;
+    transition: gap 0.25s ease, padding 0.25s ease !important;
   }
 
   .site-brand-crest {
-    display: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-bottom: 1px !important;
+    max-height: 50px !important;
+    opacity: 1 !important;
+    overflow: hidden !important;
+    transform: scale(1) !important;
+    transform-origin: center center !important;
+    transition: max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 0.2s ease,
+      margin 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.25s ease !important;
   }
 
   .site-brand-text-col {
@@ -728,22 +742,89 @@ html {
   }
 
   .site-brand-script {
-    font-size: 24px !important;
-    line-height: 1 !important;
-    letter-spacing: 0.01em !important;
+    font-size: 26px !important;
+    line-height: 1.08 !important;
+    letter-spacing: 0.015em !important;
     color: var(--color-bronze) !important;
+    transition: font-size 0.25s ease, line-height 0.25s ease !important;
   }
 
   .site-brand-tagline {
-    display: none !important;
+    display: block !important;
+    font-size: 8.5px !important;
+    letter-spacing: 1.8px !important;
+    text-transform: uppercase !important;
+    font-weight: 700 !important;
+    color: var(--color-ink) !important;
+    opacity: 0.8 !important;
+    margin-top: 3px !important;
+    max-height: 20px !important;
+    overflow: hidden !important;
+    transform: scale(1) !important;
+    transform-origin: center center !important;
+    transition: max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 0.2s ease,
+      margin 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.25s ease !important;
   }
 
-  /* Stable, fast scrolled state - no layout shifts or resizes */
+  /* Mobile Scrolled State: smoothly hide logo crest and description/tagline, keep ONLY cafe name and options */
   .site-header.is-scrolled .site-navbar-container {
-    min-height: 54px !important;
-    height: 54px !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
+    min-height: 52px !important;
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+  }
+
+  .site-header.is-scrolled .site-brand-lockup {
+    gap: 0 !important;
+  }
+
+  .site-header.is-scrolled .site-brand-crest {
+    max-height: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transform: scale(0.5) !important;
+  }
+
+  .site-header.is-scrolled .site-brand-tagline {
+    max-height: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transform: scale(0.5) !important;
+  }
+
+  .site-header.is-scrolled .site-brand-script {
+    font-size: 23px !important;
+    line-height: 1.1 !important;
+  }
+
+  .site-header.is-scrolled .site-navbar-cart-btn {
+    min-height: 28px !important;
+    height: 28px !important;
+    padding: 2px 8px !important;
+    font-size: 10px !important;
+  }
+
+  .site-header.is-scrolled .site-navbar-signin-btn {
+    min-height: 28px !important;
+    height: 28px !important;
+    padding: 2px 9px !important;
+    font-size: 10px !important;
+  }
+
+  .site-header.is-scrolled .site-navbar-profile-btn {
+    min-height: 28px !important;
+    height: 28px !important;
+    padding: 2px 7px 2px 4px !important;
+    font-size: 10px !important;
   }
 
   .site-navbar-actions {

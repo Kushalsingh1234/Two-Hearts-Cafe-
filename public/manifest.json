@@ -1,16 +1,16 @@
 {
-  "id": "/?pwa=1",
-  "name": "Two Hearts Cafe - Live Orders & Menu",
-  "short_name": "Two Hearts",
-  "description": "Two Hearts Cafe & Bistro live orders, kitchen display, counter notifications, and digital menu.",
-  "start_url": "/?admin=true",
+  "id": "/?admin=true&pwa=1",
+  "name": "Two Hearts Cafe - Staff & Kitchen Portal",
+  "short_name": "Two Hearts Staff",
+  "description": "Live order alerts, kitchen display, table management, and instant notifications for Two Hearts Cafe staff.",
+  "start_url": "/?admin=true&pwa=1",
   "scope": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "orientation": "any",
   "background_color": "#FAF7F2",
   "theme_color": "#1C1917",
-  "categories": ["food", "business", "lifestyle"],
+  "categories": ["business", "food"],
   "icons": [
     {
       "src": "/images/pwa/icon.svg",
@@ -45,17 +45,10 @@
   ],
   "shortcuts": [
     {
-      "name": "Admin Kitchen Orders",
-      "short_name": "Kitchen Orders",
+      "name": "Kitchen Orders",
+      "short_name": "Orders Hub",
       "description": "Open live order management for staff and kitchen",
-      "url": "/?admin=true",
-      "icons": [{ "src": "/images/pwa/icon-192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "Digital Menu",
-      "short_name": "Menu",
-      "description": "Browse dishes and drinks",
-      "url": "/menu",
+      "url": "/?admin=true&pwa=1",
       "icons": [{ "src": "/images/pwa/icon-192.png", "sizes": "192x192" }]
     }
   ]

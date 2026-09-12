@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Lock, Mail, KeyRound, ArrowRight, AlertCircle } from "lucide-react";
-import { loginWithEmail, registerWithEmail, loginWithPin } from "../../firebase/auth";
+import { loginWithEmail, registerWithEmail, loginWithPin, saveStaffSession } from "../../firebase/auth";
 
 export default function StaffLogin({ onLoginSuccess }) {
   const [loginMode, setLoginMode] = useState("pin"); // 'pin' | 'email'
@@ -19,6 +19,7 @@ export default function StaffLogin({ onLoginSuccess }) {
     const res = await loginWithPin(pin);
     setLoading(false);
     if (res.user) {
+      saveStaffSession(res.user);
       onLoginSuccess(res.user);
     } else {
       setPin("");
@@ -40,6 +41,7 @@ export default function StaffLogin({ onLoginSuccess }) {
     setLoading(false);
 
     if (res.user) {
+      saveStaffSession(res.user);
       onLoginSuccess(res.user);
     } else {
       setError(res.error || "Authentication failed. Please check credentials.");

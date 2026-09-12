@@ -135,7 +135,7 @@ export const triggerOrderNotification = async (order) => {
         renotify: true,
         requireInteraction: true,
         data: {
-          url: "/?admin=true",
+          url: "/?admin=true&pwa=1",
           orderId: order.id
         }
       });
@@ -196,7 +196,7 @@ export const triggerPaymentNotification = async (order) => {
         renotify: true,
         requireInteraction: true,
         data: {
-          url: "/?admin=true&tab=orders",
+          url: "/?admin=true&pwa=1&tab=orders",
           orderId: order.id
         }
       });
@@ -213,6 +213,121 @@ export const triggerPaymentNotification = async (order) => {
         icon: "/images/pwa/icon-192.png",
         badge: "/images/pwa/badge-72.png",
         tag: `payment-${order.id || Date.now()}`,
+        renotify: true
+      });
+      notif.onclick = () => {
+        window.focus();
+        notif.close();
+      };
+    } catch (err) {
+      console.warn("Window notification fallback error:", err);
+    }
+  }
+};
+
+/**
+ * Trigger Notification when additional dishes are added to an existing active table order
+ */
+export const triggerTableAdditionNotification = async (order, newItems = []) => {
+  // 1. Play signature cafe ting chime
+  soundNotifier.playChime();
+
+  if (typeof window === "undefined") return;
+
+  const itemsSummary = newItems.map((it) => `${it.quantity || 1}× ${it.name}`).join(", ") || "New items added";
+  const title = `🔔 Table #${order.tableNumber}: Items Added!`;
+  const body = `Added: ${itemsSummary} • Total Bill now: ₹${order.total || 0}`;
+
+  try {
+    if (!swRegistration && "serviceWorker" in navigator) {
+      swRegistration = await navigator.serviceWorker.ready;
+    }
+
+    if (swRegistration && "showNotification" in swRegistration && Notification.permission === "granted") {
+      await swRegistration.showNotification(title, {
+        body,
+        icon: "/images/pwa/icon-192.png",
+        badge: "/images/pwa/badge-72.png",
+        sound: "/audio/ting.mp3",
+        vibrate: [300, 100, 300, 100, 500],
+        tag: `addition-${order.id || Date.now()}`,
+        renotify: true,
+        requireInteraction: true,
+        data: {
+          url: "/?admin=true&pwa=1&tab=orders",
+          orderId: order.id
+        }
+      });
+      return;
+    }
+  } catch (e) {
+    console.warn("SW addition notification fallback:", e);
+  }
+
+  if ("Notification" in window && Notification.permission === "granted") {
+    try {
+      const notif = new Notification(title, {
+        body,
+        icon: "/images/pwa/icon-192.png",
+        badge: "/images/pwa/badge-72.png",
+        tag: `addition-${order.id || Date.now()}`,
+        renotify: true
+      });
+      notif.onclick = () => {
+        window.focus();
+        notif.close();
+      };
+    } catch (err) {
+      console.warn("Window notification fallback error:", err);
+    }
+  }
+};
+
+/**
+ * Trigger Notification when customer requests a physical Cash/Counter bill
+ */
+export const triggerCounterBillRequestedNotification = async (order) => {
+  // 1. Play signature cafe ting chime
+  soundNotifier.playChime();
+
+  if (typeof window === "undefined") return;
+
+  const title = `💵 Table #${order.tableNumber} Requested Cash Bill!`;
+  const body = `Total Bill: ₹${order.total || 0} • Customer requested to pay cash at counter`;
+
+  try {
+    if (!swRegistration && "serviceWorker" in navigator) {
+      swRegistration = await navigator.serviceWorker.ready;
+    }
+
+    if (swRegistration && "showNotification" in swRegistration && Notification.permission === "granted") {
+      await swRegistration.showNotification(title, {
+        body,
+        icon: "/images/pwa/icon-192.png",
+        badge: "/images/pwa/badge-72.png",
+        sound: "/audio/ting.mp3",
+        vibrate: [300, 100, 300, 100, 500],
+        tag: `cash-bill-${order.id || Date.now()}`,
+        renotify: true,
+        requireInteraction: true,
+        data: {
+          url: "/?admin=true&pwa=1&tab=orders",
+          orderId: order.id
+        }
+      });
+      return;
+    }
+  } catch (e) {
+    console.warn("SW bill request notification fallback:", e);
+  }
+
+  if ("Notification" in window && Notification.permission === "granted") {
+    try {
+      const notif = new Notification(title, {
+        body,
+        icon: "/images/pwa/icon-192.png",
+        badge: "/images/pwa/badge-72.png",
+        tag: `cash-bill-${order.id || Date.now()}`,
         renotify: true
       });
       notif.onclick = () => {

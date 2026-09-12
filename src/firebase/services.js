@@ -330,6 +330,21 @@ export const deleteMenuItem = async (itemId) => {
 };
 
 /**
+ * Helper to check if an order is an online delivery/takeaway order
+ */
+export const isOnlineDeliveryOrder = (ord) => {
+  if (!ord) return false;
+  return (
+    ord.orderType === "delivery" ||
+    ord.orderType === "pickup" ||
+    ord.tableNumber === "Delivery" ||
+    ord.tableNumber === "Takeaway" ||
+    (typeof ord.orderNumber === "string" && ord.orderNumber.startsWith("THD-")) ||
+    Boolean(ord.deliveryAddress)
+  );
+};
+
+/**
  * Place a new customer table order
  */
 export const placeOrder = async (orderPayload) => {
@@ -345,7 +360,8 @@ export const placeOrder = async (orderPayload) => {
     subtotal: orderPayload.subtotal || 0,
     tax: orderPayload.tax || 0,
     total: orderPayload.total || 0,
-    paymentStatus: "pay_at_counter",
+    paymentStatus: orderPayload.paymentStatus || "pending", // Initially pending until customer chooses online or counter
+    billRequested: Boolean(orderPayload.billRequested),
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
     timestamp: Date.now()
@@ -363,6 +379,158 @@ export const placeOrder = async (orderPayload) => {
     window.dispatchEvent(new CustomEvent("twohearts_new_order", { detail: savedOrder }));
     return savedOrder;
   }
+};
+
+/**
+ * Place a new table order OR append items to existing active table order
+ * Ensures on the admin side there is NEVER two different cards of the same table number at the same time.
+ */
+export const placeOrAppendTableOrder = async (orderPayload, existingOrders = []) => {
+  const tableNum = String(orderPayload.tableNumber || "1");
+
+  // 1. Find if an active (unsettled & non-cancelled) order already exists for this table
+  let existingOrder = (existingOrders || []).find(
+    (o) =>
+      String(o.tableNumber) === tableNum &&
+      !isOnlineDeliveryOrder(o) &&
+      o.status !== "settled" &&
+      o.status !== "cancelled"
+  );
+
+  if (!existingOrder) {
+    const cachedOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+    existingOrder = cachedOrders.find(
+      (o) =>
+        String(o.tableNumber) === tableNum &&
+        !isOnlineDeliveryOrder(o) &&
+        o.status !== "settled" &&
+        o.status !== "cancelled"
+    );
+  }
+
+  const now = new Date();
+  const newItems = orderPayload.items || [];
+
+  if (existingOrder && existingOrder.id) {
+    // Append items into the single active table order
+    const mergedItems = [...(existingOrder.items || [])];
+    newItems.forEach((newItem) => {
+      // Find matching item without distinct special instructions
+      const idx = mergedItems.findIndex(
+        (it) =>
+          it.id === newItem.id &&
+          it.name === newItem.name &&
+          !it.specialInstructions &&
+          !newItem.specialInstructions
+      );
+      if (idx >= 0) {
+        mergedItems[idx] = {
+          ...mergedItems[idx],
+          quantity: (Number(mergedItems[idx].quantity) || 1) + (Number(newItem.quantity) || 1)
+        };
+      } else {
+        mergedItems.push({ ...newItem });
+      }
+    });
+
+    const newSubtotal = mergedItems.reduce(
+      (sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1),
+      0
+    );
+    const newTotal = newSubtotal;
+
+    const additionRecord = {
+      items: newItems,
+      addedAt: now.toISOString(),
+      timestamp: Date.now(),
+      notes: orderPayload.specialInstructions || ""
+    };
+
+    const lastAdditionSummary = newItems
+      .map((it) => `${it.quantity || 1}× ${it.name}`)
+      .join(", ");
+
+    const updatePayload = {
+      items: mergedItems,
+      subtotal: newSubtotal,
+      total: newTotal,
+      // If customer had already paid online for previous items, keep paid; otherwise pending
+      paymentStatus:
+        existingOrder.paymentStatus === "paid_online"
+          ? "paid_online"
+          : (orderPayload.paymentStatus || "pending"),
+      billRequested: false, // Reset bill requested since more food was ordered!
+      additions: [...(existingOrder.additions || []), additionRecord],
+      lastItemAddedAt: now.toISOString(),
+      lastAdditionSummary,
+      updatedAt: now.toISOString(),
+      // Reset status to 'preparing' so kitchen prepares new dishes
+      status: existingOrder.status === "served" ? "preparing" : existingOrder.status
+    };
+
+    try {
+      const docRef = doc(db, ORDERS_COLLECTION, existingOrder.id);
+      await updateDoc(docRef, updatePayload);
+      const updatedOrder = { ...existingOrder, ...updatePayload };
+      const currentOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+      setLocalData(
+        LOCAL_STORAGE_ORDERS_KEY,
+        currentOrders.map((o) => (o.id === existingOrder.id ? updatedOrder : o))
+      );
+      window.dispatchEvent(new CustomEvent("twohearts_order_updated", { detail: updatedOrder }));
+      window.dispatchEvent(new CustomEvent("twohearts_new_order", { detail: updatedOrder }));
+      return { isAppended: true, order: updatedOrder, newItems };
+    } catch (err) {
+      console.warn("Firestore appendTableOrder fallback:", err);
+      const updatedOrder = { ...existingOrder, ...updatePayload };
+      const currentOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+      setLocalData(
+        LOCAL_STORAGE_ORDERS_KEY,
+        currentOrders.map((o) => (o.id === existingOrder.id ? updatedOrder : o))
+      );
+      window.dispatchEvent(new CustomEvent("twohearts_order_updated", { detail: updatedOrder }));
+      window.dispatchEvent(new CustomEvent("twohearts_new_order", { detail: updatedOrder }));
+      return { isAppended: true, order: updatedOrder, newItems };
+    }
+  }
+
+  // Otherwise, create a brand new table order:
+  const created = await placeOrder({
+    ...orderPayload,
+    paymentStatus: orderPayload.paymentStatus || "pending",
+    billRequested: false
+  });
+  return { isAppended: false, order: created, newItems };
+};
+
+/**
+ * Customer requests physical cash/counter bill
+ */
+export const requestCounterBill = async (orderId) => {
+  const updatedAt = new Date().toISOString();
+  const updatePayload = {
+    paymentStatus: "pay_at_counter",
+    paymentMethod: "counter",
+    billRequested: true,
+    billRequestedAt: updatedAt,
+    updatedAt
+  };
+
+  try {
+    const docRef = doc(db, ORDERS_COLLECTION, orderId);
+    await updateDoc(docRef, updatePayload);
+  } catch (err) {
+    console.warn("Firestore requestCounterBill fallback to local:", err);
+  }
+
+  const orders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+  const updated = orders.map((ord) =>
+    ord.id === orderId ? { ...ord, ...updatePayload } : ord
+  );
+  setLocalData(LOCAL_STORAGE_ORDERS_KEY, updated);
+  window.dispatchEvent(new CustomEvent("twohearts_order_updated"));
+  window.dispatchEvent(new CustomEvent("twohearts_new_order"));
+  return updated.find((o) => o.id === orderId) || { id: orderId, ...updatePayload };
 };
 
 /**

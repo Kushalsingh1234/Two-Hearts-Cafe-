@@ -58,7 +58,7 @@ self.addEventListener('message', (event) => {
 self.addEventListener('push', (event) => {
   let title = '🔔 New Order Received! — Two Hearts Cafe';
   let body = 'A new customer order has been placed.';
-  let data = { url: '/?admin=true' };
+  let data = { url: '/?admin=true&pwa=1' };
 
   if (event.data) {
     try {
@@ -87,7 +87,7 @@ function showOrderNotification(title, body, data = {}) {
     renotify: true,
     requireInteraction: true, // Keep notification visible until clicked/swiped
     data: {
-      url: data.url || '/?admin=true',
+      url: data.url || '/?admin=true&pwa=1',
       orderId: data.orderId || null,
       timestamp: Date.now()
     },
@@ -108,7 +108,7 @@ self.addEventListener('notificationclick', (event) => {
     return;
   }
 
-  const targetUrl = event.notification.data?.url || '/?admin=true';
+  const targetUrl = event.notification.data?.url || '/?admin=true&pwa=1';
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {

@@ -19,13 +19,46 @@ import CustomerAuthModal from "./components/auth/CustomerAuthModal";
 import SignInPage from "./components/auth/SignInPage";
 import UserProfilePage from "./components/profile/UserProfilePage";
 import { subscribeMenuItems, subscribeLiveOrders } from "./firebase/services";
-import { subscribeAuth, logoutUser } from "./firebase/auth";
+import { subscribeAuth, logoutUser, getStaffSession, saveStaffSession } from "./firebase/auth";
 import { INITIAL_MENU_ITEMS } from "./data/seedMenu";
 import { triggerOrderNotification } from "./utils/notifications";
 import { soundNotifier } from "./utils/audio";
 import { updatePageSEO } from "./utils/seo";
 
+// Check whether application is running in dedicated PWA mode
+const isPwaMode = () => {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: window-controls-overlay)").matches ||
+    window.matchMedia("(display-mode: minimal-ui)").matches ||
+    window.navigator.standalone === true ||
+    new URLSearchParams(window.location.search).get("pwa") === "1" ||
+    new URLSearchParams(window.location.search).get("pwa") === "true"
+  );
+};
+
 export default function App() {
+  const [isPwa, setIsPwa] = useState(isPwaMode);
+
+  // Monitor standalone PWA display mode changes
+  useEffect(() => {
+    const handlePwaCheck = () => {
+      setIsPwa(isPwaMode());
+    };
+    window.addEventListener("appinstalled", handlePwaCheck);
+    const mql = window.matchMedia("(display-mode: standalone)");
+    if (mql && mql.addEventListener) {
+      mql.addEventListener("change", handlePwaCheck);
+    }
+    return () => {
+      window.removeEventListener("appinstalled", handlePwaCheck);
+      if (mql && mql.removeEventListener) {
+        mql.removeEventListener("change", handlePwaCheck);
+      }
+    };
+  }, []);
+
   // Parse table parameter ONLY if accessed via physical QR code scan (e.g. ?table=5)
   const getInitialTable = () => {
     const params = new URLSearchParams(window.location.search);
@@ -34,6 +67,11 @@ export default function App() {
 
   // Determine initial view:
   const getInitialView = () => {
+    // If opened as installed PWA, strictly lock to Admin Panel
+    if (isPwaMode()) {
+      return "admin";
+    }
+
     const params = new URLSearchParams(window.location.search);
     const hash = window.location.hash.replace("#", "");
     const pathname = window.location.pathname.replace("/", "").toLowerCase();
@@ -89,9 +127,16 @@ export default function App() {
   const [isTrackerOpen, setIsTrackerOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(() => {
     try {
+      // 1. Restore existing staff session (persists across page refreshes and backgrounding)
+      const existingUser = getStaffSession();
+      if (existingUser) return existingUser;
+
+      // 2. URL pin parameter fallback for direct kiosk linking
       const params = new URLSearchParams(window.location.search);
       if (params.get("admin") === "true" && params.get("pin") === "2012") {
-        return { email: "staff@twoheartscafe.com", uid: "pin_session" };
+        const staffUser = { email: "staff@twoheartscafe.com", uid: "pin_session" };
+        saveStaffSession(staffUser);
+        return staffUser;
       }
     } catch {}
     return null;
@@ -100,7 +145,9 @@ export default function App() {
   // Subscribe to Firebase Auth state
   useEffect(() => {
     const unsubscribeAuth = subscribeAuth((user) => {
-      setCurrentUser(user);
+      if (user) {
+        setCurrentUser(user);
+      }
     });
     return () => {
       if (unsubscribeAuth) unsubscribeAuth();
@@ -116,14 +163,20 @@ export default function App() {
   useEffect(() => {
     updatePageSEO({
       pageKey: marketingPage,
-      view: currentView,
+      view: isPwa ? "admin" : currentView,
       tableNumber,
     });
-  }, [currentView, marketingPage, tableNumber]);
+  }, [currentView, marketingPage, tableNumber, isPwa]);
 
   // Listen to browser navigation
   useEffect(() => {
     const handleUrlChange = () => {
+      // If running in PWA mode, strictly keep on Admin Dashboard
+      if (isPwaMode()) {
+        setCurrentView("admin");
+        return;
+      }
+
       const params = new URLSearchParams(window.location.search);
       const rawHash = window.location.hash.replace("#", "");
       let hash = rawHash;
@@ -246,10 +299,13 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // In dedicated PWA mode, strictly enforce Admin Kitchen Panel view
+  const effectiveView = isPwa ? "admin" : currentView;
+
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      {/* 1. MARKETING WEBSITE & ONLINE FOOD DELIVERY VIEW */}
-      {currentView === "marketing" && (
+      {/* 1. MARKETING WEBSITE & ONLINE FOOD DELIVERY VIEW (Browser only) */}
+      {!isPwa && effectiveView === "marketing" && (
         <CustomerAuthProvider>
           <OnlineOrderProvider>
             <CustomerAuthModal />
@@ -320,17 +376,18 @@ export default function App() {
         </CustomerAuthProvider>
       )}
 
-      {/* 2. QR-ONLY CLOSED TABLE ORDERING VIEW (Only reachable via physical QR code ?table=...) */}
-      {currentView === "customer" && (
+      {/* 2. QR-ONLY CLOSED TABLE ORDERING VIEW (Browser only) */}
+      {!isPwa && effectiveView === "customer" && (
         <>
           <Navbar
-            currentView={currentView}
+            currentView={effectiveView}
             setView={setCurrentView}
             tableNumber={tableNumber}
             cartCount={0}
             onOpenCart={() => setIsCartOpen(true)}
             activeOrderCount={tableActiveOrders.length}
             onOpenTracker={() => setIsTrackerOpen(true)}
+            isPwa={isPwa}
           />
 
           <main style={{ flex: 1 }}>
@@ -347,22 +404,26 @@ export default function App() {
         </>
       )}
 
-      {/* 3. STAFF / ADMIN DASHBOARD */}
-      {currentView === "admin" && (
+      {/* 3. STAFF / ADMIN DASHBOARD (Strictly dedicated for 100% of PWA app) */}
+      {effectiveView === "admin" && (
         <>
           <Navbar
-            currentView={currentView}
+            currentView={effectiveView}
             setView={setCurrentView}
             tableNumber={tableNumber}
             cartCount={0}
             onOpenCart={() => setIsCartOpen(true)}
             activeOrderCount={tableActiveOrders.length}
             onOpenTracker={() => setIsTrackerOpen(true)}
+            isPwa={isPwa}
           />
 
           <main style={{ flex: 1 }}>
             {!currentUser ? (
-              <StaffLogin onLoginSuccess={(user) => setCurrentUser(user)} />
+              <StaffLogin onLoginSuccess={(user) => {
+                saveStaffSession(user);
+                setCurrentUser(user);
+              }} />
             ) : (
               <AdminDashboard
                 orders={orders}

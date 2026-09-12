@@ -300,6 +300,22 @@ export default function LiveOrderTracker({ isOpen, onClose, orders, tableNumber 
                       <span>Total Bill</span>
                       <span>Rs.{ord.total}</span>
                     </div>
+
+                    {Boolean(ord.additions?.some((a) => a.status === "rejected")) && (
+                      <div style={{
+                        marginTop: 8,
+                        padding: "7px 10px",
+                        backgroundColor: "#FEF2F2",
+                        border: "1px solid #FECACA",
+                        borderRadius: 4,
+                        fontSize: 12,
+                        color: "#991B1B",
+                        fontFamily: "var(--font-serif)",
+                        lineHeight: 1.4
+                      }}>
+                        ℹ️ <strong>Kitchen note:</strong> An additional item added later could not be prepared (e.g. out of ingredients) and was removed from the bill. Your main accepted order is actively being prepared!
+                      </div>
+                    )}
                   </div>
 
                   {/* Payment & Invoice Action Area */}

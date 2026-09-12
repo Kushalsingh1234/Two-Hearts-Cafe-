@@ -439,6 +439,10 @@ export const placeOrAppendTableOrder = async (orderPayload, existingOrders = [])
     );
     const newTotal = newSubtotal;
 
+    const lastAdditionSummary = newItems
+      .map((it) => `${it.quantity || 1}× ${it.name}`)
+      .join(", ");
+
     const additionAmount = newItems.reduce(
       (sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1),
       0
@@ -574,9 +578,13 @@ export const rejectOrderAddition = async (orderId, additionId) => {
   const rejectedItems = targetAddition?.items || [];
   let currentItems = [...(existingOrder.items || [])];
 
-  // Remove the quantities of rejected items
+  // Remove only the quantities of rejected added items (string-safe and name fallback)
   rejectedItems.forEach((rej) => {
-    const idx = currentItems.findIndex((it) => it.id === rej.id && it.name === rej.name);
+    const idx = currentItems.findIndex((it) => {
+      const idMatch = it.id && rej.id && String(it.id) === String(rej.id);
+      const nameMatch = it.name && rej.name && it.name.trim().toLowerCase() === rej.name.trim().toLowerCase();
+      return idMatch || nameMatch;
+    });
     if (idx >= 0) {
       const remainingQty = (Number(currentItems[idx].quantity) || 1) - (Number(rej.quantity) || 1);
       if (remainingQty <= 0) {
@@ -599,13 +607,21 @@ export const rejectOrderAddition = async (orderId, additionId) => {
       : a
   );
 
-  const prevStatus = targetAddition?.previousStatus || (currentItems.length > 0 ? "preparing" : "cancelled");
+  // CRITICAL: Ensure existing accepted items keep their kitchen status ('preparing', 'ready', etc.)
+  // Only if ALL items on the entire order are removed does the status become 'cancelled'
+  let restoredStatus = targetAddition?.previousStatus;
+  if (currentItems.length === 0) {
+    restoredStatus = "cancelled";
+  } else if (!restoredStatus || restoredStatus === "placed") {
+    // Retain active preparation for remaining accepted items
+    restoredStatus = "preparing";
+  }
 
   const updatePayload = {
     items: currentItems,
     subtotal: newSubtotal,
     total: newTotal,
-    status: prevStatus,
+    status: restoredStatus,
     pendingAddition: null,
     lastAdditionSummary: null,
     additions: updatedAdditions,
@@ -623,8 +639,10 @@ export const rejectOrderAddition = async (orderId, additionId) => {
     ord.id === orderId ? { ...ord, ...updatePayload } : ord
   );
   setLocalData(LOCAL_STORAGE_ORDERS_KEY, updated);
+  const savedUpdatedOrder = updated.find((o) => o.id === orderId);
   window.dispatchEvent(new CustomEvent("twohearts_order_updated", { detail: updatePayload }));
-  return updated.find((o) => o.id === orderId);
+  window.dispatchEvent(new CustomEvent("twohearts_new_order", { detail: savedUpdatedOrder }));
+  return savedUpdatedOrder;
 };
 
 /**

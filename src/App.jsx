@@ -24,7 +24,9 @@ import { INITIAL_MENU_ITEMS } from "./data/seedMenu";
 import {
   triggerOrderNotification,
   triggerTableAdditionNotification,
-  triggerCounterBillRequestedNotification
+  triggerCounterBillRequestedNotification,
+  triggerPaymentInitiatedNotification,
+  syncPwaManifest
 } from "./utils/notifications";
 import { soundNotifier } from "./utils/audio";
 import { updatePageSEO } from "./utils/seo";
@@ -166,8 +168,10 @@ export default function App() {
     setCurrentUser(null);
   };
 
-  // Dynamic SEO and document title synchronization across all pages and views
+  // Dynamic SEO, document title, and PWA manifest synchronization across all pages and views
   useEffect(() => {
+    const effectiveAdmin = (isPwa ? "admin" : currentView) === "admin";
+    syncPwaManifest(effectiveAdmin);
     updatePageSEO({
       pageKey: marketingPage,
       view: isPwa ? "admin" : currentView,
@@ -250,6 +254,7 @@ export default function App() {
   const knownStaffOrderIdsRef = useRef(new Set());
   const knownStaffAdditionsRef = useRef(new Map());
   const knownStaffBillRequestsRef = useRef(new Set());
+  const knownStaffPaymentInitiatedRef = useRef(new Set());
   const isInitialStaffLoadRef = useRef(true);
   const prevPlacedCountRef = useRef(0);
 
@@ -319,6 +324,9 @@ export default function App() {
         if (o.billRequested) {
           knownStaffBillRequestsRef.current.add(`${o.id}_${o.billRequestedAt || "init"}`);
         }
+        if (o.paymentInitiated) {
+          knownStaffPaymentInitiatedRef.current.add(`${o.id}_${o.paymentInitiatedAt || "init"}`);
+        }
       });
       isInitialStaffLoadRef.current = false;
 
@@ -337,6 +345,9 @@ export default function App() {
           }
           if (order.billRequested) {
             knownStaffBillRequestsRef.current.add(`${order.id}_${order.billRequestedAt || "req"}`);
+          }
+          if (order.paymentInitiated) {
+            knownStaffPaymentInitiatedRef.current.add(`${order.id}_${order.paymentInitiatedAt || "req"}`);
           }
           if (order.status === "placed") {
             soundNotifier.resumeAlarm();
@@ -362,6 +373,13 @@ export default function App() {
             knownStaffBillRequestsRef.current.add(billKey);
             soundNotifier.resumeAlarm();
             triggerCounterBillRequestedNotification(order);
+          }
+
+          // 4. Existing order with Online Payment Initiated!
+          const payInitKey = `${order.id}_${order.paymentInitiatedAt || "req"}`;
+          if (order.paymentInitiated && order.paymentStatus !== "paid_online" && order.status !== "settled" && !knownStaffPaymentInitiatedRef.current.has(payInitKey)) {
+            knownStaffPaymentInitiatedRef.current.add(payInitKey);
+            triggerPaymentInitiatedNotification(order);
           }
         }
       });

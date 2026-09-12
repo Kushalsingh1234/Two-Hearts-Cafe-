@@ -43,13 +43,53 @@ export const registerServiceWorker = async () => {
 };
 
 /**
- * Capture PWA beforeinstallprompt event for custom install button
+ * Synchronize PWA manifest in head:
+ * Strictly present ONLY when on admin/staff views, completely removed on customer pages.
+ */
+export const syncPwaManifest = (isAdmin = false) => {
+  if (typeof document === "undefined") return;
+  const existingManifest = document.querySelector('link[rel="manifest"]');
+  const existingMeta1 = document.querySelector('#pwa-meta-capable');
+  const existingMeta2 = document.querySelector('#pwa-apple-capable');
+
+  if (isAdmin) {
+    if (!existingManifest) {
+      const link = document.createElement("link");
+      link.rel = "manifest";
+      link.href = "/manifest.json";
+      document.head.appendChild(link);
+    }
+    if (!existingMeta1) {
+      const m1 = document.createElement("meta");
+      m1.id = "pwa-meta-capable";
+      m1.name = "mobile-web-app-capable";
+      m1.content = "yes";
+      document.head.appendChild(m1);
+    }
+    if (!existingMeta2) {
+      const m2 = document.createElement("meta");
+      m2.id = "pwa-apple-capable";
+      m2.name = "apple-mobile-web-app-capable";
+      m2.content = "yes";
+      document.head.appendChild(m2);
+    }
+  } else {
+    if (existingManifest) existingManifest.remove();
+    if (existingMeta1) existingMeta1.remove();
+    if (existingMeta2) existingMeta2.remove();
+  }
+};
+
+/**
+ * Capture PWA beforeinstallprompt event for custom install button.
+ * Always prevent default so customer website NEVER sees automatic browser install banners.
  */
 if (typeof window !== "undefined") {
   window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Suppress browser's automatic mini-infobar globally
     deferredInstallPrompt = e;
-    installListeners.forEach((listener) => listener(true));
+    const isStaff = isStaffNotificationTarget();
+    installListeners.forEach((listener) => listener(isStaff));
   });
 
   window.addEventListener("appinstalled", () => {
@@ -61,12 +101,13 @@ if (typeof window !== "undefined") {
 
 export const subscribeInstallPrompt = (callback) => {
   installListeners.add(callback);
-  callback(Boolean(deferredInstallPrompt));
+  callback(Boolean(deferredInstallPrompt) && isStaffNotificationTarget());
   return () => installListeners.delete(callback);
 };
 
 export const promptPwaInstall = async () => {
-  if (!deferredInstallPrompt) {
+  // Only permit installation from the Admin side
+  if (!isStaffNotificationTarget() || !deferredInstallPrompt) {
     return false;
   }
   deferredInstallPrompt.prompt();
@@ -247,6 +288,68 @@ export const triggerPaymentNotification = async (order) => {
         icon: "/images/pwa/icon-192.png",
         badge: "/images/pwa/badge-72.png",
         tag: `payment-${order.id || Date.now()}`,
+        renotify: true
+      });
+      notif.onclick = () => {
+        window.focus();
+        notif.close();
+      };
+    } catch (err) {
+      console.warn("Window notification fallback error:", err);
+    }
+  }
+};
+
+/**
+ * Trigger Notification when customer initiates online payment (UPI/QR)
+ * Alert for admin panel: Online payment initiated (awaiting completion)
+ */
+export const triggerPaymentInitiatedNotification = async (order) => {
+  // STRICT GUARD: Customer end must NEVER hear chime or feel vibration
+  if (!isStaffNotificationTarget()) return;
+
+  // 1. Play alert chime for staff
+  soundNotifier.playChime();
+
+  if (typeof window === "undefined") return;
+
+  const tableText = order.tableNumber ? `Table #${order.tableNumber}` : "QR Order";
+  const appText = order.paymentInitiatedApp ? ` via ${order.paymentInitiatedApp}` : "";
+  const title = `💳 Online Payment Initiated (${tableText})`;
+  const body = `Customer clicked Pay Online${appText} for ₹${order.total || 0} • Awaiting completion`;
+  const tag = `payment-init-${order.id || Date.now()}`;
+
+  try {
+    if (!swRegistration && "serviceWorker" in navigator) {
+      swRegistration = await navigator.serviceWorker.ready;
+    }
+
+    if (swRegistration && "showNotification" in swRegistration && Notification.permission === "granted") {
+      await swRegistration.showNotification(title, {
+        body,
+        icon: "/images/pwa/icon-192.png",
+        badge: "/images/pwa/badge-72.png",
+        vibrate: [250, 100, 250],
+        tag,
+        renotify: true,
+        data: {
+          url: "/?admin=true&pwa=1&tab=orders",
+          orderId: order.id
+        }
+      });
+      return;
+    }
+  } catch (e) {
+    console.warn("SW payment initiated notification fallback:", e);
+  }
+
+  if ("Notification" in window && Notification.permission === "granted") {
+    try {
+      const notif = new Notification(title, {
+        body,
+        icon: "/images/pwa/icon-192.png",
+        badge: "/images/pwa/badge-72.png",
+        tag,
         renotify: true
       });
       notif.onclick = () => {

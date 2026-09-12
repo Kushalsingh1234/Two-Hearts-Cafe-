@@ -145,6 +145,10 @@ public class OrderMonitorService extends Service {
                                 if (Boolean.TRUE.equals(billReq)) {
                                     alertedOrderKeys.add(orderId + "_bill");
                                 }
+                                Boolean payInit = doc.getBoolean("paymentInitiated");
+                                if (Boolean.TRUE.equals(payInit)) {
+                                    alertedOrderKeys.add(orderId + "_pay_init");
+                                }
                             }
                             isInitialLoad = false;
                             Log.d(TAG, "Initial load completed with " + alertedOrderKeys.size() + " known keys");
@@ -161,6 +165,8 @@ public class OrderMonitorService extends Service {
                             String totalText = totalObj != null ? "₹" + totalObj : "";
                             String lastAddedAt = doc.getString("lastItemAddedAt");
                             Boolean billReq = doc.getBoolean("billRequested");
+                            Boolean payInit = doc.getBoolean("paymentInitiated");
+                            String payApp = doc.getString("paymentInitiatedApp");
 
                             // 1. New placed order
                             if ("placed".equals(status) && !alertedOrderKeys.contains(orderId)) {
@@ -189,6 +195,18 @@ public class OrderMonitorService extends Service {
                                     alertedOrderKeys.add(billKey);
                                     String title = "💵 Table #" + tableNum + " Requested Cash Bill!";
                                     String body = "Total: " + totalText + " • Customer paying cash at counter";
+                                    triggerNativeAlert(title, body, orderId);
+                                }
+                            }
+
+                            // 4. Online payment initiated (UPI / QR)
+                            if (Boolean.TRUE.equals(payInit)) {
+                                String payKey = orderId + "_pay_init";
+                                if (!alertedOrderKeys.contains(payKey)) {
+                                    alertedOrderKeys.add(payKey);
+                                    String appLabel = (payApp != null && !payApp.isEmpty()) ? payApp : "UPI / QR";
+                                    String title = "💳 Online Payment Initiated (" + (tableNum.equalsIgnoreCase("Delivery") || tableNum.equalsIgnoreCase("Takeaway") ? tableNum : "Table " + tableNum) + ")";
+                                    String body = totalText + " • Customer opened " + appLabel + " (Awaiting payment)";
                                     triggerNativeAlert(title, body, orderId);
                                 }
                             }

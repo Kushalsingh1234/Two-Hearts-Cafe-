@@ -13,7 +13,7 @@ import {
   ShieldCheck,
   Loader2
 } from "lucide-react";
-import { updateOrderPayment } from "../../firebase/services";
+import { updateOrderPayment, markPaymentInitiated } from "../../firebase/services";
 import { launchRazorpayCheckout } from "../../services/razorpayService";
 
 export default function PaymentModal({
@@ -52,11 +52,19 @@ export default function PaymentModal({
   const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
   const phonepeUri = `phonepe://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
   const paytmUri = `paytmmp://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+  const gpayUri = `tez://upi/pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+
+  // Notify admin when online payment view opens
+  useEffect(() => {
+    if (isOpen && order?.id && paymentType === "online" && order.status !== "settled" && order.paymentStatus !== "paid_online") {
+      markPaymentInitiated(order.id, "UPI / QR").catch(() => {});
+    }
+  }, [isOpen, order?.id, paymentType]);
 
   // 2. Official Standee QR
   const officialStandeeUri = `upi://pay?pa=Q327979600@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00`;
 
-  const handleLaunchUpi = () => {
+  const handleLaunchUpi = (appName = "UPI App") => {
     try {
       sessionStorage.setItem(
         "twohearts_upi_in_flight",
@@ -64,11 +72,15 @@ export default function PaymentModal({
           orderId: order.id,
           tableNumber: order.tableNumber,
           amount,
+          appName,
           time: Date.now()
         })
       );
     } catch {}
     setUpiLaunched(true);
+    if (order?.id && order.status !== "settled" && order.paymentStatus !== "paid_online") {
+      markPaymentInitiated(order.id, appName).catch(() => {});
+    }
   };
 
   const handleCopyUpi = () => {
@@ -692,49 +704,99 @@ export default function PaymentModal({
                     />
                   </div>
 
-                  {/* Direct App Launchers */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, width: "100%" }}>
+                  {/* Direct App Launchers: PhonePe, Google Pay, Paytm */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, width: "100%" }}>
                     <a
                       href={phonepeUri}
-                      onClick={handleLaunchUpi}
+                      onClick={() => handleLaunchUpi("PhonePe")}
                       style={{
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        padding: "8px 12px",
+                        padding: "9px 4px",
                         borderRadius: "var(--radius-pill)",
                         backgroundColor: "#5f259f",
                         color: "#FFFFFF",
                         fontFamily: "var(--font-serif)",
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: 700,
                         textDecoration: "none",
-                        textAlign: "center"
+                        textAlign: "center",
+                        boxShadow: "0 2px 6px rgba(95, 37, 159, 0.25)"
                       }}
                     >
-                      Open in PhonePe
+                      PhonePe
                     </a>
                     <a
-                      href={paytmUri}
-                      onClick={handleLaunchUpi}
+                      href={gpayUri}
+                      onClick={() => handleLaunchUpi("Google Pay")}
                       style={{
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        padding: "8px 12px",
+                        padding: "9px 4px",
+                        borderRadius: "var(--radius-pill)",
+                        backgroundColor: "#1a73e8",
+                        color: "#FFFFFF",
+                        fontFamily: "var(--font-serif)",
+                        fontSize: 11.5,
+                        fontWeight: 700,
+                        textDecoration: "none",
+                        textAlign: "center",
+                        boxShadow: "0 2px 6px rgba(26, 115, 232, 0.25)"
+                      }}
+                    >
+                      Google Pay
+                    </a>
+                    <a
+                      href={paytmUri}
+                      onClick={() => handleLaunchUpi("Paytm")}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "9px 4px",
                         borderRadius: "var(--radius-pill)",
                         backgroundColor: "#00BAF2",
                         color: "#FFFFFF",
                         fontFamily: "var(--font-serif)",
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: 700,
                         textDecoration: "none",
-                        textAlign: "center"
+                        textAlign: "center",
+                        boxShadow: "0 2px 6px rgba(0, 186, 242, 0.25)"
                       }}
                     >
-                      Open in Paytm
+                      Paytm
                     </a>
                   </div>
+
+                  {/* Other App Button: Triggers native OS chooser with all installed UPI apps */}
+                  <a
+                    href={upiUri}
+                    onClick={() => handleLaunchUpi("Other UPI App")}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                      padding: "9px 12px",
+                      borderRadius: "var(--radius-pill)",
+                      backgroundColor: "var(--color-ink)",
+                      color: "#FAF7F2",
+                      border: "1px solid var(--color-border-frame)",
+                      fontFamily: "var(--font-serif)",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      textAlign: "center",
+                      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.12)"
+                    }}
+                  >
+                    <Smartphone size={13} />
+                    <span>Other App (BHIM, CRED & All Installed Apps)</span>
+                  </a>
 
                   {/* Copy Pills for UPI ID */}
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>

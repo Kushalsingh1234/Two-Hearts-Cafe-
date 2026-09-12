@@ -23,8 +23,95 @@ export default function DigitalInvoiceModal({ isOpen, onClose, order, onOpenRevi
     minute: "2-digit"
   });
 
-  const isOnlinePayment = order.paymentMethod === "upi" || order.paymentStatus === "paid_online";
-  const utr = order.paymentDetails?.utr;
+  // Determine payment details accurately for invoice
+  const getPaymentDetails = () => {
+    const rawMethod = (order.paymentMethod || "").toLowerCase();
+    const rawStatus = (order.paymentStatus || "").toLowerCase();
+    const settledMethod = (order.settledMethod || "").toLowerCase();
+    const settledBy = (order.settledBy || "").toLowerCase();
+    const appName = order.paymentInitiatedApp;
+
+    // 1. Definite Online / UPI payment detection
+    const isOnline =
+      rawStatus === "paid_online" ||
+      settledMethod === "upi_online" ||
+      settledMethod === "razorpay" ||
+      rawMethod === "upi" ||
+      rawMethod === "razorpay_upi" ||
+      rawMethod === "online_upi" ||
+      rawMethod === "online_gateway" ||
+      rawMethod.startsWith("upi_") ||
+      Boolean(order.utr) ||
+      Boolean(order.paymentDetails?.paymentId) ||
+      Boolean(order.paymentDetails?.utr) ||
+      Boolean(order.paymentInitiated) ||
+      rawStatus === "initiated" ||
+      ["phonepe", "gpay", "google pay", "paytm", "bhim", "upi", "razorpay"].some((app) =>
+        rawMethod.includes(app) || (appName && appName.toLowerCase().includes(app))
+      );
+
+    // 2. Explicit Counter Cash detection
+    // ONLY true if customer specifically requested bill or pay at counter, OR was settled as cash, AND not online
+    const isCounter =
+      !isOnline &&
+      (rawStatus === "pay_at_counter" ||
+        rawStatus === "paid_counter" ||
+        settledMethod === "cash_counter" ||
+        rawMethod === "cash" ||
+        rawMethod === "counter" ||
+        Boolean(order.billRequested) ||
+        settledBy.includes("cash"));
+
+    if (isOnline) {
+      let displayApp = "";
+      if (appName && appName !== "UPI / QR") {
+        displayApp = appName;
+      } else if (rawMethod.startsWith("upi_")) {
+        displayApp = rawMethod.replace("upi_", "").replace(/_/g, " ");
+        displayApp = displayApp
+          .split(" ")
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ");
+      } else if (rawMethod === "razorpay_upi" || settledMethod === "razorpay") {
+        displayApp = "Razorpay";
+      }
+
+      const label = displayApp ? `Paid Online via UPI (${displayApp})` : "Paid Online via UPI";
+      const payee = order.paymentDetails?.upiId || order.upiId || "Q327979600@ybl";
+      const utrRef = order.paymentDetails?.utr || order.utr || order.paymentDetails?.paymentId || "";
+
+      return {
+        type: "online",
+        label,
+        payee,
+        utrRef,
+        showStamp: true
+      };
+    }
+
+    if (isCounter) {
+      return {
+        type: "counter",
+        label: "Paid at Cafe Counter (Cash)",
+        payee: null,
+        utrRef: null,
+        showStamp: true
+      };
+    }
+
+    // 3. Ambiguous / Indeterminate:
+    // If the customer didn't request a bill and didn't choose pay at counter,
+    // and payment method is not determinable, remove the line from the invoice as requested!
+    return {
+      type: "none",
+      label: null,
+      payee: null,
+      utrRef: null,
+      showStamp: false
+    };
+  };
+
+  const paymentInfo = getPaymentDetails();
 
   const handleDownloadPdf = async () => {
     if (isGenerating) return;
@@ -330,26 +417,28 @@ export default function DigitalInvoiceModal({ isOpen, onClose, order, onOpenRevi
               </div>
             </div>
 
-            {/* Payment Mode Stamp */}
-            <div style={{
-              backgroundColor: "#FAF7F2",
-              border: "1px solid var(--color-border-frame)",
-              borderRadius: 4,
-              padding: "10px 12px",
-              textAlign: "center",
-              fontSize: 12,
-              marginBottom: 16
-            }}>
-              <div style={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--color-ink)" }}>
-                {isOnlinePayment ? "Paid Online via UPI" : "Paid at Cafe Counter"}
-              </div>
-              {isOnlinePayment && (
-                <div style={{ fontSize: 11, color: "var(--color-bronze)", marginTop: 2 }}>
-                  Payee: <strong>{order.paymentDetails?.upiId || "Q327979600@ybl"}</strong>
-                  {utr ? ` • UTR: ${utr}` : ""}
+            {/* Payment Mode Stamp (Accurately displays Online UPI / Counter Cash, or removed if ambiguous) */}
+            {paymentInfo.showStamp && (
+              <div style={{
+                backgroundColor: "#FAF7F2",
+                border: "1px solid var(--color-border-frame)",
+                borderRadius: 4,
+                padding: "10px 12px",
+                textAlign: "center",
+                fontSize: 12,
+                marginBottom: 16
+              }}>
+                <div style={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--color-ink)" }}>
+                  {paymentInfo.label}
                 </div>
-              )}
-            </div>
+                {paymentInfo.type === "online" && (
+                  <div style={{ fontSize: 11, color: "var(--color-bronze)", marginTop: 2 }}>
+                    Payee: <strong>{paymentInfo.payee || "Q327979600@ybl"}</strong>
+                    {paymentInfo.utrRef ? ` • Ref/UTR: ${paymentInfo.utrRef}` : ""}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Footer Thank You */}
             <div style={{ textAlign: "center", fontSize: 12, fontStyle: "italic", color: "var(--color-bronze)", lineHeight: 1.4 }}>

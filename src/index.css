@@ -374,7 +374,7 @@ html {
 .menu-search-sticky-bar {
   position: -webkit-sticky;
   position: sticky;
-  top: var(--site-navbar-height, 64px);
+  top: 0;
   z-index: 45;
   background-color: rgba(250, 247, 242, 0.98);
   backdrop-filter: blur(14px);
@@ -387,7 +387,7 @@ html {
 .menu-category-chips-bar {
   position: -webkit-sticky;
   position: sticky;
-  top: calc(var(--site-navbar-height, 64px) + 54px);
+  top: 56px;
   z-index: 40;
   background-color: rgba(250, 247, 242, 0.98);
   backdrop-filter: blur(14px);

@@ -12,7 +12,7 @@ export const DELIVERY_CONFIG = {
     landmark: "Pillar #852"
   },
 
-  // Rule 1: Maximum straight-line delivery radius in kilometers
+  // Rule 1: Maximum straight-line delivery radius in kilometers (strictly under 2 km only)
   MAX_DELIVERY_RADIUS_KM: 2.0,
 
   // Rule 2: Minimum required item subtotal (before delivery fee & taxes) for delivery orders

@@ -87,13 +87,13 @@ export function CustomerAuthProvider({ children }) {
         const userKey = customerUser.phone || customerUser.email;
         localStorage.setItem(`twohearts_addresses_${userKey}`, JSON.stringify(clean));
 
-        // Sync to remote Firestore customer record
+        // Sync to remote Firestore customer record (non-blocking, safely catch permissions)
         try {
           if (customerUser.email) {
-            setDoc(doc(db, "customers", customerUser.email.toLowerCase()), { addresses: clean }, { merge: true });
+            setDoc(doc(db, "customers", customerUser.email.toLowerCase()), { addresses: clean }, { merge: true }).catch(() => {});
           }
           if (customerUser.phone) {
-            setDoc(doc(db, "customers", customerUser.phone), { addresses: clean }, { merge: true });
+            setDoc(doc(db, "customers", customerUser.phone), { addresses: clean }, { merge: true }).catch(() => {});
           }
         } catch (e) {}
       }
@@ -211,10 +211,10 @@ export function CustomerAuthProvider({ children }) {
       // Attempt remote Firestore backup (non-blocking)
       try {
         if (user.email) {
-          await setDoc(doc(db, "customers", user.email.toLowerCase()), user, { merge: true });
+          await setDoc(doc(db, "customers", user.email.toLowerCase()), user, { merge: true }).catch(() => {});
         }
         if (user.phone) {
-          await setDoc(doc(db, "customers", user.phone), user, { merge: true });
+          await setDoc(doc(db, "customers", user.phone), user, { merge: true }).catch(() => {});
         }
       } catch (e) {}
     } catch (err) {
@@ -252,12 +252,12 @@ export function CustomerAuthProvider({ children }) {
       // 2. Check remote Firestore customers collection if not in local
       if (!existingCustomer && email) {
         try {
-          const emailDoc = await getDoc(doc(db, "customers", email.toLowerCase()));
-          if (emailDoc.exists()) {
+          const emailDoc = await getDoc(doc(db, "customers", email.toLowerCase())).catch(() => null);
+          if (emailDoc?.exists()) {
             existingCustomer = emailDoc.data();
           } else {
-            const uidDoc = await getDoc(doc(db, "customers", uid));
-            if (uidDoc.exists()) {
+            const uidDoc = await getDoc(doc(db, "customers", uid)).catch(() => null);
+            if (uidDoc?.exists()) {
               existingCustomer = uidDoc.data();
             }
           }

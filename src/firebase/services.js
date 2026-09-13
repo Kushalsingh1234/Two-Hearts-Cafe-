@@ -864,6 +864,13 @@ export const placeOnlineDeliveryOrder = async (payload) => {
  * Direct fetch of all live orders from Firestore (used for background wake-up and watchdog catch-up)
  */
 export const pollLatestOrders = async (onSuccess) => {
+  // If permission error was already detected (unauthenticated visitor), skip Firestore network query
+  if (firestorePermissionErrorDetected) {
+    const local = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
+    if (onSuccess) onSuccess(local);
+    return local;
+  }
+
   try {
     const q = collection(db, ORDERS_COLLECTION);
     const snapshot = await getDocs(q);
@@ -879,7 +886,11 @@ export const pollLatestOrders = async (onSuccess) => {
     }
     return orders;
   } catch (err) {
-    console.warn("Manual pollLatestOrders fallback to local:", err.message);
+    if (err.code === "permission-denied" || err.message?.includes("permissions")) {
+      firestorePermissionErrorDetected = true;
+    } else {
+      console.warn("Manual pollLatestOrders fallback to local:", err.message);
+    }
     const local = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
     if (onSuccess) {
       onSuccess(local);
@@ -894,6 +905,7 @@ export const pollLatestOrders = async (onSuccess) => {
  */
 export const subscribeLiveOrders = (onSuccess, onError) => {
   let isUnsubscribed = false;
+  let watchdogTimer = null;
 
   try {
     const q = collection(db, ORDERS_COLLECTION);
@@ -912,8 +924,12 @@ export const subscribeLiveOrders = (onSuccess, onError) => {
         onSuccess(orders);
       },
       (err) => {
-        console.warn("Firestore live orders subscription fallback to local:", err.message);
-        firestorePermissionErrorDetected = true;
+        if (err.code === "permission-denied" || err.message?.includes("permissions")) {
+          firestorePermissionErrorDetected = true;
+          if (watchdogTimer) clearInterval(watchdogTimer);
+        } else {
+          console.warn("Firestore live orders subscription fallback to local:", err.message);
+        }
         const local = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
         onSuccess(local);
         if (onError) onError(err);
@@ -930,15 +946,15 @@ export const subscribeLiveOrders = (onSuccess, onError) => {
     window.addEventListener("twohearts_order_updated", handleLocalSync);
 
     // Watchdog interval: every 12 seconds check Firestore directly to catch orders even if WebSocket paused
-    const watchdogTimer = setInterval(() => {
-      if (!isUnsubscribed) {
+    watchdogTimer = setInterval(() => {
+      if (!isUnsubscribed && !firestorePermissionErrorDetected) {
         pollLatestOrders(onSuccess).catch(() => {});
       }
     }, 12000);
 
     // Instant catch-up on visibility resume, window focus, pageshow, and online reconnection
     const handleWakeupSync = () => {
-      if (!isUnsubscribed) {
+      if (!isUnsubscribed && !firestorePermissionErrorDetected) {
         pollLatestOrders(onSuccess).catch(() => {});
       }
     };
@@ -950,7 +966,7 @@ export const subscribeLiveOrders = (onSuccess, onError) => {
     return () => {
       isUnsubscribed = true;
       unsubscribe();
-      clearInterval(watchdogTimer);
+      if (watchdogTimer) clearInterval(watchdogTimer);
       window.removeEventListener("storage", handleLocalSync);
       window.removeEventListener("twohearts_new_order", handleLocalSync);
       window.removeEventListener("twohearts_order_updated", handleLocalSync);
@@ -960,7 +976,11 @@ export const subscribeLiveOrders = (onSuccess, onError) => {
       window.removeEventListener("online", handleWakeupSync);
     };
   } catch (err) {
-    console.warn("Live orders setup error:", err);
+    if (err.code === "permission-denied" || err.message?.includes("permissions")) {
+      firestorePermissionErrorDetected = true;
+    } else {
+      console.warn("Live orders setup error:", err);
+    }
     const local = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
     onSuccess(local);
     return () => { };
@@ -1147,13 +1167,17 @@ export const getCustomerOrders = async (phone) => {
   const localOrders = getLocalData(LOCAL_STORAGE_ORDERS_KEY, []);
   const activeOrder = getLocalData("twohearts_active_online_order_v1", null);
 
-  // 2. Try fetching from Firestore
+  // 2. Try fetching from Firestore if permissions allow
   let remoteOrders = [];
-  try {
-    const snap = await getDocs(collection(db, ORDERS_COLLECTION));
-    remoteOrders = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  } catch (e) {
-    // offline/rules fallback
+  if (!firestorePermissionErrorDetected) {
+    try {
+      const snap = await getDocs(collection(db, ORDERS_COLLECTION));
+      remoteOrders = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    } catch (e) {
+      if (e.code === "permission-denied" || e.message?.includes("permissions")) {
+        firestorePermissionErrorDetected = true;
+      }
+    }
   }
 
   // Normalize order keys for universal deduplication (ignoring leading #, case-insensitive)

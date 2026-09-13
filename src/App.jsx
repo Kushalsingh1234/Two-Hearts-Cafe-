@@ -79,6 +79,19 @@ export default function App() {
     return params.get("table") || "5";
   };
 
+  const getCleanHashAndTab = () => {
+    try {
+      const rawHash = (window.location.hash || "").replace(/^#/, "");
+      const [routePart, queryPart] = rawHash.split("?");
+      const cleanRoute = (routePart || "").trim().toLowerCase();
+      const searchParams = new URLSearchParams(queryPart || window.location.search || "");
+      const tab = searchParams.get("tab") || "orders";
+      return { route: cleanRoute, tab };
+    } catch {
+      return { route: "", tab: "orders" };
+    }
+  };
+
   // Determine initial view:
   const getInitialView = () => {
     // If opened in native Capacitor Android app or installed PWA, strictly lock to Admin Panel
@@ -87,17 +100,17 @@ export default function App() {
     }
 
     const params = new URLSearchParams(window.location.search);
-    const hash = window.location.hash.replace("#", "");
+    const { route } = getCleanHashAndTab();
     const pathname = window.location.pathname.replace("/", "").toLowerCase();
 
-    if (params.get("admin") === "true" || hash === "admin" || pathname === "admin") {
+    if (params.get("admin") === "true" || route === "admin" || pathname === "admin") {
       return "admin";
     }
     // If explicitly requesting menu showcase, show marketing menu page
-    if (pathname === "menu" || hash === "menu" || params.get("menu") === "true" || params.get("page") === "menu") {
+    if (pathname === "menu" || route === "menu" || params.get("menu") === "true" || params.get("page") === "menu") {
       return "marketing";
     }
-    if (pathname === "order" || (params.get("order") === "true" && hash !== "menu") || params.get("table")) {
+    if (pathname === "order" || (params.get("order") === "true" && route !== "menu") || params.get("table")) {
       return "customer";
     }
     return "marketing";
@@ -105,30 +118,20 @@ export default function App() {
 
   const getInitialMarketingPage = () => {
     const params = new URLSearchParams(window.location.search);
-    const hash = window.location.hash.replace("#", "");
+    const { route } = getCleanHashAndTab();
     const pathname = window.location.pathname.replace("/", "").toLowerCase();
 
     if (params.get("page")) return params.get("page");
     if (params.get("menu") === "true") return "menu";
     const validPages = ["home", "about", "menu", "contact", "cart", "checkout", "order-confirmation", "order-status", "sign-in", "profile"];
     if (validPages.includes(pathname)) return pathname;
-    if (validPages.includes(hash)) return hash;
+    if (validPages.includes(route)) return route;
     return "home";
   };
 
   const getInitialProfileTab = () => {
-    try {
-      const rawHash = window.location.hash.replace("#", "");
-      if (rawHash.includes("?")) {
-        const parts = rawHash.split("?");
-        const tab = new URLSearchParams(parts[1]).get("tab");
-        if (tab) return tab;
-      }
-      const params = new URLSearchParams(window.location.search);
-      return params.get("tab") || "orders";
-    } catch {
-      return "orders";
-    }
+    const { tab } = getCleanHashAndTab();
+    return tab;
   };
 
   const [tableNumber, setTableNumber] = useState(getInitialTable);
@@ -168,16 +171,19 @@ export default function App() {
     setCurrentUser(null);
   };
 
+  // In dedicated PWA mode, strictly enforce Admin Kitchen Panel view
+  const effectiveView = isPwa ? "admin" : currentView;
+
   // Dynamic SEO, document title, and PWA manifest synchronization across all pages and views
   useEffect(() => {
-    const effectiveAdmin = (isPwa ? "admin" : currentView) === "admin";
+    const effectiveAdmin = effectiveView === "admin";
     syncPwaManifest(effectiveAdmin);
     updatePageSEO({
       pageKey: marketingPage,
-      view: isPwa ? "admin" : currentView,
+      view: effectiveView,
       tableNumber,
     });
-  }, [currentView, marketingPage, tableNumber, isPwa]);
+  }, [effectiveView, marketingPage, tableNumber]);
 
   // Listen to browser navigation
   useEffect(() => {
@@ -189,13 +195,9 @@ export default function App() {
       }
 
       const params = new URLSearchParams(window.location.search);
-      const rawHash = window.location.hash.replace("#", "");
-      let hash = rawHash;
-      if (rawHash.includes("?")) {
-        const parts = rawHash.split("?");
-        hash = parts[0];
-        const tab = new URLSearchParams(parts[1]).get("tab");
-        if (tab) setProfileTab(tab);
+      const { route: hash, tab } = getCleanHashAndTab();
+      if (tab) {
+        setProfileTab(tab);
       }
       const pathname = window.location.pathname.replace("/", "").toLowerCase();
       const newTable = params.get("table");
@@ -241,15 +243,19 @@ export default function App() {
       setMenuItems(items);
     });
 
-    const unsubscribeOrders = subscribeLiveOrders((liveOrders) => {
-      setOrders(liveOrders);
-    });
+    let unsubscribeOrders = null;
+    const shouldSubscribeOrders = (effectiveView === "admin" || effectiveView === "customer" || Boolean(currentUser));
+    if (shouldSubscribeOrders) {
+      unsubscribeOrders = subscribeLiveOrders((liveOrders) => {
+        setOrders(liveOrders);
+      });
+    }
 
     return () => {
       if (unsubscribeMenu) unsubscribeMenu();
       if (unsubscribeOrders) unsubscribeOrders();
     };
-  }, []);
+  }, [effectiveView, currentUser]);
 
   const knownStaffOrderIdsRef = useRef(new Set());
   const knownStaffAdditionsRef = useRef(new Map());
@@ -415,9 +421,6 @@ export default function App() {
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-
-  // In dedicated PWA mode, strictly enforce Admin Kitchen Panel view
-  const effectiveView = isPwa ? "admin" : currentView;
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>

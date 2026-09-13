@@ -15,7 +15,6 @@ import {
   RotateCcw
 } from "lucide-react";
 import {
-  loadGoogleMapsApi,
   reverseGeocode,
   searchPlaces,
   DEFAULT_CAFE_COORDS
@@ -31,7 +30,7 @@ export default function ZomatoMapPicker({
   onCancel,
   isConfirming = false
 }) {
-  // Center coordinates of the map
+  // Center coordinates of the map { lat, lng }
   const [centerCoords, setCenterCoords] = useState(() => {
     if (initialCoords && initialCoords.lat && initialCoords.lng) {
       return { lat: Number(initialCoords.lat), lng: Number(initialCoords.lng) };
@@ -39,10 +38,7 @@ export default function ZomatoMapPicker({
     return { lat: DEFAULT_CAFE_COORDS.lat, lng: DEFAULT_CAFE_COORDS.lng };
   });
 
-  // Zoom level (default 17 for street/doorstep level accuracy)
-  const [zoom, setZoom] = useState(17);
-
-  // Dragging / panning state for fixed pin micro-interaction (lift & drop)
+  // Dragging / panning state for fixed pin micro-interaction (lift on pan, drop with bounce)
   const [isPanning, setIsPanning] = useState(false);
 
   // Address detection state
@@ -71,11 +67,11 @@ export default function ZomatoMapPicker({
   // Map DOM & Engine references
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
-  const engineRef = useRef(null); // "google" | "leaflet"
   const debounceTimerRef = useRef(null);
+  const searchDebounceRef = useRef(null);
   const isProgrammaticMoveRef = useRef(false);
 
-  // Calculate distance from cafe origin (Pillar #852, Muradnagar)
+  // Calculate straight-line distance from cafe origin (Pillar #852, Muradnagar)
   const currentDistanceKm = calculateDistanceKm(
     DELIVERY_CONFIG.CAFE_COORDINATES.lat,
     DELIVERY_CONFIG.CAFE_COORDINATES.lng,
@@ -87,7 +83,7 @@ export default function ZomatoMapPicker({
       ? currentDistanceKm <= DELIVERY_CONFIG.MAX_DELIVERY_RADIUS_KM
       : true;
 
-  // Reverse geocode the center coordinates
+  // Reverse geocode the center coordinates via Nominatim
   const runReverseGeocode = useCallback(async (lat, lng) => {
     setIsGeocoding(true);
     try {
@@ -109,7 +105,7 @@ export default function ZomatoMapPicker({
     }
   }, []);
 
-  // Handle map center changes with debounced reverse geocoding
+  // Handle map center changes with debounced reverse geocoding (350ms)
   const handleCenterChanged = useCallback(
     (newLat, newLng) => {
       const lat = Number(newLat);
@@ -121,35 +117,30 @@ export default function ZomatoMapPicker({
       }
       debounceTimerRef.current = setTimeout(() => {
         runReverseGeocode(lat, lng);
-      }, 280);
+      }, 350);
     },
     [runReverseGeocode]
   );
 
-  // Smoothly pan map to given coordinates (re-centering map under fixed center pin)
-  const panMapToLocation = useCallback((lat, lng, targetZoom = 17) => {
+  // Smoothly pan or fly map to given coordinates (re-centering map under fixed center pin)
+  const panMapToLocation = useCallback((lat, lng, targetZoom = 16.5) => {
     const numLat = Number(lat);
     const numLng = Number(lng);
     setCenterCoords({ lat: numLat, lng: numLng });
     isProgrammaticMoveRef.current = true;
 
     if (mapInstanceRef.current) {
-      if (engineRef.current === "google") {
-        mapInstanceRef.current.panTo({ lat: numLat, lng: numLng });
-        if (targetZoom) mapInstanceRef.current.setZoom(targetZoom);
-        setTimeout(() => {
-          isProgrammaticMoveRef.current = false;
-        }, 600);
-      } else if (engineRef.current === "leaflet") {
-        mapInstanceRef.current.flyTo([numLat, numLng], targetZoom, {
-          duration: 0.8
-        });
-        setTimeout(() => {
-          isProgrammaticMoveRef.current = false;
-        }, 950);
-      }
+      mapInstanceRef.current.flyTo([numLat, numLng], targetZoom, {
+        animate: true,
+        duration: 0.9
+      });
+
+      setTimeout(() => {
+        isProgrammaticMoveRef.current = false;
+      }, 950);
     }
-    // Directly run reverse geocode on exact coordinates without debounce lag
+
+    // Direct reverse geocode without debounce delay
     runReverseGeocode(numLat, numLng);
   }, [runReverseGeocode]);
 
@@ -159,148 +150,145 @@ export default function ZomatoMapPicker({
       const numLat = Number(initialCoords.lat);
       const numLng = Number(initialCoords.lng);
       setCenterCoords({ lat: numLat, lng: numLng });
-      panMapToLocation(numLat, numLng, 17);
+      panMapToLocation(numLat, numLng, 16.5);
     }
   }, [initialCoords, panMapToLocation]);
 
-  // Initialize Map (Google Maps if SDK loaded, otherwise Leaflet with OSM)
+  // Initialize Leaflet Map with OpenStreetMap / CartoDB Voyager tiles
   useEffect(() => {
     if (!mapContainerRef.current) return;
     let isCancelled = false;
 
-    async function initMapEngine() {
-      // 1. Try Google Maps JS SDK
-      try {
-        const googleMaps = await loadGoogleMapsApi();
-        if (!isCancelled && googleMaps && mapContainerRef.current) {
-          engineRef.current = "google";
-          const map = new googleMaps.Map(mapContainerRef.current, {
-            center: { lat: centerCoords.lat, lng: centerCoords.lng },
-            zoom: 17,
-            disableDefaultUI: true,
-            gestureHandling: "greedy",
-            clickableIcons: false
-          });
-          mapInstanceRef.current = map;
-
-          map.addListener("dragstart", () => {
-            if (!isProgrammaticMoveRef.current) {
-              setIsPanning(true);
-            }
-          });
-          map.addListener("idle", () => {
-            setIsPanning(false);
-            if (isProgrammaticMoveRef.current) return;
-            const c = map.getCenter();
-            if (c) {
-              setAccuracyMeters(null); // User manually repositioned the pin
-              handleCenterChanged(c.lat(), c.lng());
-            }
-          });
-
-          // Initial geocode
-          runReverseGeocode(centerCoords.lat, centerCoords.lng);
-          return;
-        }
-      } catch (gErr) {
-        console.warn("Google Maps init failed, using Leaflet fallback:", gErr);
-      }
-
-      // 2. Leaflet Fallback (Rock solid, instant, free, zero key required)
-      if (!isCancelled && mapContainerRef.current) {
-        engineRef.current = "leaflet";
-        // Clean any existing container
-        if (mapInstanceRef.current && mapInstanceRef.current.remove) {
-          mapInstanceRef.current.remove();
-        }
-
-        const map = L.map(mapContainerRef.current, {
-          center: [centerCoords.lat, centerCoords.lng],
-          zoom: 17,
-          zoomControl: false,
-          attributionControl: false
-        });
-        mapInstanceRef.current = map;
-
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          maxZoom: 19
-        }).addTo(map);
-
-        map.on("movestart", () => {
-          if (!isProgrammaticMoveRef.current) {
-            setIsPanning(true);
-          }
-        });
-        map.on("moveend", () => {
-          setIsPanning(false);
-          if (isProgrammaticMoveRef.current) return;
-          const c = map.getCenter();
-          if (c) {
-            setAccuracyMeters(null); // User manually repositioned the pin
-            handleCenterChanged(c.lat, c.lng);
-          }
-        });
-
-        // Trigger map invalidateSize after layout renders
-        setTimeout(() => {
-          if (map) map.invalidateSize();
-        }, 150);
-
-        // Initial geocode
-        runReverseGeocode(centerCoords.lat, centerCoords.lng);
-      }
+    // Prevent "Map container is already initialized" error when modal re-opens
+    if (mapContainerRef.current._leaflet_id) {
+      delete mapContainerRef.current._leaflet_id;
     }
 
-    initMapEngine();
+    if (mapInstanceRef.current) {
+      try {
+        mapInstanceRef.current.remove();
+      } catch (_) {}
+      mapInstanceRef.current = null;
+    }
+
+    // Initialize Leaflet Map
+    const map = L.map(mapContainerRef.current, {
+      center: [centerCoords.lat, centerCoords.lng],
+      zoom: 16.5,
+      zoomControl: false, // Using our custom styled controls
+      attributionControl: false
+    });
+
+    mapInstanceRef.current = map;
+
+    // Clean, crisp OpenStreetMap Humanitarian tiles (100% free, no API key, zero watermarks)
+    L.tileLayer(
+      "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+      {
+        maxZoom: 19,
+        subdomains: "ab",
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }
+    ).addTo(map);
+
+    // Visual 2 km delivery radius perimeter circle around Two Hearts Cafe (Pillar #852)
+    L.circle(
+      [DELIVERY_CONFIG.CAFE_COORDINATES.lat, DELIVERY_CONFIG.CAFE_COORDINATES.lng],
+      {
+        color: "#DC2626",
+        fillColor: "#DC2626",
+        fillOpacity: 0.05,
+        weight: 1.5,
+        dashArray: "5, 6",
+        radius: (DELIVERY_CONFIG.MAX_DELIVERY_RADIUS_KM || 2.0) * 1000
+      }
+    ).addTo(map);
+
+    // Map Event Listeners for Fixed Pin Interaction (lift on pan, drop on moveend)
+    map.on("dragstart", () => {
+      if (!isProgrammaticMoveRef.current) {
+        setIsPanning(true);
+      }
+    });
+
+    map.on("movestart", () => {
+      if (!isProgrammaticMoveRef.current) {
+        setIsPanning(true);
+      }
+    });
+
+    map.on("moveend", () => {
+      setIsPanning(false);
+      if (isProgrammaticMoveRef.current) return;
+
+      const center = map.getCenter();
+      if (center) {
+        setAccuracyMeters(null); // User manually dragged the pin
+        handleCenterChanged(center.lat, center.lng);
+      }
+    });
+
+    // Staggered resize calls to guarantee full canvas rendering after modal opens
+    const timers = [100, 250, 500].map((delay) =>
+      setTimeout(() => {
+        if (!isCancelled && mapInstanceRef.current) {
+          try {
+            mapInstanceRef.current.invalidateSize();
+          } catch (_) {}
+        }
+      }, delay)
+    );
+
+    // Initial reverse geocode
+    runReverseGeocode(centerCoords.lat, centerCoords.lng);
 
     return () => {
       isCancelled = true;
+      timers.forEach((t) => clearTimeout(t));
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      if (mapInstanceRef.current && engineRef.current === "leaflet" && mapInstanceRef.current.remove) {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      if (mapInstanceRef.current) {
         try {
           mapInstanceRef.current.remove();
         } catch (_) {}
+        mapInstanceRef.current = null;
+      }
+      if (mapContainerRef.current) {
+        delete mapContainerRef.current._leaflet_id;
       }
     };
   }, []);
 
   // Zoom in / Zoom out handlers
   const handleZoomIn = () => {
-    const nextZ = Math.min(19, zoom + 1);
-    setZoom(nextZ);
     if (mapInstanceRef.current) {
-      if (engineRef.current === "google") mapInstanceRef.current.setZoom(nextZ);
-      else if (engineRef.current === "leaflet") mapInstanceRef.current.setZoom(nextZ);
+      mapInstanceRef.current.zoomIn();
     }
   };
 
   const handleZoomOut = () => {
-    const nextZ = Math.max(12, zoom - 1);
-    setZoom(nextZ);
     if (mapInstanceRef.current) {
-      if (engineRef.current === "google") mapInstanceRef.current.setZoom(nextZ);
-      else if (engineRef.current === "leaflet") mapInstanceRef.current.setZoom(nextZ);
+      mapInstanceRef.current.zoomOut();
     }
   };
 
-  // "Use Current Location" (Zomato-precision GPS fix with maximumAge: 0 & high accuracy)
+  // "Use My Current Location" (High-Accuracy Satellite GPS Fix)
   const handleUseCurrentLocation = async () => {
     setIsLocating(true);
     setGpsError("");
     setGpsErrorCode(null);
 
-    if (!navigator.geolocation) {
+    if (typeof window === "undefined" || !navigator.geolocation) {
       setIsLocating(false);
       setGpsError("Geolocation is not supported by your browser or device.");
       setGpsErrorCode(2);
       return;
     }
 
-    // High accuracy GPS options - strictly maximumAge: 0 to force fresh satellite fix without stale cache
     const geoOptions = {
       enableHighAccuracy: true,
-      timeout: 12000,
-      maximumAge: 0
+      timeout: 10000,
+      maximumAge: 0 // Strict fresh fix without stale cache
     };
 
     navigator.geolocation.getCurrentPosition(
@@ -315,7 +303,7 @@ export default function ZomatoMapPicker({
         setGpsError("");
         setGpsErrorCode(null);
 
-        // Smoothly animate map and reverse-geocode exact GPS coordinates
+        // Fly map smoothly to exact GPS coordinates
         panMapToLocation(latitude, longitude, 17);
       },
       (err) => {
@@ -325,9 +313,9 @@ export default function ZomatoMapPicker({
         if (err.code === 1) { // PERMISSION_DENIED
           msg = "Location permission was denied. Tap the 🔒 lock icon in your browser's address bar to allow location access, then tap Retry.";
         } else if (err.code === 3) { // TIMEOUT
-          msg = "GPS signal request timed out. We couldn't acquire a satellite fix. Tap Retry or drag the map to position the pin.";
+          msg = "GPS request timed out while acquiring satellite fix. Tap Retry or drag the map to position the pin.";
         } else if (err.code === 2) { // POSITION_UNAVAILABLE
-          msg = "Location signal is currently unavailable. Please verify GPS / Location is enabled on your device, or drag the map.";
+          msg = "Location signal is currently unavailable. Please verify GPS / Location is enabled on your device.";
         }
         setGpsError(msg);
       },
@@ -335,12 +323,26 @@ export default function ZomatoMapPicker({
     );
   };
 
-  // Search places handler
-  const handleSearchChange = async (val) => {
+  // Search places handler (debounced 300ms before calling Photon Komoot search)
+  const handleSearchChange = (val) => {
     setSearchQuery(val);
-    if (val.trim().length >= 2) {
-      setIsSearching(true);
-      setShowSearchResults(true);
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+
+    // Minimum 2 characters before firing search
+    if (val.trim().length < 2) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    setShowSearchResults(true);
+
+    // 300ms debounce for responsive typing experience
+    searchDebounceRef.current = setTimeout(async () => {
       try {
         const results = await searchPlaces(val);
         setSearchResults(results);
@@ -349,15 +351,24 @@ export default function ZomatoMapPicker({
       } finally {
         setIsSearching(false);
       }
-    } else {
-      setSearchResults([]);
-      setShowSearchResults(false);
-    }
+    }, 300);
   };
 
   const handleSelectSearchResult = (result) => {
     setSearchQuery(result.title);
     setShowSearchResults(false);
+    setAccuracyMeters(null); // Clear previous GPS accuracy badge when selecting a specific place
+
+    // Immediately reflect landmark details
+    setDetectedLocation({
+      fullAddress: result.subtitle ? `${result.title}, ${result.subtitle}` : result.title,
+      area: result.title,
+      city: "Muradnagar",
+      pincode: "201206",
+      street: "",
+      landmark: result.title
+    });
+
     panMapToLocation(result.lat, result.lng, 17);
   };
 
@@ -432,7 +443,7 @@ export default function ZomatoMapPicker({
         </div>
       )}
 
-      {/* Main Interactive Map Canvas Container with Fixed Pin */}
+      {/* Main Interactive Map Canvas Container with Fixed Center Pin */}
       <div
         style={{
           position: "relative",
@@ -475,17 +486,18 @@ export default function ZomatoMapPicker({
           </div>
         )}
 
-        {/* The Moving Map Canvas */}
+        {/* Leaflet OpenStreetMap Canvas (Strict non-zero explicit height) */}
         <div
           ref={mapContainerRef}
           style={{
             width: "100%",
             height: "100%",
+            minHeight: 350,
             zIndex: 1
           }}
         />
 
-        {/* 1. TOP FLOATING SEARCH BAR */}
+        {/* 1. TOP FLOATING SEARCH BAR (Photon Komoot Autocomplete) */}
         <div
           style={{
             position: "absolute",
@@ -512,6 +524,14 @@ export default function ZomatoMapPicker({
               placeholder="Search area, campus (KIET), landmark, road..."
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (searchResults.length > 0) {
+                    handleSelectSearchResult(searchResults[0]);
+                  }
+                }
+              }}
               onFocus={() => {
                 if (searchResults.length > 0) setShowSearchResults(true);
               }}
@@ -553,17 +573,24 @@ export default function ZomatoMapPicker({
                 marginTop: 6,
                 backgroundColor: "#FFFFFF",
                 borderRadius: 14,
-                boxShadow: "0 12px 32px rgba(0,0,0,0.22)",
-                border: "1px solid rgba(138, 87, 56, 0.2)",
-                maxHeight: 200,
+                boxShadow: "0 14px 36px rgba(0,0,0,0.25)",
+                border: "1px solid rgba(138, 87, 56, 0.25)",
+                maxHeight: 220,
                 overflowY: "auto",
-                zIndex: 600
+                zIndex: 2000,
+                position: "relative"
               }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
             >
               {searchResults.map((res, index) => (
                 <button
                   key={index}
                   type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelectSearchResult(res);
+                  }}
                   onClick={() => handleSelectSearchResult(res)}
                   style={{
                     width: "100%",
@@ -604,7 +631,7 @@ export default function ZomatoMapPicker({
           )}
         </div>
 
-        {/* 2. FIXED CENTER PIN (Zomato-Style Fixed Overlay) */}
+        {/* 2. FIXED CENTER PIN (Zomato-Style Fixed Overlay with Lift & Drop Animation) */}
         <div
           style={{
             position: "absolute",
@@ -621,7 +648,7 @@ export default function ZomatoMapPicker({
             transition: "transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
           }}
         >
-          {/* Tooltip speech bubble */}
+          {/* Tooltip Speech Bubble */}
           <div
             style={{
               backgroundColor: "rgba(28, 25, 23, 0.94)",
@@ -650,7 +677,7 @@ export default function ZomatoMapPicker({
               height: 38,
               borderRadius: "50% 50% 50% 0",
               transform: "rotate(-45deg)",
-              backgroundColor: "#DC2626", // Zomato signature red for high visibility
+              backgroundColor: "#DC2626", // Zomato signature red
               border: "2.5px solid #FFFFFF",
               display: "flex",
               alignItems: "center",
@@ -678,19 +705,17 @@ export default function ZomatoMapPicker({
               borderRadius: "50%",
               backgroundColor: "rgba(0,0,0,0.35)",
               marginTop: isPanning ? 6 : 2,
-              filter: "blur(1.5px)",
-              opacity: isPanning ? 0.35 : 0.75,
-              transition: "all 0.18s ease"
+              transition: "width 0.18s ease, height 0.18s ease, marginTop 0.18s ease"
             }}
           />
         </div>
 
-        {/* 3. ZOOM CONTROLS (+ / -) */}
+        {/* 3. ZOOM CONTROLS (Top Right) */}
         <div
           style={{
             position: "absolute",
+            top: 60,
             right: 12,
-            top: 70,
             display: "flex",
             flexDirection: "column",
             gap: 4,
@@ -925,8 +950,8 @@ export default function ZomatoMapPicker({
               <span>{isWithinDeliveryRadius ? "✓" : "⚠️"}</span>
               <span style={{ fontWeight: 700 }}>
                 {isWithinDeliveryRadius
-                  ? `Within 2 km delivery zone (${currentDistanceKm} km from cafe at Pillar #852)`
-                  : `Outside 2 km delivery zone (${currentDistanceKm} km from cafe)`}
+                  ? `Within ${DELIVERY_CONFIG.MAX_DELIVERY_RADIUS_KM} km delivery zone (${currentDistanceKm} km from cafe at Pillar #852)`
+                  : `Outside ${DELIVERY_CONFIG.MAX_DELIVERY_RADIUS_KM} km delivery zone (${currentDistanceKm} km from cafe)`}
               </span>
             </div>
             <span style={{ fontSize: 11, fontStyle: "italic" }}>
@@ -964,23 +989,26 @@ export default function ZomatoMapPicker({
             style={{
               flex: 1,
               maxWidth: 320,
-              padding: "12px 20px",
+              padding: "12px 24px",
               fontSize: 13,
+              fontWeight: 700,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 6
+              gap: 8,
+              opacity: isGeocoding || isConfirming ? 0.7 : 1,
+              cursor: isGeocoding || isConfirming ? "not-allowed" : "pointer"
             }}
           >
             {isConfirming ? (
               <>
-                <Loader2 size={14} className="animate-spin" />
+                <Loader2 size={16} className="animate-spin" />
                 <span>Confirming...</span>
               </>
             ) : (
               <>
-                <span>Confirm Location & Enter Details</span>
-                <span>→</span>
+                <span>Confirm Location & Proceed</span>
+                <Check size={16} />
               </>
             )}
           </button>

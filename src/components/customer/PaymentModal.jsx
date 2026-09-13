@@ -646,7 +646,7 @@ export default function PaymentModal({
                       fontWeight: 700,
                       color: "#166534"
                     }}>
-                      💳 Returning from Standee UPI?
+                      💳 Returning from UPI / Paytm App?
                     </div>
                     <p style={{
                       fontFamily: "var(--font-serif)",
@@ -768,167 +768,89 @@ export default function PaymentModal({
 
                 {/* TAB 1: PAY ONLINE (Dine-in Tables) */}
                 {paymentType === "online" ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                    {/* COUNTER STANDEE & DIRECT UPI QR CODE */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {/* OPTION 1: 1-CLICK PAYTM APP */}
+                    <a
+                      href={paytmUri}
+                      onClick={() => handleLaunchUpi("Paytm")}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 8,
+                        padding: "13px 18px",
+                        borderRadius: "var(--radius-pill)",
+                        backgroundColor: "#00BAF2",
+                        color: "#FFFFFF",
+                        fontFamily: "var(--font-serif)",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        textDecoration: "none",
+                        textAlign: "center",
+                        boxShadow: "0 3px 10px rgba(0, 186, 242, 0.3)",
+                        letterSpacing: 0.3
+                      }}
+                    >
+                      <Smartphone size={16} />
+                      <span>Pay Rs.{amount} via Paytm</span>
+                    </a>
+
+                    {/* DIVIDER */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "2px 0" }}>
+                      <div style={{ flex: 1, height: 1, backgroundColor: "var(--color-border-frame)" }} />
+                      <span style={{ fontSize: 10.5, fontFamily: "var(--font-serif)", fontWeight: 700, color: "var(--color-bronze)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                        OR PAY VIA ANY OTHER UPI APP
+                      </span>
+                      <div style={{ flex: 1, height: 1, backgroundColor: "var(--color-border-frame)" }} />
+                    </div>
+
+                    {/* OPTION 2: PAY VIA ANY UPI APP (PHONEPE, GPAY, SLICE, CRED, BHIM) */}
                     <div style={{
                       backgroundColor: "#fff",
-                      borderRadius: 6,
+                      borderRadius: 8,
                       border: "1.2px solid var(--color-border-frame)",
-                      padding: 12,
+                      padding: "14px 16px",
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
-                      gap: 10
+                      gap: 10,
+                      textAlign: "center"
                     }}>
                       <div style={{ fontSize: 12, fontFamily: "var(--font-serif)", fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                        Counter Standee QR (Paytm / All UPI Apps)
+                        Pay to Merchant UPI ID
                       </div>
 
-                      {/* Mode Selector */}
-                      <div style={{ display: "flex", gap: 6, backgroundColor: "#FAF7F2", padding: 3, borderRadius: "var(--radius-pill)", border: "1px solid var(--color-border-frame)" }}>
-                        <button
-                          type="button"
-                          onClick={() => setQrMode("auto")}
-                          style={{
-                            padding: "3px 10px",
-                            borderRadius: "var(--radius-pill)",
-                            backgroundColor: qrMode === "auto" ? "var(--color-ink)" : "transparent",
-                            color: qrMode === "auto" ? "#FFFFFF" : "var(--color-ink)",
-                            border: "none",
-                            fontSize: 11,
-                            fontFamily: "var(--font-serif)",
-                            fontWeight: 700,
-                            cursor: "pointer"
-                          }}
-                        >
-                          Pre-filled (Rs.{amount})
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setQrMode("standee")}
-                          style={{
-                            padding: "3px 10px",
-                            borderRadius: "var(--radius-pill)",
-                            backgroundColor: qrMode === "standee" ? "var(--color-ink)" : "transparent",
-                            color: qrMode === "standee" ? "#FFFFFF" : "var(--color-ink)",
-                            border: "none",
-                            fontSize: 11,
-                            fontFamily: "var(--font-serif)",
-                            fontWeight: 700,
-                            cursor: "pointer"
-                          }}
-                        >
-                          Official Standee
-                        </button>
-                      </div>
+                      <p style={{ fontSize: 12, color: "var(--color-bronze)", margin: 0, lineHeight: 1.45 }}>
+                        Open <strong>PhonePe, Google Pay, Slice, CRED, BHIM</strong> or any UPI app, pay to the ID below, and enter <strong>Rs.{amount}</strong>:
+                      </p>
 
-                      <div style={{
-                        padding: 6,
-                        backgroundColor: "#fff",
-                        borderRadius: 4,
-                        border: "1px solid var(--color-border-frame)"
-                      }}>
-                        <QRCodeSVG
-                          value={qrMode === "standee" ? officialStandeeUri : upiUri}
-                          size={130}
-                          level="H"
-                          includeMargin={false}
-                        />
-                      </div>
-
-                      {/* Direct App Launchers: PhonePe, Google Pay, Paytm */}
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, width: "100%" }}>
-                        <a
-                          href={phonepeUri}
-                          onClick={() => handleLaunchUpi("PhonePe")}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            padding: "9px 4px",
-                            borderRadius: "var(--radius-pill)",
-                            backgroundColor: "#5f259f",
-                            color: "#FFFFFF",
-                            fontFamily: "var(--font-serif)",
-                            fontSize: 11.5,
-                            fontWeight: 700,
-                            textDecoration: "none",
-                            textAlign: "center",
-                            boxShadow: "0 2px 6px rgba(95, 37, 159, 0.25)"
-                          }}
-                        >
-                          PhonePe
-                        </a>
-                        <a
-                          href={gpayUri}
-                          onClick={() => handleLaunchUpi("Google Pay")}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            padding: "9px 4px",
-                            borderRadius: "var(--radius-pill)",
-                            backgroundColor: "#1a73e8",
-                            color: "#FFFFFF",
-                            fontFamily: "var(--font-serif)",
-                            fontSize: 11.5,
-                            fontWeight: 700,
-                            textDecoration: "none",
-                            textAlign: "center",
-                            boxShadow: "0 2px 6px rgba(26, 115, 232, 0.25)"
-                          }}
-                        >
-                          Google Pay
-                        </a>
-                        <a
-                          href={paytmUri}
-                          onClick={() => handleLaunchUpi("Paytm")}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            padding: "9px 4px",
-                            borderRadius: "var(--radius-pill)",
-                            backgroundColor: "#00BAF2",
-                            color: "#FFFFFF",
-                            fontFamily: "var(--font-serif)",
-                            fontSize: 11.5,
-                            fontWeight: 700,
-                            textDecoration: "none",
-                            textAlign: "center",
-                            boxShadow: "0 2px 6px rgba(0, 186, 242, 0.25)"
-                          }}
-                        >
-                          Paytm
-                        </a>
-                      </div>
-
-                      {/* All Installed UPI Apps Option */}
-                      <a
-                        href={upiUri}
-                        onClick={() => handleLaunchUpi("Other UPI App")}
+                      {/* 1-Tap Copy UPI ID Pill */}
+                      <button
+                        type="button"
+                        onClick={handleCopyUpi}
                         style={{
-                          width: "100%",
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "center",
-                          gap: 6,
-                          padding: "8px 12px",
+                          gap: 8,
+                          padding: "8px 16px",
                           borderRadius: "var(--radius-pill)",
-                          backgroundColor: "#FAF7F2",
-                          border: "1.2px solid var(--color-border-frame)",
-                          color: "var(--color-ink)",
-                          fontFamily: "var(--font-serif)",
-                          fontSize: 12,
+                          backgroundColor: isCopied ? "#F0FDF4" : "#FAF7F2",
+                          border: isCopied ? "1.5px solid #22c55e" : "1.2px solid var(--color-border-frame)",
+                          cursor: "pointer",
+                          fontFamily: "monospace",
+                          fontSize: 13,
                           fontWeight: 700,
-                          textDecoration: "none",
-                          textAlign: "center",
-                          boxSizing: "border-box"
+                          color: isCopied ? "#15803d" : "var(--color-ink)",
+                          transition: "all 0.15s",
+                          boxShadow: "0 1px 4px rgba(0,0,0,0.04)"
                         }}
                       >
-                        <Smartphone size={14} color="var(--color-bronze)" />
-                        <span>Other App (BHIM, CRED &amp; All Apps)</span>
-                      </a>
+                        {isCopied ? <Check size={14} color="#15803d" /> : <Copy size={14} color="var(--color-bronze)" />}
+                        <span>{isCopied ? "Copied to Clipboard!" : upiId}</span>
+                      </button>
+                      <span style={{ fontSize: 11, color: "var(--color-bronze)", fontStyle: "italic" }}>
+                        Tap above to copy UPI ID
+                      </span>
                     </div>
 
                     {/* Manual UTR Verification Input */}
@@ -954,7 +876,7 @@ export default function PaymentModal({
                             textAlign: "center"
                           }}
                         >
-                          Paid via QR? Enter 12-digit UPI Ref / UTR
+                          Paid via UPI / Paytm? Enter 12-digit UPI Ref / UTR
                         </button>
                       ) : (
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

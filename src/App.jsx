@@ -316,6 +316,7 @@ export default function App() {
 
     // Send push notification for newly arrived orders, item additions, and cash bill requests
     if (isInitialStaffLoadRef.current) {
+      if (!orders || orders.length === 0) return;
       orders.forEach((o) => {
         knownStaffOrderIdsRef.current.add(o.id);
         if (o.lastItemAddedAt) {
@@ -349,7 +350,8 @@ export default function App() {
           if (order.paymentInitiated) {
             knownStaffPaymentInitiatedRef.current.add(`${order.id}_${order.paymentInitiatedAt || "req"}`);
           }
-          if (order.status === "placed") {
+          const orderAgeMs = Date.now() - (order.timestamp || (order.createdAt ? new Date(order.createdAt).getTime() : 0));
+          if (order.status === "placed" && orderAgeMs < 10 * 60 * 1000) {
             soundNotifier.resumeAlarm();
             triggerOrderNotification(order);
           }

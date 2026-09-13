@@ -42,8 +42,46 @@ import { isNativeApp } from "../../utils/nativePush";
 export default function AdminDashboard({ orders, menuItems, currentUser, onLogout }) {
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get("tab") || "online-orders";
+    return params.get("tab") || "orders";
   });
+
+  // Clock ticker to auto-reset daily stats at 12:00 AM midnight
+  const [currentDayKey, setCurrentDayKey] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      const dayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+      setCurrentDayKey((prev) => (prev !== dayKey ? dayKey : prev));
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Helper to check if an order was placed on today's calendar day (resets at 12 AM midnight)
+  const isOrderFromToday = (ord) => {
+    if (!ord) return false;
+    let orderTime = null;
+    if (typeof ord.timestamp === "number") {
+      orderTime = ord.timestamp;
+    } else if (ord.timestamp?.seconds) {
+      orderTime = ord.timestamp.seconds * 1000;
+    } else if (ord.createdAt) {
+      const parsed = new Date(ord.createdAt).getTime();
+      if (!isNaN(parsed)) orderTime = parsed;
+    }
+    if (!orderTime) return false;
+
+    const orderDate = new Date(orderTime);
+    const now = new Date();
+    return (
+      orderDate.getFullYear() === now.getFullYear() &&
+      orderDate.getMonth() === now.getMonth() &&
+      orderDate.getDate() === now.getDate()
+    );
+  };
 
   const [orderStatusFilter, setOrderStatusFilter] = useState("active");
   const [tableFilter, setTableFilter] = useState("all");
@@ -187,10 +225,12 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
   }, []);
 
   useEffect(() => {
+    // Prevent phantom notifications on startup: do not mark initial load done until orders arrive from Firestore!
     if (isInitialLoadRef.current) {
+      if (!orders || orders.length === 0) return;
       orders.forEach((o) => {
         knownOrderIdsRef.current.add(o.id);
-        if (o.paymentStatus === "paid_online" || o.settledMethod === "upi_online") {
+        if (o.paymentStatus === "paid_online" || o.settledMethod === "upi_online" || o.status === "settled") {
           knownPaidOrderIdsRef.current.add(o.id);
         }
         if (o.lastItemAddedAt) {
@@ -268,18 +308,32 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
       }
 
       // 5. Online table scanner payment completed alert (auto-settles bill)
+      // FIX: Only trigger alert if payment actually occurred live in the last 2 minutes, preventing phantom popups of old settled tables!
       const isOnlinePaid = order.paymentStatus === "paid_online" || order.settledMethod === "upi_online";
       if (isOnlinePaid && !knownPaidOrderIdsRef.current.has(order.id)) {
         knownPaidOrderIdsRef.current.add(order.id);
-        triggerPaymentNotification(order);
-        setLatestPaymentAlert({
-          id: order.id,
-          orderNumber: order.orderNumber,
-          tableNumber: order.tableNumber,
-          total: order.total,
-          utr: order.paymentDetails?.utr,
-          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-        });
+
+        const paymentTime = order.paidAt
+          ? new Date(order.paidAt).getTime()
+          : order.settledAt
+          ? new Date(order.settledAt).getTime()
+          : order.updatedAt
+          ? new Date(order.updatedAt).getTime()
+          : 0;
+
+        const isRecentPayment = paymentTime > 0 && (Date.now() - paymentTime < 2 * 60 * 1000);
+
+        if (isRecentPayment) {
+          triggerPaymentNotification(order);
+          setLatestPaymentAlert({
+            id: order.id,
+            orderNumber: order.orderNumber,
+            tableNumber: order.tableNumber,
+            total: order.total,
+            utr: order.paymentDetails?.utr,
+            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          });
+        }
       }
     });
   }, [orders]);
@@ -434,9 +488,19 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
   const tablePreparingCount = mergedActiveTableOrders.filter((o) => o.status === "preparing").length;
   const tableServedCount = mergedActiveTableOrders.filter((o) => o.status === "served").length;
   const tableSettledCount = tableOrders.filter((o) => o.status === "settled").length;
-  const tableTotalRevenue = tableOrders
-    .filter((o) => o.status !== "cancelled")
-    .reduce((acc, o) => acc + (o.total || 0), 0);
+  
+  // Daily ticket value: strictly orders placed today (resets at 12 AM midnight)
+  const todayTableOrders = useMemo(() => {
+    return tableOrders.filter((o) => isOrderFromToday(o) && o.status !== "cancelled");
+  }, [tableOrders, currentDayKey]);
+
+  const todayTableRevenue = useMemo(() => {
+    return todayTableOrders.reduce((acc, o) => acc + (o.total || 0), 0);
+  }, [todayTableOrders]);
+
+  const todayDayName = useMemo(() => {
+    return new Date().toLocaleDateString("en-IN", { weekday: "long" });
+  }, [currentDayKey]);
 
   // Online active orders count for tab badge
   const onlineActiveCount = onlineOrders.filter(
@@ -1187,16 +1251,16 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
             </div>
           </div>
 
-          {/* Revenue */}
+          {/* Revenue - Daily Order Value (resets at 12 AM midnight) */}
           <div className="admin-kpi-card">
             <div className="admin-kpi-title" style={{ color: "var(--color-ink)" }}>
               Total Tickets Value
             </div>
             <div className="admin-kpi-num" style={{ color: "var(--color-ink)" }}>
-              Rs.{tableTotalRevenue}
+              Rs.{todayTableRevenue}
             </div>
             <div className="admin-kpi-desc">
-              {tableOrders.length} table orders placed today
+              {todayDayName} • {todayTableOrders.length} {todayTableOrders.length === 1 ? "order" : "orders"} placed today
             </div>
           </div>
         </div>
@@ -1233,61 +1297,112 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
             className="admin-nav-tabs-wrapper no-scrollbar"
             style={{ flex: 1 }}
           >
-            {/* 1. Online Orders Tab */}
-            <button
-              onClick={() => setActiveTab("online-orders")}
-              className="admin-nav-tab-btn"
-              data-active={activeTab === "online-orders"}
-              style={{
-                borderBottom: activeTab === "online-orders" ? "3px solid #15803d" : "3px solid transparent",
-                color: activeTab === "online-orders" ? "#15803d" : "var(--color-bronze)",
-                fontWeight: activeTab === "online-orders" ? 800 : 600,
-                marginBottom: -2
-              }}
-            >
-              <Bike size={16} />
-              <span>Online Orders</span>
-              {onlineActiveCount > 0 && (
-                <span style={{
-                  backgroundColor: onlineNewCount > 0 ? "#D97706" : "#15803D",
-                  color: "#fff",
-                  fontSize: 11,
-                  fontWeight: 800,
-                  padding: "1px 6px",
-                  borderRadius: "var(--radius-pill)"
-                }}>
-                  {onlineActiveCount}
-                </span>
-              )}
-            </button>
+            {/* 1 & 2. Dynamic Tab Ordering:
+                Online Orders appears BEFORE Table Orders ONLY if someone ordered online at that point (onlineActiveCount > 0).
+                Otherwise, Table Orders is the first tab! */}
+            {onlineActiveCount > 0 ? (
+              <>
+                {/* Online Orders Tab (Priority because active online order exists) */}
+                <button
+                  onClick={() => setActiveTab("online-orders")}
+                  className="admin-nav-tab-btn"
+                  data-active={activeTab === "online-orders"}
+                  style={{
+                    borderBottom: activeTab === "online-orders" ? "3px solid #15803d" : "3px solid transparent",
+                    color: activeTab === "online-orders" ? "#15803d" : "var(--color-bronze)",
+                    fontWeight: activeTab === "online-orders" ? 800 : 600,
+                    marginBottom: -2
+                  }}
+                >
+                  <Bike size={16} />
+                  <span>Online Orders</span>
+                  <span style={{
+                    backgroundColor: onlineNewCount > 0 ? "#D97706" : "#15803D",
+                    color: "#fff",
+                    fontSize: 11,
+                    fontWeight: 800,
+                    padding: "1px 6px",
+                    borderRadius: "var(--radius-pill)"
+                  }}>
+                    {onlineActiveCount}
+                  </span>
+                </button>
 
-            {/* 2. Table QR Orders Tab */}
-            <button
-              onClick={() => setActiveTab("orders")}
-              className="admin-nav-tab-btn"
-              data-active={activeTab === "orders"}
-              style={{
-                borderBottom: activeTab === "orders" ? "3px solid var(--color-ink)" : "3px solid transparent",
-                color: activeTab === "orders" ? "var(--color-ink)" : "var(--color-bronze)",
-                fontWeight: activeTab === "orders" ? 800 : 600,
-                marginBottom: -2
-              }}
-            >
-              <ChefHat size={16} />
-              <span>Table QR Feed</span>
-              {tableNewOrdersCount > 0 && (
-                <span style={{
-                  backgroundColor: "var(--color-bronze)",
-                  color: "#fff",
-                  fontSize: 11,
-                  fontWeight: 800,
-                  padding: "1px 6px",
-                  borderRadius: "var(--radius-pill)"
-                }}>
-                  {tableNewOrdersCount}
-                </span>
-              )}
-            </button>
+                {/* Table QR Orders Tab */}
+                <button
+                  onClick={() => setActiveTab("orders")}
+                  className="admin-nav-tab-btn"
+                  data-active={activeTab === "orders"}
+                  style={{
+                    borderBottom: activeTab === "orders" ? "3px solid var(--color-ink)" : "3px solid transparent",
+                    color: activeTab === "orders" ? "var(--color-ink)" : "var(--color-bronze)",
+                    fontWeight: activeTab === "orders" ? 800 : 600,
+                    marginBottom: -2
+                  }}
+                >
+                  <ChefHat size={16} />
+                  <span>Table QR Feed</span>
+                  {tableNewOrdersCount > 0 && (
+                    <span style={{
+                      backgroundColor: "var(--color-bronze)",
+                      color: "#fff",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      padding: "1px 6px",
+                      borderRadius: "var(--radius-pill)"
+                    }}>
+                      {tableNewOrdersCount}
+                    </span>
+                  )}
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Table QR Orders Tab (Default #1 when no active online order) */}
+                <button
+                  onClick={() => setActiveTab("orders")}
+                  className="admin-nav-tab-btn"
+                  data-active={activeTab === "orders"}
+                  style={{
+                    borderBottom: activeTab === "orders" ? "3px solid var(--color-ink)" : "3px solid transparent",
+                    color: activeTab === "orders" ? "var(--color-ink)" : "var(--color-bronze)",
+                    fontWeight: activeTab === "orders" ? 800 : 600,
+                    marginBottom: -2
+                  }}
+                >
+                  <ChefHat size={16} />
+                  <span>Table QR Feed</span>
+                  {tableNewOrdersCount > 0 && (
+                    <span style={{
+                      backgroundColor: "var(--color-bronze)",
+                      color: "#fff",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      padding: "1px 6px",
+                      borderRadius: "var(--radius-pill)"
+                    }}>
+                      {tableNewOrdersCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Online Orders Tab (Placed after Table QR Feed) */}
+                <button
+                  onClick={() => setActiveTab("online-orders")}
+                  className="admin-nav-tab-btn"
+                  data-active={activeTab === "online-orders"}
+                  style={{
+                    borderBottom: activeTab === "online-orders" ? "3px solid #15803d" : "3px solid transparent",
+                    color: activeTab === "online-orders" ? "#15803d" : "var(--color-bronze)",
+                    fontWeight: activeTab === "online-orders" ? 800 : 600,
+                    marginBottom: -2
+                  }}
+                >
+                  <Bike size={16} />
+                  <span>Online Orders</span>
+                </button>
+              </>
+            )}
 
             {/* 3. Menu & Stock Tab */}
             <button

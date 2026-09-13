@@ -107,7 +107,7 @@ export const launchRazorpayCheckout = async ({
     currency: orderDetails.currency || "INR",
     name: "Two Hearts Cafe",
     description: `${orderTitle} (Rs.${order.total})`,
-    image: "/images/pwa/icon-192.png",
+    image: "/logo.png",
     order_id: orderDetails.order_id,
     handler: async function (response) {
       try {
@@ -130,13 +130,13 @@ export const launchRazorpayCheckout = async ({
     },
     prefill: {
       name: order.customerName || (order.tableNumber ? `Guest Table #${order.tableNumber}` : "Guest"),
-      contact: order.customerPhone || "9876543210",
-      email: order.customerEmail || "guest@twoheartscafe.in"
+      contact: order.customerPhone || "",
+      email: order.customerEmail || ""
     },
     readonly: {
-      contact: true,
-      email: true,
-      name: true
+      contact: Boolean(order.customerPhone),
+      email: Boolean(order.customerEmail),
+      name: Boolean(order.customerName)
     },
     config: {
       display: {
@@ -158,10 +158,11 @@ export const launchRazorpayCheckout = async ({
     },
     notes: {
       cafe: "Two Hearts Cafe",
-      tableNumber: order.tableNumber || "Takeaway"
+      tableNumber: order.tableNumber || (order.orderType === "delivery" ? "Delivery" : "Takeaway"),
+      orderType: order.orderType || "delivery"
     },
     theme: {
-      color: "#16a34a"
+      color: "#8A5738"
     },
     modal: {
       ondismiss: function () {

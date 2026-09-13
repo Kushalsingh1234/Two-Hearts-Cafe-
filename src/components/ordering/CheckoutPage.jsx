@@ -19,6 +19,7 @@ import { useOnlineOrder } from "../../context/OnlineOrderContext";
 import { useCustomerAuth } from "../../context/CustomerAuthContext";
 import CheckoutAddressSection from "./CheckoutAddressSection";
 import PaymentModal from "../customer/PaymentModal";
+import { launchRazorpayCheckout } from "../../services/razorpayService";
 
 export default function CheckoutPage({ onNavigate }) {
   const {
@@ -190,13 +191,17 @@ export default function CheckoutPage({ onNavigate }) {
             setPendingPaymentOrder(null);
             onNavigate("cart");
           }}
-          onPaymentSuccess={async () => {
-            // Payment confirmed — NOW create the real Firebase order
+          onPaymentSuccess={async (paymentResult) => {
+            // Payment confirmed via Razorpay — NOW create the real Firebase order
             try {
+              const paidAt = new Date().toISOString();
+              const txnId = paymentResult?.paymentId || `RZP_${Date.now().toString().slice(-8)}`;
               await submitOnlineOrder(
                 {
-                  method: "upi",
-                  transactionId: `TXN_${Date.now().toString().slice(-8)}`,
+                  method: "razorpay",
+                  transactionId: txnId,
+                  paymentId: txnId,
+                  razorpayOrderId: paymentResult?.orderId || "",
                   userId: pendingPaymentOrder.userId,
                   customerName: pendingPaymentOrder.customerName,
                   customerPhone: pendingPaymentOrder.customerPhone,
@@ -205,7 +210,11 @@ export default function CheckoutPage({ onNavigate }) {
                   landmark: pendingPaymentOrder.landmark || "",
                   customerNotes: pendingPaymentOrder.customerNotes || "",
                   paymentStatus: "paid_online",
-                  paymentMethod: "upi"
+                  paymentMethod: "razorpay",
+                  settledBy: "Razorpay Standard Checkout",
+                  settledMethod: "razorpay",
+                  utr: txnId,
+                  paidAt
                 },
                 { name: pendingPaymentOrder.customerName, phone: pendingPaymentOrder.customerPhone }
               );
@@ -234,7 +243,7 @@ export default function CheckoutPage({ onNavigate }) {
     return Object.keys(errors).length === 0;
   };
 
-  const handlePayAndPlaceOrder = () => {
+  const handlePayAndPlaceOrder = async () => {
     if (!isLoggedIn) {
       openAuthModal();
       return;
@@ -257,11 +266,7 @@ export default function CheckoutPage({ onNavigate }) {
     // Save customer info to context/localStorage
     setCustomerInfo(formData);
 
-    // Build a LOCAL preview order — NOT saved to Firebase yet.
-    // The order is only created in Firebase after the user confirms UPI payment.
-    // This prevents unpaid orders from appearing in the admin panel.
     const previewOrder = {
-      id: null, // null signals PaymentModal that this is a pre-Firebase preview
       orderType: deliveryType,
       orderNumber: `THD-${Math.floor(1000 + Math.random() * 9000)}`,
       tableNumber: deliveryType === "pickup" ? "Takeaway" : "Delivery",
@@ -272,12 +277,80 @@ export default function CheckoutPage({ onNavigate }) {
       items: cart,
       customerName: formData.name.trim(),
       customerPhone: formData.phone.trim(),
+      customerEmail: customerUser?.email || "",
       deliveryAddress: formData.address.trim(),
+      address: formData.address.trim(),
       landmark: formData.landmark?.trim() || "",
       customerNotes: formData.notes?.trim() || "",
       userId: customerUser?.phone || formData.phone.trim(),
     };
-    setPendingPaymentOrder(previewOrder);
+
+    // Website orders (home delivery or takeaway): RAZORPAY EXCLUSIVE
+    setIsPlacingOrder(true);
+    try {
+      await launchRazorpayCheckout({
+        order: previewOrder,
+        onSuccess: async (paymentResult) => {
+          try {
+            const paidAt = new Date().toISOString();
+            await submitOnlineOrder(
+              {
+                method: "razorpay",
+                transactionId: paymentResult.paymentId,
+                paymentId: paymentResult.paymentId,
+                razorpayOrderId: paymentResult.orderId,
+                userId: previewOrder.userId,
+                customerName: previewOrder.customerName,
+                customerPhone: previewOrder.customerPhone,
+                deliveryAddress: previewOrder.deliveryAddress,
+                address: previewOrder.deliveryAddress,
+                landmark: previewOrder.landmark || "",
+                customerNotes: previewOrder.customerNotes || "",
+                paymentStatus: "paid_online",
+                paymentMethod: "razorpay",
+                settledBy: "Razorpay Standard Checkout",
+                settledMethod: "razorpay",
+                utr: paymentResult.paymentId,
+                paidAt,
+                orderType: previewOrder.orderType,
+                paymentDetails: {
+                  paymentId: paymentResult.paymentId,
+                  orderId: paymentResult.orderId,
+                  signature: paymentResult.signature,
+                  verified: true,
+                  paidAt
+                }
+              },
+              {
+                name: previewOrder.customerName,
+                phone: previewOrder.customerPhone,
+                address: previewOrder.deliveryAddress,
+                landmark: previewOrder.landmark,
+                notes: previewOrder.customerNotes
+              }
+            );
+            clearCart();
+            setIsPlacingOrder(false);
+            onNavigate("order-confirmation");
+          } catch (err) {
+            console.error("Order save error after Razorpay payment:", err);
+            setIsPlacingOrder(false);
+            alert("Payment was successful (" + paymentResult.paymentId + "), but order saving encountered an error. Please contact cafe support.");
+          }
+        },
+        onFailure: (errMsg) => {
+          setIsPlacingOrder(false);
+          alert(errMsg || "Payment was not completed. You can try again anytime.");
+        },
+        onDismiss: () => {
+          setIsPlacingOrder(false);
+        }
+      });
+    } catch (err) {
+      console.error("Razorpay initiation error:", err);
+      setIsPlacingOrder(false);
+      alert(err.message || "Could not launch Razorpay checkout. Please try again.");
+    }
   };
 
   return (
@@ -557,7 +630,7 @@ export default function CheckoutPage({ onNavigate }) {
               )}
             </div>
 
-            {/* 2. Payment Info Banner — real payment happens via UPI PaymentModal */}
+            {/* 2. Payment Info Banner — Razorpay Exclusive Checkout */}
             <div className="bistro-card mobile-card-compact" style={{ padding: "clamp(14px, 3vw, 24px)", backgroundColor: "#FFFFFF" }}>
               <div style={{
                 display: "flex",
@@ -588,10 +661,10 @@ export default function CheckoutPage({ onNavigate }) {
                       color: "var(--color-ink)",
                       margin: 0
                     }}>
-                      Online Payment Gateway
+                      Razorpay Online Checkout
                     </h3>
                     <span style={{ fontSize: 11, color: "var(--color-ink-soft)" }}>
-                      Online payments only • 256-Bit Bank Encrypted
+                      Razorpay only • 256-Bit Bank Encrypted
                     </span>
                   </div>
                 </div>
@@ -613,7 +686,7 @@ export default function CheckoutPage({ onNavigate }) {
                 </div>
               </div>
 
-              {/* Payment Info: Let the user know they'll pay via UPI after reviewing the order */}
+              {/* Payment Info: Razorpay only */}
               <div style={{
                 backgroundColor: "rgba(22, 163, 74, 0.06)",
                 borderRadius: 10,
@@ -624,15 +697,15 @@ export default function CheckoutPage({ onNavigate }) {
                 gap: 8
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "var(--font-serif)", fontSize: 14, fontWeight: 700, color: "#15803d" }}>
-                  <Smartphone size={16} />
-                  <span>Pay via UPI (Google Pay / PhonePe / Paytm)</span>
+                  <CreditCard size={16} />
+                  <span>Exclusive Razorpay Payment Options</span>
                 </div>
                 <p style={{ fontSize: 12, color: "#166534", margin: 0, lineHeight: 1.5 }}>
-                  Click <strong>"Pay ₹{total} &amp; Confirm Order"</strong> below. Your order will be placed and a real UPI QR code + deep links will open so you can pay directly from any UPI app.
+                  Home delivery and takeaway orders are processed exclusively through <strong>Razorpay</strong>. You can pay securely with <strong>UPI (GPay, PhonePe, Paytm, BHIM)</strong>, <strong>Credit &amp; Debit Cards</strong>, <strong>NetBanking</strong>, or <strong>Wallets</strong>.
                 </p>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#15803d", fontWeight: 600 }}>
                   <ShieldCheck size={13} />
-                  <span>UPI ID: Q327979600@ybl • Verified PhonePe Merchant</span>
+                  <span>Bank-verified instant settlement • No extra transaction charges</span>
                 </div>
               </div>
             </div>
@@ -807,12 +880,12 @@ export default function CheckoutPage({ onNavigate }) {
                   {isPlacingOrder ? (
                     <>
                       <div style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-                      <span>Placing Order...</span>
+                      <span>Opening Razorpay...</span>
                     </>
                   ) : (
                     <>
-                      <Lock size={14} />
-                      <span>Pay ₹{total} &amp; Confirm Order</span>
+                      <CreditCard size={15} />
+                      <span>Pay ₹{total} via Razorpay</span>
                     </>
                   )}
                 </button>
@@ -844,13 +917,17 @@ export default function CheckoutPage({ onNavigate }) {
           // Closed without paying — no Firebase order was created, cart intact, user can retry
           setPendingPaymentOrder(null);
         }}
-        onPaymentSuccess={async () => {
-          // Payment confirmed — NOW create the real Firebase order
+        onPaymentSuccess={async (paymentResult) => {
+          // Payment confirmed via Razorpay — NOW create the real Firebase order
           try {
+            const paidAt = new Date().toISOString();
+            const txnId = paymentResult?.paymentId || `RZP_${Date.now().toString().slice(-8)}`;
             await submitOnlineOrder(
               {
-                method: "upi",
-                transactionId: `TXN_${Date.now().toString().slice(-8)}`,
+                method: "razorpay",
+                transactionId: txnId,
+                paymentId: txnId,
+                razorpayOrderId: paymentResult?.orderId || "",
                 userId: pendingPaymentOrder.userId,
                 customerName: pendingPaymentOrder.customerName,
                 customerPhone: pendingPaymentOrder.customerPhone,
@@ -859,7 +936,11 @@ export default function CheckoutPage({ onNavigate }) {
                 landmark: pendingPaymentOrder.landmark || "",
                 customerNotes: pendingPaymentOrder.customerNotes || "",
                 paymentStatus: "paid_online",
-                paymentMethod: "upi",
+                paymentMethod: "razorpay",
+                settledBy: "Razorpay Standard Checkout",
+                settledMethod: "razorpay",
+                utr: txnId,
+                paidAt,
                 orderType: pendingPaymentOrder.orderType
               },
               {

@@ -431,10 +431,9 @@ export default function DigitalInvoiceModal({ isOpen, onClose, order, onOpenRevi
                 <div style={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--color-ink)" }}>
                   {paymentInfo.label}
                 </div>
-                {paymentInfo.type === "online" && (
+                {paymentInfo.type === "online" && paymentInfo.utrRef && (
                   <div style={{ fontSize: 11, color: "var(--color-bronze)", marginTop: 2 }}>
-                    Payee: <strong>{paymentInfo.payee || "Q327979600@ybl"}</strong>
-                    {paymentInfo.utrRef ? ` • Ref/UTR: ${paymentInfo.utrRef}` : ""}
+                    Ref / UTR: <strong>{paymentInfo.utrRef}</strong>
                   </div>
                 )}
               </div>

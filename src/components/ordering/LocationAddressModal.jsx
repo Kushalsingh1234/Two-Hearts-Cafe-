@@ -285,6 +285,7 @@ export default function LocationAddressModal({
 
   return (
     <div
+      className="mobile-modal-overlay"
       style={{
         position: "fixed",
         inset: 0,
@@ -301,7 +302,7 @@ export default function LocationAddressModal({
       }}
     >
       <div
-        className="bistro-card"
+        className="bistro-card mobile-modal-sheet"
         style={{
           width: "100%",
           maxWidth: step === "map" ? 640 : 580,
@@ -413,6 +414,7 @@ export default function LocationAddressModal({
 
         {/* Scrollable Modal Body */}
         <div
+          className="address-modal-body"
           style={{
             padding: "18px 22px",
             overflowY: "auto",
@@ -1067,6 +1069,7 @@ export default function LocationAddressModal({
 
               {/* Form Action Buttons */}
               <div
+                className="address-modal-actions"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -1080,25 +1083,25 @@ export default function LocationAddressModal({
                 <button
                   type="button"
                   onClick={() => setStep("map")}
-                  className="btn-pill-outline"
+                  className="btn-pill-outline address-modal-back-btn"
                   style={{ padding: "10px 18px", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}
                 >
                   <ArrowLeft size={14} />
                   <span>Back to Map</span>
                 </button>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div className="address-modal-right-actions" style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <button
                     type="button"
                     onClick={onClose}
-                    className="btn-pill-outline"
+                    className="btn-pill-outline address-modal-cancel-btn"
                     style={{ padding: "10px 18px", fontSize: 12 }}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="btn-pill-black"
+                    className="btn-pill-black address-modal-submit-btn"
                     style={{ padding: "11px 24px", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}
                   >
                     <Check size={14} />

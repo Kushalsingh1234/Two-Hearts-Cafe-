@@ -1382,7 +1382,7 @@ html {
   }
 
   /* 9. Minimum 44px Touch Targets */
-  .touch-target-44:not(.site-navbar-cart-btn):not(.site-navbar-signin-btn):not(.site-navbar-profile-btn) {
+  .touch-target-44:not(.site-navbar-cart-btn):not(.site-navbar-signin-btn):not(.site-navbar-profile-btn):not(.profile-tab-pill) {
     min-height: 44px !important;
     min-width: 44px !important;
     display: inline-flex !important;
@@ -1404,6 +1404,97 @@ html {
     overflow-y: auto !important;
     padding-bottom: max(16px, env(safe-area-inset-bottom, 16px)) !important;
   }
+
+  /* 11. Location Address Modal Footer on Mobile */
+  .address-modal-body {
+    padding: 16px 14px !important;
+  }
+
+  .address-modal-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+    margin-top: 12px !important;
+    padding-top: 14px !important;
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 10px)) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .address-modal-right-actions {
+    display: contents !important;
+  }
+
+  .address-modal-back-btn {
+    grid-column: 1 / 2 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 11px 10px !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+    min-height: 44px !important;
+    box-sizing: border-box !important;
+  }
+
+  .address-modal-cancel-btn {
+    grid-column: 2 / 3 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 11px 10px !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+    min-height: 44px !important;
+    box-sizing: border-box !important;
+  }
+
+  .address-modal-submit-btn {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 13px 18px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.5px !important;
+    white-space: nowrap !important;
+    min-height: 44px !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* Profile Tab Pill Carousel */
+.profile-tab-pill {
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+}
+
+.profile-tabs-carousel {
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.profile-tabs-carousel::-webkit-scrollbar {
+  display: none !important;
+}
+
+/* Address Modal Action Layout (Desktop Baseline) */
+.address-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.address-modal-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 @media (max-width: 480px) {

@@ -475,14 +475,23 @@ export default function UserProfilePage({ setPage, initialTab = "orders" }) {
 
         {/* 2. TAB NAVIGATION BAR (Horizontal pill carousel, touch-friendly) */}
         <div
-          className="no-scrollbar"
+          className="no-scrollbar profile-tabs-carousel"
           style={{
             display: "flex",
             alignItems: "center",
             gap: 8,
             overflowX: "auto",
+            WebkitOverflowScrolling: "touch",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+            width: "100%",
+            maxWidth: "100%",
+            boxSizing: "border-box",
             marginBottom: 24,
-            paddingBottom: 4
+            paddingTop: 4,
+            paddingBottom: 8,
+            paddingLeft: 2,
+            paddingRight: 2
           }}
         >
           {tabs.map((tab) => {
@@ -493,11 +502,13 @@ export default function UserProfilePage({ setPage, initialTab = "orders" }) {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className="touch-target-44"
+                className="profile-tab-pill"
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 8,
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
                   padding: "10px 18px",
                   borderRadius: "var(--radius-pill)",
                   backgroundColor: isCurrent ? "var(--color-ink)" : "#FFFFFF",
@@ -506,7 +517,6 @@ export default function UserProfilePage({ setPage, initialTab = "orders" }) {
                   fontSize: 13,
                   fontFamily: "var(--font-serif)",
                   fontWeight: isCurrent ? 700 : 500,
-                  whiteSpace: "nowrap",
                   cursor: "pointer",
                   transition: "all 0.2s ease",
                   boxShadow: isCurrent ? "0 2px 8px rgba(28, 25, 23, 0.15)" : "var(--shadow-sm)",

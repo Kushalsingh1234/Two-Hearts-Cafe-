@@ -11,7 +11,8 @@ import {
   Loader2,
   Plus,
   Minus,
-  Navigation
+  Navigation,
+  RotateCcw
 } from "lucide-react";
 import {
   loadGoogleMapsApi,
@@ -64,12 +65,15 @@ export default function ZomatoMapPicker({
   // Location GPS button state
   const [isLocating, setIsLocating] = useState(false);
   const [gpsError, setGpsError] = useState("");
+  const [gpsErrorCode, setGpsErrorCode] = useState(null);
+  const [accuracyMeters, setAccuracyMeters] = useState(null);
 
   // Map DOM & Engine references
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const engineRef = useRef(null); // "google" | "leaflet"
   const debounceTimerRef = useRef(null);
+  const isProgrammaticMoveRef = useRef(false);
 
   // Calculate distance from cafe origin (Pillar #852, Muradnagar)
   const currentDistanceKm = calculateDistanceKm(
@@ -122,6 +126,43 @@ export default function ZomatoMapPicker({
     [runReverseGeocode]
   );
 
+  // Smoothly pan map to given coordinates (re-centering map under fixed center pin)
+  const panMapToLocation = useCallback((lat, lng, targetZoom = 17) => {
+    const numLat = Number(lat);
+    const numLng = Number(lng);
+    setCenterCoords({ lat: numLat, lng: numLng });
+    isProgrammaticMoveRef.current = true;
+
+    if (mapInstanceRef.current) {
+      if (engineRef.current === "google") {
+        mapInstanceRef.current.panTo({ lat: numLat, lng: numLng });
+        if (targetZoom) mapInstanceRef.current.setZoom(targetZoom);
+        setTimeout(() => {
+          isProgrammaticMoveRef.current = false;
+        }, 600);
+      } else if (engineRef.current === "leaflet") {
+        mapInstanceRef.current.flyTo([numLat, numLng], targetZoom, {
+          duration: 0.8
+        });
+        setTimeout(() => {
+          isProgrammaticMoveRef.current = false;
+        }, 950);
+      }
+    }
+    // Directly run reverse geocode on exact coordinates without debounce lag
+    runReverseGeocode(numLat, numLng);
+  }, [runReverseGeocode]);
+
+  // Synchronize map when initialCoords prop updates
+  useEffect(() => {
+    if (initialCoords && initialCoords.lat && initialCoords.lng) {
+      const numLat = Number(initialCoords.lat);
+      const numLng = Number(initialCoords.lng);
+      setCenterCoords({ lat: numLat, lng: numLng });
+      panMapToLocation(numLat, numLng, 17);
+    }
+  }, [initialCoords, panMapToLocation]);
+
   // Initialize Map (Google Maps if SDK loaded, otherwise Leaflet with OSM)
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -142,11 +183,17 @@ export default function ZomatoMapPicker({
           });
           mapInstanceRef.current = map;
 
-          map.addListener("dragstart", () => setIsPanning(true));
+          map.addListener("dragstart", () => {
+            if (!isProgrammaticMoveRef.current) {
+              setIsPanning(true);
+            }
+          });
           map.addListener("idle", () => {
             setIsPanning(false);
+            if (isProgrammaticMoveRef.current) return;
             const c = map.getCenter();
             if (c) {
+              setAccuracyMeters(null); // User manually repositioned the pin
               handleCenterChanged(c.lat(), c.lng());
             }
           });
@@ -179,11 +226,17 @@ export default function ZomatoMapPicker({
           maxZoom: 19
         }).addTo(map);
 
-        map.on("movestart", () => setIsPanning(true));
+        map.on("movestart", () => {
+          if (!isProgrammaticMoveRef.current) {
+            setIsPanning(true);
+          }
+        });
         map.on("moveend", () => {
           setIsPanning(false);
+          if (isProgrammaticMoveRef.current) return;
           const c = map.getCenter();
           if (c) {
+            setAccuracyMeters(null); // User manually repositioned the pin
             handleCenterChanged(c.lat, c.lng);
           }
         });
@@ -211,25 +264,6 @@ export default function ZomatoMapPicker({
     };
   }, []);
 
-  // Smoothly pan map to given coordinates (re-centering map under fixed center pin)
-  const panMapToLocation = useCallback((lat, lng, targetZoom = 17) => {
-    const numLat = Number(lat);
-    const numLng = Number(lng);
-    setCenterCoords({ lat: numLat, lng: numLng });
-
-    if (mapInstanceRef.current) {
-      if (engineRef.current === "google") {
-        mapInstanceRef.current.panTo({ lat: numLat, lng: numLng });
-        if (targetZoom) mapInstanceRef.current.setZoom(targetZoom);
-      } else if (engineRef.current === "leaflet") {
-        mapInstanceRef.current.flyTo([numLat, numLng], targetZoom, {
-          duration: 0.8
-        });
-      }
-    }
-    handleCenterChanged(numLat, numLng);
-  }, [handleCenterChanged]);
-
   // Zoom in / Zoom out handlers
   const handleZoomIn = () => {
     const nextZ = Math.min(19, zoom + 1);
@@ -249,33 +283,56 @@ export default function ZomatoMapPicker({
     }
   };
 
-  // "Use Current Location" (GPS recenter under fixed pin)
+  // "Use Current Location" (Zomato-precision GPS fix with maximumAge: 0 & high accuracy)
   const handleUseCurrentLocation = async () => {
     setIsLocating(true);
     setGpsError("");
-    try {
-      if (!navigator.geolocation) {
-        throw new Error("Geolocation is not supported by your device/browser.");
-      }
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setIsLocating(false);
-          const { latitude, longitude } = pos.coords;
-          panMapToLocation(latitude, longitude, 17);
-        },
-        (err) => {
-          setIsLocating(false);
-          let msg = "Could not get current location.";
-          if (err.code === 1) msg = "Location permission denied. Please allow location access or search your area.";
-          else if (err.code === 3) msg = "Location request timed out. Please drag map or search above.";
-          setGpsError(msg);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
-      );
-    } catch (err) {
+    setGpsErrorCode(null);
+
+    if (!navigator.geolocation) {
       setIsLocating(false);
-      setGpsError(err.message || "Unable to acquire current location.");
+      setGpsError("Geolocation is not supported by your browser or device.");
+      setGpsErrorCode(2);
+      return;
     }
+
+    // High accuracy GPS options - strictly maximumAge: 0 to force fresh satellite fix without stale cache
+    const geoOptions = {
+      enableHighAccuracy: true,
+      timeout: 12000,
+      maximumAge: 0
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsLocating(false);
+        const { latitude, longitude, accuracy } = pos.coords;
+        if (accuracy) {
+          setAccuracyMeters(Math.round(accuracy));
+        } else {
+          setAccuracyMeters(null);
+        }
+        setGpsError("");
+        setGpsErrorCode(null);
+
+        // Smoothly animate map and reverse-geocode exact GPS coordinates
+        panMapToLocation(latitude, longitude, 17);
+      },
+      (err) => {
+        setIsLocating(false);
+        setGpsErrorCode(err.code);
+        let msg = "Could not detect your current location.";
+        if (err.code === 1) { // PERMISSION_DENIED
+          msg = "Location permission was denied. Tap the 🔒 lock icon in your browser's address bar to allow location access, then tap Retry.";
+        } else if (err.code === 3) { // TIMEOUT
+          msg = "GPS signal request timed out. We couldn't acquire a satellite fix. Tap Retry or drag the map to position the pin.";
+        } else if (err.code === 2) { // POSITION_UNAVAILABLE
+          msg = "Location signal is currently unavailable. Please verify GPS / Location is enabled on your device, or drag the map.";
+        }
+        setGpsError(msg);
+      },
+      geoOptions
+    );
   };
 
   // Search places handler
@@ -321,23 +378,57 @@ export default function ZomatoMapPicker({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {/* GPS Error Alert */}
+      {/* GPS Error Alert with Actionable Guidance & Retry */}
       {gpsError && (
         <div
           style={{
-            padding: "8px 12px",
+            padding: "10px 14px",
             backgroundColor: "#FEF2F2",
             border: "1px solid #FCA5A5",
-            borderRadius: 10,
+            borderRadius: 12,
             color: "#991B1B",
-            fontSize: 11.5,
+            fontSize: 12,
             display: "flex",
-            alignItems: "center",
-            gap: 6
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 10
           }}
         >
-          <AlertCircle size={14} style={{ flexShrink: 0 }} />
-          <span>{gpsError}</span>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8, flex: 1 }}>
+            <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 1, color: "#DC2626" }} />
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: 2 }}>
+                {gpsErrorCode === 1
+                  ? "Location Permission Blocked"
+                  : gpsErrorCode === 3
+                  ? "GPS Signal Timed Out"
+                  : "Location Detection Failed"}
+              </div>
+              <div style={{ lineHeight: 1.4, color: "#7F1D1D" }}>{gpsError}</div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleUseCurrentLocation}
+            style={{
+              flexShrink: 0,
+              padding: "6px 12px",
+              backgroundColor: "#DC2626",
+              color: "#FFFFFF",
+              border: "none",
+              borderRadius: "var(--radius-pill)",
+              fontSize: 11.5,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              boxShadow: "0 2px 6px rgba(220, 38, 38, 0.3)"
+            }}
+          >
+            <RotateCcw size={12} />
+            <span>Retry</span>
+          </button>
         </div>
       )}
 
@@ -354,6 +445,36 @@ export default function ZomatoMapPicker({
           backgroundColor: "#E5E3DF"
         }}
       >
+        {/* Floating Locating Radar / Indicator on Map */}
+        {isLocating && (
+          <div
+            style={{
+              position: "absolute",
+              top: 58,
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 560,
+              backgroundColor: "rgba(28, 25, 23, 0.94)",
+              color: "#FFFFFF",
+              padding: "7px 16px",
+              borderRadius: "var(--radius-pill)",
+              fontSize: 12,
+              fontWeight: 600,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+              border: "1px solid rgba(255, 255, 255, 0.18)",
+              whiteSpace: "nowrap"
+            }}
+          >
+            <Loader2 size={14} className="animate-spin" style={{ color: "#F59E0B" }} />
+            <span>Finding your exact GPS location...</span>
+          </div>
+        )}
+
         {/* The Moving Map Canvas */}
         <div
           ref={mapContainerRef}
@@ -730,6 +851,26 @@ export default function ZomatoMapPicker({
                   }}
                 >
                   PIN {detectedLocation.pincode}
+                </span>
+              )}
+              {accuracyMeters != null && (
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    padding: "2px 8px",
+                    borderRadius: "var(--radius-pill)",
+                    backgroundColor: accuracyMeters <= 30 ? "#DCFCE7" : "#FEF3C7",
+                    color: accuracyMeters <= 30 ? "#15803D" : "#B45309",
+                    border: `1px solid ${accuracyMeters <= 30 ? "#86EFAC" : "#FDE68A"}`,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3
+                  }}
+                  title={`GPS fix accurate within ${accuracyMeters} meters`}
+                >
+                  <Navigation size={10} style={{ transform: "rotate(45deg)" }} />
+                  <span>GPS ±{accuracyMeters}m</span>
                 </span>
               )}
             </div>

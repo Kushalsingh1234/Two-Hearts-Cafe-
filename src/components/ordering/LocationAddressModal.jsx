@@ -163,6 +163,13 @@ export default function LocationAddressModal({
     }
   }, [isOpen]);
 
+  // Synchronize coords when initialCoords prop updates (e.g. from quick locate)
+  useEffect(() => {
+    if (initialCoords && initialCoords.lat && initialCoords.lng) {
+      setCoords({ lat: Number(initialCoords.lat), lng: Number(initialCoords.lng) });
+    }
+  }, [initialCoords]);
+
   // Handler when user confirms location in Step 1 (Map Picker)
   const handleConfirmMapLocation = (data) => {
     if (data.coords) {

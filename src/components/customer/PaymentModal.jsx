@@ -41,7 +41,7 @@ export default function PaymentModal({
   const [qrMode, setQrMode] = useState("auto"); // 'auto' | 'standee'
 
   const upiId = "Q327979600@ybl";
-  const payeeName = "PhonePeMerchant";
+  const payeeName = "Two Hearts Cafe";
   const amount = order.total || 0;
   const isDeliveryOrder = order.orderType === "delivery" || order.orderType === "pickup";
   const orderLabel = order.orderType === "delivery" ? "Delivery" : order.orderType === "pickup" ? "Pickup" : `Table #${order.tableNumber}`;
@@ -49,11 +49,11 @@ export default function PaymentModal({
     ? `Two Hearts ${orderLabel} ${order.orderNumber || (order.id ? order.id.slice(0, 6) : "101")}`
     : `Two Hearts Cafe T${order.tableNumber} ${order.orderNumber || (order.id ? order.id.slice(0, 6) : "101")}`;
 
-  // 1. Dynamic UPI links
-  const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
-  const phonepeUri = `phonepe://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
-  const paytmUri = `paytmmp://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
-  const gpayUri = `tez://upi/pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+  // 1. Dynamic UPI links (Clean parameters: removed mc=0000 and mode=02 to prevent PhonePe/Slice internal risk policy rejection)
+  const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+  const phonepeUri = `phonepe://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+  const paytmUri = `paytmmp://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+  const gpayUri = `tez://upi/pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
 
   // Notify admin when online payment view opens
   useEffect(() => {
@@ -62,8 +62,8 @@ export default function PaymentModal({
     }
   }, [isOpen, order?.id, paymentType]);
 
-  // 2. Official Standee QR
-  const officialStandeeUri = `upi://pay?pa=Q327979600@ybl&pn=PhonePeMerchant&mc=0000&mode=02&purpose=00`;
+  // 2. Official Standee QR (Clean parameters without bogus MCC)
+  const officialStandeeUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&cu=INR`;
 
   const handleLaunchUpi = (appName = "UPI App") => {
     try {
@@ -781,7 +781,7 @@ export default function PaymentModal({
                       gap: 10
                     }}>
                       <div style={{ fontSize: 12, fontFamily: "var(--font-serif)", fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                        Counter Standee QR (PhonePe)
+                        Counter Standee QR (PhonePe / UPI)
                       </div>
 
                       {/* Mode Selector */}

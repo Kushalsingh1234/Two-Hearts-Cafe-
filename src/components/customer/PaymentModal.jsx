@@ -40,7 +40,7 @@ export default function PaymentModal({
   const [confirmedMessage, setConfirmedMessage] = useState(null);
   const [qrMode, setQrMode] = useState("auto"); // 'auto' | 'standee'
 
-  const upiId = "Q327979600@ybl";
+  const upiId = "paytm.s1wxbcr@pty";
   const payeeName = "Two Hearts Cafe";
   const amount = order.total || 0;
   const isDeliveryOrder = order.orderType === "delivery" || order.orderType === "pickup";
@@ -49,7 +49,7 @@ export default function PaymentModal({
     ? `Two Hearts ${orderLabel} ${order.orderNumber || (order.id ? order.id.slice(0, 6) : "101")}`
     : `Two Hearts Cafe T${order.tableNumber} ${order.orderNumber || (order.id ? order.id.slice(0, 6) : "101")}`;
 
-  // 1. Dynamic UPI links (Clean parameters: removed mc=0000 and mode=02 to prevent PhonePe/Slice internal risk policy rejection)
+  // 1. Dynamic UPI links (Paytm Merchant VPA paytm.s1wxbcr@pty)
   const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
   const phonepeUri = `phonepe://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
   const paytmUri = `paytmmp://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
@@ -62,8 +62,8 @@ export default function PaymentModal({
     }
   }, [isOpen, order?.id, paymentType]);
 
-  // 2. Official Standee QR (Clean parameters without bogus MCC)
-  const officialStandeeUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&cu=INR`;
+  // 2. Official Standee QR (Exact decoded from physical Paytm standee: upi://pay?pa=paytm.s1wxbcr@pty&pn=Paytm)
+  const officialStandeeUri = `upi://pay?pa=paytm.s1wxbcr@pty&pn=Paytm`;
 
   const handleLaunchUpi = (appName = "UPI App") => {
     try {
@@ -781,7 +781,7 @@ export default function PaymentModal({
                       gap: 10
                     }}>
                       <div style={{ fontSize: 12, fontFamily: "var(--font-serif)", fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                        Counter Standee QR (PhonePe / UPI)
+                        Counter Standee QR (Paytm / All UPI Apps)
                       </div>
 
                       {/* Mode Selector */}

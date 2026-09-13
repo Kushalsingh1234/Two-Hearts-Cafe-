@@ -77,7 +77,7 @@ export default function DigitalInvoiceModal({ isOpen, onClose, order, onOpenRevi
       }
 
       const label = displayApp ? `Paid Online via UPI (${displayApp})` : "Paid Online via UPI";
-      const payee = order.paymentDetails?.upiId || order.upiId || "Q327979600@ybl";
+      const payee = order.paymentDetails?.upiId || order.upiId || "paytm.s1wxbcr@pty";
       const utrRef = order.paymentDetails?.utr || order.utr || order.paymentDetails?.paymentId || "";
 
       return {

@@ -522,7 +522,7 @@ export default function OrderCard({
             {isPaidOnline ? (
               <div style={{ fontSize: 12, color: "#15803d", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
                 <CheckCircle2 size={13} />
-                <span>Paid Online ({order.paymentDetails?.upiId || "Q327979600@ybl"}) {utr ? `[UTR: ${utr}]` : ""}</span>
+                <span>Paid Online ({order.paymentDetails?.upiId || "paytm.s1wxbcr@pty"}) {utr ? `[UTR: ${utr}]` : ""}</span>
               </div>
             ) : isPayAtCounter ? (
               <div style={{ fontSize: 12, color: "#b45309", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>

@@ -762,66 +762,31 @@ export default function PaymentModal({
                     }}
                   >
                     <Building2 size={14} />
-                    <span>Pay at Counter</span>
+                    <span>Request Bill / Counter</span>
                   </button>
                 </div>
 
                 {/* TAB 1: PAY ONLINE (Dine-in Tables) */}
                 {paymentType === "online" ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {/* OPTION 1: 1-CLICK PAYTM APP */}
-                    <a
-                      href={paytmUri}
-                      onClick={() => handleLaunchUpi("Paytm")}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: 8,
-                        padding: "13px 18px",
-                        borderRadius: "var(--radius-pill)",
-                        backgroundColor: "#00BAF2",
-                        color: "#FFFFFF",
-                        fontFamily: "var(--font-serif)",
-                        fontSize: 14,
-                        fontWeight: 700,
-                        textDecoration: "none",
-                        textAlign: "center",
-                        boxShadow: "0 3px 10px rgba(0, 186, 242, 0.3)",
-                        letterSpacing: 0.3
-                      }}
-                    >
-                      <Smartphone size={16} />
-                      <span>Pay Rs.{amount} via Paytm</span>
-                    </a>
-
-                    {/* DIVIDER */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "2px 0" }}>
-                      <div style={{ flex: 1, height: 1, backgroundColor: "var(--color-border-frame)" }} />
-                      <span style={{ fontSize: 10.5, fontFamily: "var(--font-serif)", fontWeight: 700, color: "var(--color-bronze)", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                        OR PAY VIA ANY OTHER UPI APP
-                      </span>
-                      <div style={{ flex: 1, height: 1, backgroundColor: "var(--color-border-frame)" }} />
-                    </div>
-
-                    {/* OPTION 2: PAY VIA ANY UPI APP (PHONEPE, GPAY, SLICE, CRED, BHIM) */}
+                    {/* PAY VIA ANY UPI APP (PHONEPE, GPAY, SLICE, CRED, BHIM, PAYTM) */}
                     <div style={{
                       backgroundColor: "#fff",
                       borderRadius: 8,
                       border: "1.2px solid var(--color-border-frame)",
-                      padding: "14px 16px",
+                      padding: "16px 18px",
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
-                      gap: 10,
+                      gap: 12,
                       textAlign: "center"
                     }}>
-                      <div style={{ fontSize: 12, fontFamily: "var(--font-serif)", fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                        Pay to Merchant UPI ID
+                      <div style={{ fontSize: 13, fontFamily: "var(--font-serif)", fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                        Pay via UPI ID
                       </div>
 
-                      <p style={{ fontSize: 12, color: "var(--color-bronze)", margin: 0, lineHeight: 1.45 }}>
-                        Open <strong>PhonePe, Google Pay, Slice, CRED, BHIM</strong> or any UPI app, pay to the ID below, and enter <strong>Rs.{amount}</strong>:
+                      <p style={{ fontSize: 12.5, color: "var(--color-bronze)", margin: 0, lineHeight: 1.45 }}>
+                        Copy the UPI ID below, open any UPI app (<strong>PhonePe, Google Pay, Paytm, Slice, CRED, BHIM</strong>), and pay <strong>Rs.{amount}</strong>:
                       </p>
 
                       {/* 1-Tap Copy UPI ID Pill */}
@@ -832,20 +797,20 @@ export default function PaymentModal({
                           display: "flex",
                           alignItems: "center",
                           gap: 8,
-                          padding: "8px 16px",
+                          padding: "10px 18px",
                           borderRadius: "var(--radius-pill)",
                           backgroundColor: isCopied ? "#F0FDF4" : "#FAF7F2",
                           border: isCopied ? "1.5px solid #22c55e" : "1.2px solid var(--color-border-frame)",
                           cursor: "pointer",
                           fontFamily: "monospace",
-                          fontSize: 13,
+                          fontSize: 14,
                           fontWeight: 700,
                           color: isCopied ? "#15803d" : "var(--color-ink)",
                           transition: "all 0.15s",
                           boxShadow: "0 1px 4px rgba(0,0,0,0.04)"
                         }}
                       >
-                        {isCopied ? <Check size={14} color="#15803d" /> : <Copy size={14} color="var(--color-bronze)" />}
+                        {isCopied ? <Check size={16} color="#15803d" /> : <Copy size={16} color="var(--color-bronze)" />}
                         <span>{isCopied ? "Copied to Clipboard!" : upiId}</span>
                       </button>
                       <span style={{ fontSize: 11, color: "var(--color-bronze)", fontStyle: "italic" }}>
@@ -876,7 +841,7 @@ export default function PaymentModal({
                             textAlign: "center"
                           }}
                         >
-                          Paid via UPI / Paytm? Enter 12-digit UPI Ref / UTR
+                          Paid via UPI? Enter 12-digit UPI Ref / UTR
                         </button>
                       ) : (
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

@@ -230,7 +230,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
       if (!orders || orders.length === 0) return;
       orders.forEach((o) => {
         knownOrderIdsRef.current.add(o.id);
-        if (o.paymentStatus === "paid_online" || o.settledMethod === "upi_online" || o.status === "settled") {
+        if (o.paymentStatus === "paid_online" || o.settledMethod === "upi_online" || o.settledMethod === "razorpay" || o.status === "settled") {
           knownPaidOrderIdsRef.current.add(o.id);
         }
         if (o.lastItemAddedAt) {
@@ -309,7 +309,12 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
 
       // 5. Online table scanner payment completed alert (auto-settles bill)
       // FIX: Only trigger alert if payment actually occurred live in the last 2 minutes, preventing phantom popups of old settled tables!
-      const isOnlinePaid = order.paymentStatus === "paid_online" || order.settledMethod === "upi_online";
+      const isOnlinePaid =
+        order.paymentStatus === "paid_online" ||
+        order.settledMethod === "upi_online" ||
+        order.settledMethod === "razorpay" ||
+        order.paymentMethod === "razorpay" ||
+        order.paymentMethod === "razorpay_upi";
       if (isOnlinePaid && !knownPaidOrderIdsRef.current.has(order.id)) {
         knownPaidOrderIdsRef.current.add(order.id);
 

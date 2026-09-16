@@ -1014,18 +1014,28 @@ export const updateOrderStatus = async (orderId, newStatus, extraData = {}) => {
 };
 
 /**
- * Update order payment details (UPI to paytm.s1wxbcr@pty or Pay at Counter)
+ * Update order payment details (Razorpay Online Checkout, UPI, or Pay at Counter)
  */
 export const updateOrderPayment = async (orderId, paymentData) => {
   const updatedAt = new Date().toISOString();
-  const isOnlinePaid = paymentData.paymentStatus === "paid_online" || paymentData.paymentMethod === "upi";
+  const isOnlinePaid =
+    paymentData.paymentStatus === "paid_online" ||
+    paymentData.paymentMethod === "razorpay" ||
+    paymentData.paymentMethod === "razorpay_upi" ||
+    paymentData.paymentMethod === "upi";
+
+  const isRazorpay =
+    paymentData.paymentMethod === "razorpay" ||
+    paymentData.paymentMethod === "razorpay_upi" ||
+    paymentData.settledMethod === "razorpay";
 
   const updatePayload = {
     paymentStatus: paymentData.paymentStatus || (isOnlinePaid ? "paid_online" : "unpaid"),
-    paymentMethod: paymentData.paymentMethod || (isOnlinePaid ? "upi" : "counter"),
+    paymentMethod: paymentData.paymentMethod || (isOnlinePaid ? (isRazorpay ? "razorpay" : "upi") : "counter"),
     paymentDetails: {
-      upiId: paymentData.upiId || "paytm.s1wxbcr@pty",
-      utr: paymentData.utr || "",
+      ...(paymentData.paymentDetails || {}),
+      upiId: paymentData.upiId || (isRazorpay ? "razorpay_gateway" : "paytm.s1wxbcr@pty"),
+      utr: paymentData.utr || paymentData.paymentDetails?.paymentId || "",
       paidAt: paymentData.paidAt || (isOnlinePaid ? updatedAt : null)
     },
     updatedAt,
@@ -1033,8 +1043,8 @@ export const updateOrderPayment = async (orderId, paymentData) => {
     ...(isOnlinePaid ? {
       status: "settled",
       settledAt: paymentData.settledAt || paymentData.paidAt || updatedAt,
-      settledBy: paymentData.settledBy || "Customer Online UPI",
-      settledMethod: paymentData.settledMethod || "upi_online"
+      settledBy: paymentData.settledBy || (isRazorpay ? "Customer Online (Razorpay)" : "Customer Online UPI"),
+      settledMethod: paymentData.settledMethod || (isRazorpay ? "razorpay" : "upi_online")
     } : {})
   };
 

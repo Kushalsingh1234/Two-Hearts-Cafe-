@@ -12,7 +12,7 @@ import {
   Navigation,
   RotateCcw
 } from "lucide-react";
-import { getGoogleMaps, CAFE_LAT, CAFE_LNG } from "../../utils/googleMapsLoader";
+import { getGoogleMaps, importGoogleLibrary, CAFE_LAT, CAFE_LNG } from "../../utils/googleMapsLoader";
 import {
   reverseGeocode,
   searchPlaces,
@@ -174,9 +174,11 @@ export default function ZomatoMapPicker({
     let isCancelled = false;
 
     getGoogleMaps()
-      .then((maps) => {
+      .then(async (maps) => {
         if (isCancelled || !mapContainerRef.current) return;
 
+        // Ensure the maps library is fully initialized
+        await importGoogleLibrary("maps");
         const map = new maps.Map(mapContainerRef.current, {
           center: { lat: centerCoordsRef.current.lat, lng: centerCoordsRef.current.lng },
           zoom: 16,

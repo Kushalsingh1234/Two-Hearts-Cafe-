@@ -10,7 +10,7 @@
  * - Geolocation: HTML5 Geolocation API with high-accuracy GPS fix
  */
 
-import { getGoogleMaps, CAFE_LAT, CAFE_LNG } from "./googleMapsLoader.js";
+import { getGoogleMaps, importGoogleLibrary, CAFE_LAT, CAFE_LNG } from "./googleMapsLoader.js";
 import {
   DELIVERY_CONFIG,
   calculateDistanceKm,
@@ -374,6 +374,8 @@ export async function searchPlaces(query) {
 
   // 3. Google Places Autocomplete with session token
   try {
+    // Ensure both maps and places libraries are loaded
+    await importGoogleLibrary("places");
     const maps = await getGoogleMaps();
 
     // Reuse or create a session token (one token per search session = one billing event)
@@ -451,6 +453,7 @@ export async function resolvePlaceId(placeId) {
   if (!placeId) return null;
 
   try {
+    await importGoogleLibrary("places");
     const maps = await getGoogleMaps();
     const currentToken = _sessionToken;
 

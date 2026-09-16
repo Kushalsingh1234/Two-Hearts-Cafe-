@@ -240,10 +240,7 @@ export function generateReceiptHtml(order) {
         <span>Delivery Charge</span>
         <span>${deliveryFee === 0 ? "FREE" : "₹" + deliveryFee}</span>
       </div>
-      <div class="totals-row">
-        <span>GST (5%)</span>
-        <span>₹${tax}</span>
-      </div>
+
       <div class="grand-total">
         <span>Total Paid</span>
         <span>₹${total}</span>

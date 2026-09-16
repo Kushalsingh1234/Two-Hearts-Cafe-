@@ -595,10 +595,7 @@ export default function OrderDetailsModal({
               <span>Delivery Fee</span>
               <span>{deliveryFee === 0 ? "FREE" : `₹${deliveryFee}`}</span>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 12, color: "var(--color-ink-soft)" }}>
-              <span>GST Taxes (5%)</span>
-              <span>₹{tax}</span>
-            </div>
+
             <div
               style={{
                 display: "flex",

@@ -310,10 +310,7 @@ export default function OrderConfirmationPage({ onNavigate }) {
               <span>Delivery Fee</span>
               <span>{activeOrder.deliveryFee === 0 ? <strong style={{ color: "#16A34A" }}>FREE</strong> : `₹${activeOrder.deliveryFee}`}</span>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", color: "var(--color-ink-soft)" }}>
-              <span>Taxes (5% GST)</span>
-              <span>₹{activeOrder.tax}</span>
-            </div>
+
             <div style={{
               display: "flex",
               justifyContent: "space-between",

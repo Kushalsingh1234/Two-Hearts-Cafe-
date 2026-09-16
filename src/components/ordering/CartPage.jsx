@@ -698,10 +698,7 @@ export default function CartPage({ onNavigate }) {
                   </span>
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "space-between", color: "var(--color-ink-soft)" }}>
-                  <span>Taxes & Restaurant Packaging (5% GST)</span>
-                  <span style={{ fontWeight: 600, color: "var(--color-ink)" }}>₹{taxes}</span>
-                </div>
+
 
                 <div style={{
                   borderTop: "1px dashed var(--border-color)",

@@ -24,8 +24,8 @@ export const DELIVERY_CONFIG = {
   // Standard delivery partner fee when subtotal is below free threshold (or general fee)
   STANDARD_DELIVERY_FEE: 30,
 
-  // GST percentage (5%)
-  GST_PERCENTAGE: 0.05
+  // GST percentage (0% - included in menu prices)
+  GST_PERCENTAGE: 0
 };
 
 export const DEFAULT_CAFE_COORDS = DELIVERY_CONFIG.CAFE_COORDINATES;

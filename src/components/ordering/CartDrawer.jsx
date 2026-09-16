@@ -437,10 +437,7 @@ export default function CartDrawer({ isOpen, onClose, onNavigate }) {
               <span style={{ color: "var(--color-ink-soft)" }}>Delivery</span>
               <span>{deliveryFee === 0 ? <strong style={{ color: "#16A34A" }}>FREE</strong> : `₹${deliveryFee}`}</span>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 12 }}>
-              <span style={{ color: "var(--color-ink-soft)" }}>Taxes (5% GST)</span>
-              <span>₹{taxes}</span>
-            </div>
+
 
             <div style={{
               display: "flex",

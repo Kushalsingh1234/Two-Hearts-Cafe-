@@ -181,10 +181,7 @@ export default function OnlineOrderDetailModal({ order, onClose, onOrderUpdated 
               <span>Delivery Fee:</span>
               <span>${order.deliveryFee ? `Rs. ${order.deliveryFee}` : "FREE"}</span>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
-              <span>Taxes (5% GST):</span>
-              <span>Rs. ${order.tax || 0}</span>
-            </div>
+
             <div class="total-row">
               <span>TOTAL DUE:</span>
               <span>Rs. ${order.total || 0}</span>
@@ -948,10 +945,7 @@ export default function OnlineOrderDetailModal({ order, onClose, onOrderUpdated 
                     {order.deliveryFee ? `₹${order.deliveryFee}` : "FREE"}
                   </span>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--color-ink-soft)" }}>
-                  <span>GST Taxes (5%):</span>
-                  <span>₹{order.tax || 0}</span>
-                </div>
+
                 <div
                   style={{
                     display: "flex",

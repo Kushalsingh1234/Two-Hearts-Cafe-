@@ -757,10 +757,7 @@ export default function CheckoutPage({ onNavigate }) {
                   <span>Delivery Fee</span>
                   <span>{deliveryFee === 0 ? <strong style={{ color: "#16A34A" }}>FREE</strong> : `₹${deliveryFee}`}</span>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", color: "var(--color-ink-soft)" }}>
-                  <span>Taxes (5% GST)</span>
-                  <span>₹{taxes}</span>
-                </div>
+
                 <div style={{
                   borderTop: "1px dashed var(--border-color)",
                   paddingTop: 10,

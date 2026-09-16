@@ -209,7 +209,7 @@ export default function ContactPage() {
                     style={{ border: 0, display: "block" }}
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
-                    src="https://maps.google.com/maps?width=100%25&height=600&hl=en&q=28.7758,77.5026+(Two%20Hearts%20Caf%C3%A9%20%E2%80%94%20Pillar%20%23852)&t=&z=16&ie=UTF8&iwloc=B&output=embed"
+                    src="https://maps.google.com/maps?width=100%25&height=600&hl=en&q=28.7526,77.4985+(Two%20Hearts%20Caf%C3%A9%20%E2%80%94%20Pillar%20%23852)&t=&z=16&ie=UTF8&iwloc=B&output=embed"
                     allowFullScreen
                   />
                 </div>
@@ -236,11 +236,11 @@ export default function ContactPage() {
                       Two Hearts Café · Pillar #852
                     </div>
                     <div style={{ fontSize: 11.5, color: "var(--color-ink-soft)" }}>
-                      Delhi-Meerut Road, Muradnagar, Ghaziabad — 201206
+                      Shivam Vihar (Opp. KIET), Delhi-Meerut Road, Muradnagar, Ghaziabad — 201206
                     </div>
                   </div>
                   <a
-                    href="https://www.google.com/maps/dir/?api=1&destination=28.7758,77.5026"
+                    href="https://www.google.com/maps/dir/?api=1&destination=28.7526,77.4985"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn-pill-black"

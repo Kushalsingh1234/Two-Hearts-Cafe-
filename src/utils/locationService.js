@@ -232,11 +232,11 @@ const LOCAL_LANDMARKS = [
   {
     name: "Two Hearts Café",
     aliases: ["two hearts cafe", "two hearts", "cafe", "pillar 852", "pillar #852"],
-    area: "Pillar #852, Delhi-Meerut Road",
+    area: "Pillar #852, Shivam Vihar, Delhi-Meerut Road",
     city: "Muradnagar",
     pincode: "201206",
-    lat: 28.7758,
-    lng: 77.5026
+    lat: 28.7526,
+    lng: 77.4985
   },
   {
     name: "KIET Group of Institutions",
@@ -244,8 +244,8 @@ const LOCAL_LANDMARKS = [
     area: "Main Campus & Hostels, Delhi-Meerut Road",
     city: "Muradnagar",
     pincode: "201206",
-    lat: 28.7734,
-    lng: 77.5034
+    lat: 28.7526,
+    lng: 77.4985
   },
   {
     name: "Radheshyam Vihar",
@@ -259,11 +259,11 @@ const LOCAL_LANDMARKS = [
   {
     name: "Shivam Vihar",
     aliases: ["shivam vihar", "shivam vihar colony"],
-    area: "College Road / NH-58",
+    area: "College Road / NH-58, Muradnagar",
     city: "Muradnagar",
     pincode: "201206",
-    lat: 28.7745,
-    lng: 77.5015
+    lat: 28.7535,
+    lng: 77.4980
   },
   {
     name: "Muradnagar RRTS Station (RapidX)",

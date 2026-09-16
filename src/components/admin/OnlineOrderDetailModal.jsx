@@ -728,7 +728,7 @@ export default function OnlineOrderDetailModal({ order, onClose, onOrderUpdated 
 
                 {/* Google Maps Directions / Open Button */}
                 <a
-                  href={isDelivery ? getGoogleMapsDirectionsUrl() : "https://maps.google.com/?q=28.7758,77.5026+(Two+Hearts+Cafe+Pillar+852+Muradnagar)"}
+                  href={isDelivery ? getGoogleMapsDirectionsUrl() : "https://maps.google.com/?q=28.7526,77.4985+(Two+Hearts+Cafe+Pillar+852+Muradnagar)"}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
@@ -850,7 +850,7 @@ export default function OnlineOrderDetailModal({ order, onClose, onOrderUpdated 
                       style={{ border: 0, display: "block" }}
                       loading="lazy"
                       referrerPolicy="no-referrer-when-downgrade"
-                      src="https://maps.google.com/maps?width=100%25&height=600&hl=en&q=28.7758,77.5026+(Two%20Hearts%20Cafe%20Pillar%20852)&t=&z=16&ie=UTF8&iwloc=B&output=embed"
+                      src="https://maps.google.com/maps?width=100%25&height=600&hl=en&q=28.7526,77.4985+(Two%20Hearts%20Cafe%20Pillar%20852)&t=&z=16&ie=UTF8&iwloc=B&output=embed"
                     />
                   </div>
                 </div>

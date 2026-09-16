@@ -444,7 +444,7 @@ export default function OrderDetailsModal({
 
               {isPickup ? (
                 <a
-                  href="https://maps.google.com/?q=28.7758,77.5026+(Two+Hearts+Cafe+Muradnagar+Pillar+852)"
+                  href="https://maps.google.com/?q=28.7526,77.4985+(Two+Hearts+Cafe+Muradnagar+Pillar+852)"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-pill-outline"
@@ -505,7 +505,7 @@ export default function OrderDetailsModal({
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
                 src={isPickup
-                  ? "https://maps.google.com/maps?width=100%25&height=600&hl=en&q=28.7758,77.5026+(Two%20Hearts%20Cafe%20Pillar%20852)&t=&z=16&ie=UTF8&iwloc=B&output=embed"
+                  ? "https://maps.google.com/maps?width=100%25&height=600&hl=en&q=28.7526,77.4985+(Two%20Hearts%20Cafe%20Pillar%20852)&t=&z=16&ie=UTF8&iwloc=B&output=embed"
                   : order.coords?.lat && order.coords?.lng
                     ? `https://maps.google.com/maps?width=100%25&height=600&hl=en&q=${order.coords.lat},${order.coords.lng}&t=&z=16&ie=UTF8&iwloc=B&output=embed`
                     : `https://maps.google.com/maps?width=100%25&height=600&hl=en&q=${encodeURIComponent((deliveryAddr || "Muradnagar, Uttar Pradesh") + (order.landmark ? ` Near ${order.landmark}` : ""))}&t=&z=15&ie=UTF8&iwloc=B&output=embed`

@@ -48,10 +48,10 @@ export async function getGoogleMaps() {
 }
 
 /**
- * Cafe origin coordinates — Pillar #852, Delhi-Meerut Road, Muradnagar
+ * Cafe origin coordinates — Pillar #852, Shivam Vihar / KIET vicinity, Muradnagar
  */
-export const CAFE_LAT = 28.7758;
-export const CAFE_LNG = 77.5026;
+export const CAFE_LAT = 28.7526;
+export const CAFE_LNG = 77.4985;
 
 /**
  * Build a Google Maps Directions URL using coordinates (most reliable) or

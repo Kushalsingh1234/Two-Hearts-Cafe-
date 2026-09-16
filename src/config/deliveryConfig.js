@@ -4,11 +4,11 @@
  */
 
 export const DELIVERY_CONFIG = {
-  // Cafe Origin Location: Pillar #852, Delhi-Meerut Road, Muradnagar (KIET Campus vicinity)
+  // Cafe Origin Location: Pillar #852, Shivam Vihar / KIET Campus vicinity, Delhi-Meerut Road, Muradnagar
   CAFE_COORDINATES: {
-    lat: 28.7758,
-    lng: 77.5026,
-    areaName: "Near Pillar 852, Delhi-Meerut Road, Muradnagar, Ghaziabad",
+    lat: 28.7526,
+    lng: 77.4985,
+    areaName: "Shivam Vihar, Near Pillar 852 (Opp. KIET), Delhi-Meerut Road, Muradnagar, Ghaziabad",
     landmark: "Pillar #852"
   },
 

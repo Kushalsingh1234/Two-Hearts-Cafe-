@@ -1,14 +1,18 @@
 /**
  * locationService.js
  * Geolocation, Reverse Geocoding & Autocomplete Engine for Two Hearts Café
- * 
- * 100% Free, No API Key Required Stack:
- * - Map Rendering: Leaflet.js with OpenStreetMap tiles
- * - Reverse Geocoding: OpenStreetMap Nominatim API (no custom User-Agent in client fetch to avoid CORS errors)
- * - Autocomplete Search: Photon by Komoot (free, OSM-based, CORS-enabled, designed for typing with proximity bias)
+ *
+ * Stack:
+ * - Map Rendering: Google Maps JavaScript API
+ * - Reverse Geocoding: Google Maps Geocoding API (primary) → Photon Komoot → Nominatim (fallbacks)
+ * - Autocomplete Search: Photon by Komoot (free, OSM-based, CORS-enabled) with local landmarks
  * - PIN Code Lookup: India Post API & Nominatim postal code search
  * - Geolocation: HTML5 Geolocation API with high-accuracy GPS fix
  */
+
+const GOOGLE_MAPS_API_KEY = typeof import.meta !== 'undefined'
+  ? (import.meta.env?.VITE_GOOGLE_MAPS_API_KEY || "")
+  : "";
 
 import {
   DELIVERY_CONFIG,
@@ -112,6 +116,56 @@ export async function reverseGeocode(lat, lng) {
   const cacheKey = `${numLat.toFixed(4)},${numLng.toFixed(4)}`;
   if (REVERSE_CACHE.has(cacheKey)) {
     return REVERSE_CACHE.get(cacheKey);
+  }
+
+  // 0. Google Maps Geocoding API (best accuracy, primary source)
+  if (GOOGLE_MAPS_API_KEY) {
+    try {
+      const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${numLat},${numLng}&key=${GOOGLE_MAPS_API_KEY}&language=en&region=IN`;
+      const gRes = await fetch(gUrl);
+      if (gRes.ok) {
+        const gData = await gRes.json();
+        if (gData.status === "OK" && gData.results && gData.results.length > 0) {
+          const best = gData.results[0];
+          const comps = best.address_components || [];
+          const get = (type) => comps.find((c) => c.types.includes(type))?.long_name || "";
+          const getShort = (type) => comps.find((c) => c.types.includes(type))?.short_name || "";
+
+          const streetNumber = get("street_number");
+          const route = get("route");
+          const sublocality = get("sublocality_level_1") || get("sublocality");
+          const locality = get("locality");
+          const adminArea2 = get("administrative_area_level_2");
+          const adminArea1 = get("administrative_area_level_1");
+          const postalCode = get("postal_code").replace(/\D/g, "").slice(0, 6);
+
+          const street = [streetNumber, route].filter(Boolean).join(" ");
+          const area = sublocality || locality || adminArea2 || "Muradnagar";
+          const city = locality || adminArea2 || "Muradnagar";
+          const state = adminArea1 || "Uttar Pradesh";
+          const landmark = getShort("point_of_interest") || getShort("establishment") || "";
+
+          const parts = [street || landmark, area, city, postalCode ? `PIN ${postalCode}` : ""].filter(Boolean);
+          const formatted = parts.length > 0 ? parts.join(", ") : best.formatted_address;
+
+          const result = {
+            fullAddress: formatted || best.formatted_address,
+            street,
+            area,
+            landmark,
+            city,
+            state,
+            postalCode: postalCode || "201206",
+            formattedAddress: formatted || best.formatted_address
+          };
+
+          REVERSE_CACHE.set(cacheKey, result);
+          return result;
+        }
+      }
+    } catch (gErr) {
+      console.warn("Google Geocoding API warning, falling back:", gErr);
+    }
   }
 
   // 1. Proximity check for immediate exact cafe or landmark match (~45 meters)

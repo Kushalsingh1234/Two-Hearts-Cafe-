@@ -83,9 +83,12 @@ export default function OrderDetailsModal({
     (order.etaMinutes ? `${order.etaMinutes} mins` : isPickup ? "15-20 mins" : "30-35 mins");
 
   const deliveryAddr = (order.deliveryAddress || order.address || order.fullAddress || "").trim();
-  const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-    `${deliveryAddr || "Muradnagar"}${order.landmark ? `, Near ${order.landmark}` : ""}, Muradnagar, Uttar Pradesh`
-  )}`;
+  // Prefer stored lat/lng coords for directions (more accurate than text address geocoding)
+  const googleMapsUrl = order.coords?.lat && order.coords?.lng
+    ? `https://www.google.com/maps/dir/?api=1&destination=${order.coords.lat},${order.coords.lng}`
+    : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+        `${deliveryAddr || "Muradnagar"}${order.landmark ? `, Near ${order.landmark}` : ""}, Muradnagar, Uttar Pradesh`
+      )}`;
 
   const handleCopyId = () => {
     navigator.clipboard?.writeText(orderNumber);
@@ -503,7 +506,9 @@ export default function OrderDetailsModal({
                 referrerPolicy="no-referrer-when-downgrade"
                 src={isPickup
                   ? "https://maps.google.com/maps?width=100%25&height=600&hl=en&q=28.7758,77.5026+(Two%20Hearts%20Cafe%20Pillar%20852)&t=&z=16&ie=UTF8&iwloc=B&output=embed"
-                  : `https://maps.google.com/maps?width=100%25&height=600&hl=en&q=${encodeURIComponent((deliveryAddr || "Muradnagar, Uttar Pradesh") + (order.landmark ? ` Near ${order.landmark}` : ""))}&t=&z=15&ie=UTF8&iwloc=B&output=embed`
+                  : order.coords?.lat && order.coords?.lng
+                    ? `https://maps.google.com/maps?width=100%25&height=600&hl=en&q=${order.coords.lat},${order.coords.lng}&t=&z=16&ie=UTF8&iwloc=B&output=embed`
+                    : `https://maps.google.com/maps?width=100%25&height=600&hl=en&q=${encodeURIComponent((deliveryAddr || "Muradnagar, Uttar Pradesh") + (order.landmark ? ` Near ${order.landmark}` : ""))}&t=&z=15&ie=UTF8&iwloc=B&output=embed`
                 }
               />
             </div>

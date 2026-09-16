@@ -198,74 +198,56 @@ export default function ContactPage() {
                 </div>
               </div>
 
-              {/* Map Placeholder Card with External Directions Action */}
-              <div className="bistro-card" style={{ padding: 24 }}>
+              {/* Google Map — Two Hearts Café at Pillar #852 */}
+              <div className="bistro-card" style={{ padding: 0, overflow: "hidden" }}>
+                {/* Embedded Google Map */}
+                <div style={{ position: "relative", width: "100%", height: 240, backgroundColor: "#e8e0d8" }}>
+                  <iframe
+                    title="Two Hearts Café Location — Pillar #852, Muradnagar"
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0, display: "block" }}
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    src="https://maps.google.com/maps?width=100%25&height=600&hl=en&q=28.7758,77.5026+(Two%20Hearts%20Caf%C3%A9%20%E2%80%94%20Pillar%20%23852)&t=&z=16&ie=UTF8&iwloc=B&output=embed"
+                    allowFullScreen
+                  />
+                </div>
+
+                {/* Directions action bar below the map */}
                 <div style={{
-                  height: 220,
-                  backgroundColor: "var(--bg-subtle)",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px dashed var(--border-color)",
+                  padding: "14px 18px",
                   display: "flex",
-                  flexDirection: "column",
                   alignItems: "center",
-                  justifyContent: "center",
-                  textAlign: "center",
-                  padding: 20,
-                  position: "relative",
-                  overflow: "hidden"
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: 10,
+                  borderTop: "1px solid var(--border-color)",
+                  backgroundColor: "#FCFAF7"
                 }}>
-                  <div style={{
-                    position: "absolute",
-                    inset: 0,
-                    opacity: 0.08,
-                    backgroundImage: "radial-gradient(#8A5738 1px, transparent 1px)",
-                    backgroundSize: "16px 16px"
-                  }} />
-
-                  <div style={{
-                    width: 50,
-                    height: 50,
-                    borderRadius: "50%",
-                    backgroundColor: "#FFFFFF",
-                    border: "1px solid var(--border-color)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: 12,
-                    boxShadow: "var(--shadow-sm)",
-                    zIndex: 1
-                  }}>
-                    <Navigation size={22} style={{ color: "var(--color-bronze)" }} />
+                  <div>
+                    <div style={{
+                      fontFamily: "var(--font-serif)",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "var(--color-ink)",
+                      marginBottom: 2
+                    }}>
+                      Two Hearts Café · Pillar #852
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--color-ink-soft)" }}>
+                      Delhi-Meerut Road, Muradnagar, Ghaziabad — 201206
+                    </div>
                   </div>
-
-                  <span style={{
-                    fontFamily: "var(--font-serif)",
-                    fontSize: 17,
-                    fontWeight: 700,
-                    color: "var(--color-ink)",
-                    zIndex: 1
-                  }}>
-                    Pillar #852 Landmark Navigator
-                  </span>
-                  <p style={{
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: 13,
-                    color: "var(--color-bronze)",
-                    marginTop: 4,
-                    zIndex: 1
-                  }}>
-                    Conveniently located at Pillar #852 on Delhi-Meerut Road
-                  </p>
-
                   <a
-                    href="https://maps.google.com/?q=Two+Hearts+Cafe+Muradnagar+Pillar+852"
+                    href="https://www.google.com/maps/dir/?api=1&destination=28.7758,77.5026"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn-pill-black"
-                    style={{ marginTop: 14, fontSize: 11, padding: "8px 18px", zIndex: 1 }}
+                    style={{ fontSize: 11.5, padding: "9px 18px", display: "flex", alignItems: "center", gap: 6 }}
                   >
-                    <span>Open in Google Maps</span>
+                    <Navigation size={13} />
+                    <span>Get Directions</span>
                   </a>
                 </div>
               </div>

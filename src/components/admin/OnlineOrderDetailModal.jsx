@@ -101,8 +101,11 @@ export default function OnlineOrderDetailModal({ order, onClose, onOrderUpdated 
     }
   };
 
-  // Google Maps directions URL
+  // Google Maps directions URL — prefer stored coordinates (most reliable for delivery nav)
   const getGoogleMapsDirectionsUrl = () => {
+    if (order.coords?.lat && order.coords?.lng) {
+      return `https://www.google.com/maps/dir/?api=1&destination=${order.coords.lat},${order.coords.lng}`;
+    }
     const rawDest = (order.deliveryAddress || order.address || order.fullAddress || "").trim();
     const destination = rawDest
       ? `${rawDest}${order.landmark ? `, Near ${order.landmark}` : ""}, Muradnagar, Uttar Pradesh`

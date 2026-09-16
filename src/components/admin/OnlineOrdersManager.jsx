@@ -689,9 +689,11 @@ export default function OnlineOrdersManager({ orders = [], onRefresh }) {
 
             const deliveryAddr = (ord.deliveryAddress || ord.address || ord.fullAddress || "").trim();
             const mapsDirectionsUrl = isDelivery
-              ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-                  `${deliveryAddr || "Muradnagar"}${ord.landmark ? `, Near ${ord.landmark}` : ""}, Muradnagar, Uttar Pradesh`
-                )}`
+              ? ord.coords?.lat && ord.coords?.lng
+                ? `https://www.google.com/maps/dir/?api=1&destination=${ord.coords.lat},${ord.coords.lng}`
+                : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+                    `${deliveryAddr || "Muradnagar"}${ord.landmark ? `, Near ${ord.landmark}` : ""}, Muradnagar, Uttar Pradesh`
+                  )}`
               : null;
 
             return (
@@ -1013,9 +1015,11 @@ export default function OnlineOrdersManager({ orders = [], onRefresh }) {
                   const itemsCount = (ord.items || []).reduce((acc, i) => acc + (i.quantity || 1), 0);
                   const deliveryAddr = (ord.deliveryAddress || ord.address || ord.fullAddress || "").trim();
                   const mapsDirectionsUrl = isDelivery
-                    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-                        `${deliveryAddr || "Muradnagar"}${ord.landmark ? `, Near ${ord.landmark}` : ""}, Muradnagar, Uttar Pradesh`
-                      )}`
+                    ? ord.coords?.lat && ord.coords?.lng
+                      ? `https://www.google.com/maps/dir/?api=1&destination=${ord.coords.lat},${ord.coords.lng}`
+                      : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+                          `${deliveryAddr || "Muradnagar"}${ord.landmark ? `, Near ${ord.landmark}` : ""}, Muradnagar, Uttar Pradesh`
+                        )}`
                     : null;
 
                   return (

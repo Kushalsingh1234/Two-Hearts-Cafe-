@@ -3,17 +3,14 @@
  * Geolocation, Reverse Geocoding & Autocomplete Engine for Two Hearts Café
  *
  * Stack:
- * - Map Rendering: Google Maps JavaScript API
- * - Reverse Geocoding: Google Maps Geocoding API (primary) → Photon Komoot → Nominatim (fallbacks)
- * - Autocomplete Search: Photon by Komoot (free, OSM-based, CORS-enabled) with local landmarks
- * - PIN Code Lookup: India Post API & Nominatim postal code search
+ * - Map Rendering: Google Maps JavaScript API (via googleMapsLoader.js)
+ * - Reverse Geocoding: Google Maps Geocoding API (primary)
+ * - Autocomplete Search: Google Places Autocomplete with session tokens
+ * - PIN Code Lookup: India Post API + local dictionary (no map API needed)
  * - Geolocation: HTML5 Geolocation API with high-accuracy GPS fix
  */
 
-const GOOGLE_MAPS_API_KEY = typeof import.meta !== 'undefined'
-  ? (import.meta.env?.VITE_GOOGLE_MAPS_API_KEY || "")
-  : "";
-
+import { getGoogleMaps, CAFE_LAT, CAFE_LNG } from "./googleMapsLoader.js";
 import {
   DELIVERY_CONFIG,
   calculateDistanceKm,
@@ -26,6 +23,10 @@ export { DELIVERY_CONFIG, calculateDistanceKm, DEFAULT_CAFE_COORDS };
 const REVERSE_CACHE = new Map();
 const SEARCH_CACHE = new Map();
 const PINCODE_CACHE = new Map();
+
+// Active Places session token for billing-efficient autocomplete
+let _sessionToken = null;
+let _placesService = null; // google.maps.places.AutocompleteService instance
 
 /**
  * Get current browser coordinates via Geolocation API
@@ -49,11 +50,14 @@ export async function getCurrentCoordinates() {
       (error) => {
         let message = "Could not retrieve your location.";
         if (error.code === error.PERMISSION_DENIED) {
-          message = "Location permission was denied. Tap the 🔒 lock icon in your browser's address bar to allow location access, then tap Retry.";
+          message =
+            "Location permission was denied. Tap the 🔒 lock icon in your browser's address bar to allow location access, then tap Retry.";
         } else if (error.code === error.POSITION_UNAVAILABLE) {
-          message = "Location signal is currently unavailable. Please verify GPS / Location is turned on.";
+          message =
+            "Location signal is currently unavailable. Please verify GPS / Location is turned on.";
         } else if (error.code === error.TIMEOUT) {
-          message = "GPS request timed out while acquiring a satellite fix. Please tap Retry or drag the map.";
+          message =
+            "GPS request timed out while acquiring a satellite fix. Please tap Retry or drag the map.";
         }
         reject(new Error(message));
       },
@@ -66,23 +70,7 @@ export async function getCurrentCoordinates() {
   });
 }
 
-/**
- * Reverse geocode coordinates to a structured Indian delivery address via OpenStreetMap Nominatim
- * Note: Never send a custom User-Agent header in client-side fetch, as browsers block it or fail CORS preflights.
- * @param {number} lat 
- * @param {number} lng 
- * @returns {Promise<{
- *   fullAddress: string,
- *   street: string,
- *   area: string,
- *   landmark: string,
- *   city: string,
- *   state: string,
- *   postalCode: string,
- *   formattedAddress: string
- * }>}
- */
-// String normalizer to strip accents and clean input (e.g. Café -> cafe)
+// String normalizer to strip accents and clean input (e.g. Café → cafe)
 export function normalizeSearchText(str) {
   return (str || "")
     .normalize("NFD")
@@ -93,9 +81,9 @@ export function normalizeSearchText(str) {
 
 /**
  * Reverse geocode coordinates to a structured Indian delivery address
- * Uses Photon Komoot /reverse API (100% free, CORS-enabled, fast) with Nominatim fallback
- * @param {number} lat 
- * @param {number} lng 
+ * Primary: Google Maps Geocoding API
+ * @param {number} lat
+ * @param {number} lng
  * @returns {Promise<{
  *   fullAddress: string,
  *   street: string,
@@ -118,57 +106,7 @@ export async function reverseGeocode(lat, lng) {
     return REVERSE_CACHE.get(cacheKey);
   }
 
-  // 0. Google Maps Geocoding API (best accuracy, primary source)
-  if (GOOGLE_MAPS_API_KEY) {
-    try {
-      const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${numLat},${numLng}&key=${GOOGLE_MAPS_API_KEY}&language=en&region=IN`;
-      const gRes = await fetch(gUrl);
-      if (gRes.ok) {
-        const gData = await gRes.json();
-        if (gData.status === "OK" && gData.results && gData.results.length > 0) {
-          const best = gData.results[0];
-          const comps = best.address_components || [];
-          const get = (type) => comps.find((c) => c.types.includes(type))?.long_name || "";
-          const getShort = (type) => comps.find((c) => c.types.includes(type))?.short_name || "";
-
-          const streetNumber = get("street_number");
-          const route = get("route");
-          const sublocality = get("sublocality_level_1") || get("sublocality");
-          const locality = get("locality");
-          const adminArea2 = get("administrative_area_level_2");
-          const adminArea1 = get("administrative_area_level_1");
-          const postalCode = get("postal_code").replace(/\D/g, "").slice(0, 6);
-
-          const street = [streetNumber, route].filter(Boolean).join(" ");
-          const area = sublocality || locality || adminArea2 || "Muradnagar";
-          const city = locality || adminArea2 || "Muradnagar";
-          const state = adminArea1 || "Uttar Pradesh";
-          const landmark = getShort("point_of_interest") || getShort("establishment") || "";
-
-          const parts = [street || landmark, area, city, postalCode ? `PIN ${postalCode}` : ""].filter(Boolean);
-          const formatted = parts.length > 0 ? parts.join(", ") : best.formatted_address;
-
-          const result = {
-            fullAddress: formatted || best.formatted_address,
-            street,
-            area,
-            landmark,
-            city,
-            state,
-            postalCode: postalCode || "201206",
-            formattedAddress: formatted || best.formatted_address
-          };
-
-          REVERSE_CACHE.set(cacheKey, result);
-          return result;
-        }
-      }
-    } catch (gErr) {
-      console.warn("Google Geocoding API warning, falling back:", gErr);
-    }
-  }
-
-  // 1. Proximity check for immediate exact cafe or landmark match (~45 meters)
+  // 1. Proximity check for exact cafe or landmark match (~45 meters)
   for (const lm of LOCAL_LANDMARKS) {
     const d = calculateDistanceKm(lm.lat, lm.lng, numLat, numLng);
     if (d != null && d <= 0.045) {
@@ -187,114 +125,85 @@ export async function reverseGeocode(lat, lng) {
     }
   }
 
-  // 2. Query Photon Komoot /reverse API (free, CORS-friendly, zero rate-limit 403)
+  // 2. Google Maps Geocoding API
   try {
-    const photonUrl = `https://photon.komoot.io/reverse?lat=${numLat}&lon=${numLng}`;
-    const pRes = await fetch(photonUrl);
-    if (pRes.ok) {
-      const pData = await pRes.json();
-      const feat = pData.features?.[0];
-      if (feat && feat.properties) {
-        const p = feat.properties;
-        const name = p.name || "";
-        const street = p.street || "";
-        const locality = p.locality || p.district || "";
-        const city = p.city || p.county || "Muradnagar";
-        const state = p.state || "Uttar Pradesh";
-        let postalCode = (p.postcode || "").replace(/\D/g, "").slice(0, 6);
+    const maps = await getGoogleMaps();
+    const geocoder = new maps.Geocoder();
 
-        // Smart Local PIN Resolution if Photon did not provide postcode
-        if (!postalCode || postalCode.length !== 6) {
-          const distToCafe = calculateDistanceKm(
-            DELIVERY_CONFIG.CAFE_COORDINATES.lat,
-            DELIVERY_CONFIG.CAFE_COORDINATES.lng,
-            numLat,
-            numLng
-          );
-          if (distToCafe != null && distToCafe <= 5.0) {
-            postalCode = "201206"; // Muradnagar
-          } else if (numLat > 28.81 && numLat < 28.86) {
-            postalCode = "201204"; // Modinagar
-          } else if (numLat >= 28.65 && numLat <= 28.73) {
-            postalCode = "201002"; // Ghaziabad
+    const geoResult = await new Promise((resolve, reject) => {
+      geocoder.geocode(
+        { location: { lat: numLat, lng: numLng }, language: "en", region: "IN" },
+        (results, status) => {
+          if (status === "OK" && results && results.length > 0) {
+            resolve(results);
+          } else {
+            reject(new Error(`Geocoder status: ${status}`));
           }
         }
-
-        const resolvedArea = name || locality || street || city || "Muradnagar";
-        const parts = [
-          street && street !== resolvedArea ? street : "",
-          resolvedArea,
-          city,
-          postalCode ? `PIN ${postalCode}` : ""
-        ].filter(Boolean);
-
-        const formatted = parts.length > 0 ? parts.join(", ") : `${resolvedArea}, ${city}`;
-
-        const result = {
-          fullAddress: formatted,
-          street: street || name,
-          area: resolvedArea,
-          landmark: name || street,
-          city: city || "Muradnagar",
-          state,
-          postalCode,
-          formattedAddress: formatted
-        };
-
-        REVERSE_CACHE.set(cacheKey, result);
-        return result;
-      }
-    }
-  } catch (err) {
-    console.warn("Photon reverse geocode warning, falling back:", err);
-  }
-
-  // 3. Query OpenStreetMap Nominatim /reverse as secondary
-  try {
-    const url = `https://nominatim.openstreetmap.org/reverse?lat=${numLat}&lon=${numLng}&format=json&addressdetails=1`;
-    const res = await fetch(url, {
-      headers: { "Accept-Language": "en" }
+      );
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.address) {
-        const a = data.address;
-        const street = a.road || a.pedestrian || a.street || "";
-        const landmark = a.amenity || a.building || a.shop || "";
-        const area = a.suburb || a.neighbourhood || a.residential || a.village || "";
-        const city = a.city || a.town || a.municipality || a.district || "Muradnagar";
-        const state = a.state || "Uttar Pradesh";
-        let postalCode = (a.postcode || "").replace(/\D/g, "").slice(0, 6);
+    if (geoResult && geoResult.length > 0) {
+      const best = geoResult[0];
+      const comps = best.address_components || [];
 
-        if (!postalCode || postalCode.length !== 6) {
-          postalCode = "201206";
-        }
+      const get = (type) =>
+        comps.find((c) => c.types.includes(type))?.long_name || "";
 
-        const resolvedArea = area || landmark || street || city || "Muradnagar";
-        const parts = [landmark || street, resolvedArea, city, postalCode ? `PIN ${postalCode}` : ""].filter(Boolean);
-        const formatted = parts.length > 0 ? parts.join(", ") : data.display_name;
+      const streetNumber = get("street_number");
+      const route = get("route");
+      const sublocality1 = get("sublocality_level_1");
+      const sublocality2 = get("sublocality_level_2");
+      const locality = get("locality");
+      const adminArea2 = get("administrative_area_level_2");
+      const adminArea1 = get("administrative_area_level_1");
+      const postalCode = get("postal_code").replace(/\D/g, "").slice(0, 6);
+      const pointOfInterest = get("point_of_interest");
+      const establishment = get("establishment");
+      const premise = get("premise");
+      const neighborhood = get("neighborhood");
 
-        const result = {
-          fullAddress: formatted || data.display_name,
-          street: street || landmark,
-          area: resolvedArea,
-          landmark: landmark || street,
-          city,
-          state,
-          postalCode,
-          formattedAddress: formatted || data.display_name
-        };
+      const street = [streetNumber, route].filter(Boolean).join(" ");
+      const area =
+        sublocality1 ||
+        sublocality2 ||
+        neighborhood ||
+        locality ||
+        adminArea2 ||
+        "Muradnagar";
+      const city = locality || adminArea2 || "Muradnagar";
+      const state = adminArea1 || "Uttar Pradesh";
+      const landmark = pointOfInterest || establishment || premise || "";
 
-        REVERSE_CACHE.set(cacheKey, result);
-        return result;
-      }
+      const parts = [
+        street || landmark,
+        area !== city ? area : null,
+        city,
+        postalCode ? `PIN ${postalCode}` : ""
+      ].filter(Boolean);
+
+      const formatted =
+        parts.length > 0 ? parts.join(", ") : best.formatted_address;
+
+      const result = {
+        fullAddress: formatted || best.formatted_address,
+        street,
+        area,
+        landmark,
+        city,
+        state,
+        postalCode: postalCode || "201206",
+        formattedAddress: formatted || best.formatted_address
+      };
+
+      REVERSE_CACHE.set(cacheKey, result);
+      return result;
     }
   } catch (err) {
-    console.warn("Nominatim reverse geocode fetch warning:", err);
+    console.warn("Google Geocoding API reverse geocode warning:", err.message);
   }
 
-  // 4. Graceful fallback for partial / unmapped coordinates
+  // 3. Graceful fallback for unmapped / API-failed coordinates
   const distToCafe = calculateDistanceKm(
     DELIVERY_CONFIG.CAFE_COORDINATES.lat,
     DELIVERY_CONFIG.CAFE_COORDINATES.lng,
@@ -304,14 +213,14 @@ export async function reverseGeocode(lat, lng) {
   const fallbackPin = distToCafe != null && distToCafe <= 5.0 ? "201206" : "";
 
   const fallbackResult = {
-    fullAddress: `Muradnagar, Uttar Pradesh ${fallbackPin}`,
+    fullAddress: `Muradnagar, Uttar Pradesh${fallbackPin ? ` ${fallbackPin}` : ""}`,
     street: "",
     area: "Muradnagar",
     landmark: "Pillar #852 Area",
     city: "Muradnagar",
     state: "Uttar Pradesh",
     postalCode: fallbackPin,
-    formattedAddress: `Muradnagar, Uttar Pradesh ${fallbackPin}`
+    formattedAddress: `Muradnagar, Uttar Pradesh${fallbackPin ? ` ${fallbackPin}` : ""}`
   };
 
   REVERSE_CACHE.set(cacheKey, fallbackResult);
@@ -412,13 +321,21 @@ const LOCAL_LANDMARKS = [
   }
 ];
 
-let activeSearchAbortController = null;
+/**
+ * Reset session token after user selects a place.
+ * Call this whenever a place selection is completed.
+ */
+export function resetAutocompleteSession() {
+  _sessionToken = null;
+}
 
 /**
- * Autocomplete place search using Photon by Komoot (free, OSM-based, CORS-enabled)
- * Designed specifically for live autocomplete-while-typing with proximity bias towards Muradnagar
- * @param {string} query 
- * @returns {Promise<Array<{title: string, subtitle: string, lat: number, lng: number}>>}
+ * Autocomplete place search using Google Places AutocompleteService
+ * with session tokens for cost-efficient billing.
+ * Falls back to local landmarks for offline/API-unavailable scenarios.
+ *
+ * @param {string} query
+ * @returns {Promise<Array<{title: string, subtitle: string, lat: number, lng: number, placeId?: string}>>}
  */
 export async function searchPlaces(query) {
   if (!query || typeof query !== "string" || query.trim().length < 2) {
@@ -426,9 +343,10 @@ export async function searchPlaces(query) {
   }
   const cleanQ = normalizeSearchText(query);
 
-  // 1. Check in-memory session cache
-  if (SEARCH_CACHE.has(cleanQ)) {
-    return SEARCH_CACHE.get(cleanQ);
+  // 1. Check in-memory session cache (per-session dedup)
+  const cacheKey = cleanQ;
+  if (SEARCH_CACHE.has(cacheKey)) {
+    return SEARCH_CACHE.get(cacheKey);
   }
 
   // 2. Immediate local landmarks matching with accent normalization
@@ -436,7 +354,9 @@ export async function searchPlaces(query) {
     const normName = normalizeSearchText(item.name);
     const normArea = normalizeSearchText(item.area);
     const normCity = normalizeSearchText(item.city);
-    const hasAliasMatch = (item.aliases || []).some((a) => normalizeSearchText(a).includes(cleanQ));
+    const hasAliasMatch = (item.aliases || []).some((a) =>
+      normalizeSearchText(a).includes(cleanQ)
+    );
     return (
       normName.includes(cleanQ) ||
       normArea.includes(cleanQ) ||
@@ -448,81 +368,171 @@ export async function searchPlaces(query) {
     title: item.name,
     subtitle: `${item.area}, ${item.city}, PIN ${item.pincode}`,
     lat: item.lat,
-    lng: item.lng
+    lng: item.lng,
+    placeId: null
   }));
 
-  // 3. Cancel any previous in-flight search request to prevent race conditions
-  if (activeSearchAbortController) {
-    activeSearchAbortController.abort();
-  }
-  activeSearchAbortController = new AbortController();
-
-  // 4. Query Photon API (Komoot) - free, CORS-friendly, optimized for autocomplete
+  // 3. Google Places Autocomplete with session token
   try {
-    const encodedQuery = encodeURIComponent(query.trim());
-    // Biased to Muradnagar (lat: 28.7758, lon: 77.5026)
-    const photonUrl = `https://photon.komoot.io/api/?q=${encodedQuery}&limit=8&lat=28.7758&lon=77.5026`;
+    const maps = await getGoogleMaps();
 
-    const res = await fetch(photonUrl, {
-      signal: activeSearchAbortController.signal
+    // Reuse or create a session token (one token per search session = one billing event)
+    if (!_sessionToken) {
+      _sessionToken = new maps.places.AutocompleteSessionToken();
+    }
+
+    if (!_placesService) {
+      _placesService = new maps.places.AutocompleteService();
+    }
+
+    const predictions = await new Promise((resolve, reject) => {
+      _placesService.getPlacePredictions(
+        {
+          input: query.trim(),
+          sessionToken: _sessionToken,
+          componentRestrictions: { country: "in" },
+          locationBias: new maps.Circle({
+            center: { lat: CAFE_LAT, lng: CAFE_LNG },
+            radius: 10000 // 10 km bias radius around the cafe
+          })
+        },
+        (results, status) => {
+          if (
+            status === maps.places.PlacesServiceStatus.OK ||
+            status === maps.places.PlacesServiceStatus.ZERO_RESULTS
+          ) {
+            resolve(results || []);
+          } else {
+            reject(new Error(`Places status: ${status}`));
+          }
+        }
+      );
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      const features = data.features || [];
+    const placesResults = predictions.map((pred) => ({
+      title: pred.structured_formatting?.main_text || pred.description,
+      subtitle:
+        pred.structured_formatting?.secondary_text ||
+        pred.description,
+      lat: 0, // Coordinates not available from predictions; resolved on selection
+      lng: 0,
+      placeId: pred.place_id,
+      description: pred.description
+    }));
 
-      // Filter strictly to Indian locations to prevent showing foreign results
-      const indianFeatures = features.filter((f) => {
-        const p = f.properties || {};
-        return (
-          p.countrycode === "IN" ||
-          p.country === "India" ||
-          p.state === "Uttar Pradesh" ||
-          p.state === "Delhi" ||
-          p.state === "Haryana"
-        );
-      });
+    // Deduplicate: local matches first, then places
+    const seen = new Set();
+    const combined = [...localMatches, ...placesResults].filter((item) => {
+      const key = item.placeId || `${item.lat.toFixed(3)},${item.lng.toFixed(3)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 8);
 
-      const photonMatches = indianFeatures.map((f) => {
-        const p = f.properties || {};
-        const coords = f.geometry?.coordinates || [77.5026, 28.7758]; // [lon, lat]
-        const title = p.name || p.street || p.city || "Location";
-        const subtitleParts = [
-          p.street && p.street !== title ? p.street : "",
-          p.locality || p.district || "",
-          p.city || p.county || "",
-          p.state || "",
-          p.postcode ? `PIN ${p.postcode}` : ""
-        ].filter(Boolean);
-
-        return {
-          title,
-          subtitle: subtitleParts.length > 0 ? subtitleParts.join(", ") : p.country || "India",
-          lat: Number(coords[1]),
-          lng: Number(coords[0])
-        };
-      });
-
-      // Deduplicate between local landmarks and Photon results (local matches prioritized)
-      const seen = new Set();
-      const combined = [...localMatches, ...photonMatches].filter((item) => {
-        const key = `${item.lat.toFixed(3)},${item.lng.toFixed(3)}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      }).slice(0, 7);
-
-      SEARCH_CACHE.set(cleanQ, combined);
-      return combined;
-    }
+    SEARCH_CACHE.set(cacheKey, combined);
+    return combined;
   } catch (err) {
-    if (err.name !== "AbortError") {
-      console.warn("Photon autocomplete warning, falling back to local matches:", err);
-    }
+    console.warn("Google Places autocomplete warning, using local matches:", err.message);
   }
 
-  SEARCH_CACHE.set(cleanQ, localMatches);
+  SEARCH_CACHE.set(cacheKey, localMatches);
   return localMatches;
+}
+
+/**
+ * Resolve a Google Place ID to coordinates.
+ * Called when user selects a Google Places prediction (not a local landmark).
+ * Resets the session token after resolution (completes the billing session).
+ *
+ * @param {string} placeId
+ * @returns {Promise<{lat: number, lng: number, fullAddress: string}>}
+ */
+export async function resolvePlaceId(placeId) {
+  if (!placeId) return null;
+
+  try {
+    const maps = await getGoogleMaps();
+    const currentToken = _sessionToken;
+
+    // Create a temporary invisible div for PlacesService
+    const dummyDiv = document.createElement("div");
+    const placesService = new maps.places.PlacesService(dummyDiv);
+
+    const place = await new Promise((resolve, reject) => {
+      placesService.getDetails(
+        {
+          placeId,
+          fields: ["geometry", "formatted_address", "address_components", "name"],
+          sessionToken: currentToken
+        },
+        (result, status) => {
+          if (status === maps.places.PlacesServiceStatus.OK && result) {
+            resolve(result);
+          } else {
+            reject(new Error(`PlacesService status: ${status}`));
+          }
+        }
+      );
+    });
+
+    // Reset session token after getDetails (billing session complete)
+    _sessionToken = null;
+
+    if (place.geometry?.location) {
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+
+      // Also warm the reverse-geocode cache from address_components
+      const comps = place.address_components || [];
+      const get = (type) =>
+        comps.find((c) => c.types.includes(type))?.long_name || "";
+
+      const postalCode = get("postal_code").replace(/\D/g, "").slice(0, 6);
+      const sublocality = get("sublocality_level_1") || get("sublocality");
+      const locality = get("locality");
+      const adminArea2 = get("administrative_area_level_2");
+      const adminArea1 = get("administrative_area_level_1");
+      const route = get("route");
+      const streetNumber = get("street_number");
+
+      const area = sublocality || locality || adminArea2 || "Muradnagar";
+      const city = locality || adminArea2 || "Muradnagar";
+      const state = adminArea1 || "Uttar Pradesh";
+      const street = [streetNumber, route].filter(Boolean).join(" ");
+
+      const parts = [street, area !== city ? area : null, city, postalCode ? `PIN ${postalCode}` : ""].filter(Boolean);
+      const formatted = parts.length > 0 ? parts.join(", ") : place.formatted_address;
+
+      // Warm reverse cache
+      const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+      REVERSE_CACHE.set(cacheKey, {
+        fullAddress: formatted,
+        street,
+        area,
+        landmark: place.name || "",
+        city,
+        state,
+        postalCode: postalCode || "201206",
+        formattedAddress: formatted
+      });
+
+      return {
+        lat,
+        lng,
+        fullAddress: place.formatted_address || formatted,
+        area,
+        city,
+        state,
+        postalCode: postalCode || "201206",
+        street
+      };
+    }
+  } catch (err) {
+    console.warn("resolvePlaceId error:", err.message);
+    _sessionToken = null; // Reset on error too
+  }
+
+  return null;
 }
 
 // Known local PIN codes dictionary for Muradnagar & Delhi-NCR
@@ -591,7 +601,7 @@ const LOCAL_PINCODE_FALLBACK = {
 };
 
 /**
- * Look up Indian Postal PIN code details via India Post API & Nominatim
+ * Look up Indian Postal PIN code details via India Post API
  * Resolves City (strictly locked) and candidate local areas / post offices
  * @param {string} pincode - 6-digit numeric PIN code
  * @returns {Promise<{
@@ -642,7 +652,12 @@ export async function lookupPincode(pincode) {
 
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data) && data[0] && data[0].Status === "Success" && Array.isArray(data[0].PostOffice)) {
+      if (
+        Array.isArray(data) &&
+        data[0] &&
+        data[0].Status === "Success" &&
+        Array.isArray(data[0].PostOffice)
+      ) {
         const offices = data[0].PostOffice;
         const firstOffice = offices[0] || {};
         const district = firstOffice.District || firstOffice.Division || "Ghaziabad";
@@ -654,7 +669,9 @@ export async function lookupPincode(pincode) {
           branchType: po.BranchType || "Post Office"
         }));
 
-        const primaryOfficeName = offices.find((o) => o.Name.toLowerCase().includes("murad"))?.Name || firstOffice.Name;
+        const primaryOfficeName =
+          offices.find((o) => o.Name.toLowerCase().includes("murad"))?.Name ||
+          firstOffice.Name;
         const formattedPreview = `${primaryOfficeName ? `${primaryOfficeName}, ` : ""}${district}, ${state}`;
 
         const result = {
@@ -673,39 +690,6 @@ export async function lookupPincode(pincode) {
     }
   } catch (err) {
     console.warn("India Post API fallback warning:", err);
-  }
-
-  // 4. Nominatim search fallback with country=India (no custom User-Agent in client fetch)
-  try {
-    const nomUrl = `https://nominatim.openstreetmap.org/search?postalcode=${cleanPin}&country=India&format=json&addressdetails=1&limit=3`;
-    const nomRes = await fetch(nomUrl, {
-      headers: { "Accept-Language": "en" }
-    });
-    if (nomRes.ok) {
-      const nomData = await nomRes.json();
-      if (Array.isArray(nomData) && nomData.length > 0) {
-        const first = nomData[0];
-        const a = first.address || {};
-        const district = a.state_district || a.county || a.district || "Ghaziabad";
-        const state = a.state || "Uttar Pradesh";
-        const city = a.city || a.town || a.municipality || district;
-
-        const result = {
-          success: true,
-          pincode: cleanPin,
-          district,
-          state,
-          city,
-          postOffices: [{ name: city, branchType: "Area" }],
-          formattedPreview: `${city}, ${district}, ${state}`
-        };
-
-        PINCODE_CACHE.set(cleanPin, result);
-        return result;
-      }
-    }
-  } catch (nomErr) {
-    console.warn("Nominatim PIN lookup error:", nomErr);
   }
 
   return {

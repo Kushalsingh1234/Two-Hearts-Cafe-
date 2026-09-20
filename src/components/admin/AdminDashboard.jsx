@@ -179,6 +179,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
   const isInitialLoadRef = useRef(true);
 
   const [latestPaymentAlert, setLatestPaymentAlert] = useState(null);
+  const [latestPaymentInitiatedAlert, setLatestPaymentInitiatedAlert] = useState(null);
   const [latestAdditionAlert, setLatestAdditionAlert] = useState(null);
   const [latestBillAlert, setLatestBillAlert] = useState(null);
 
@@ -190,6 +191,15 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
     }, 9000);
     return () => clearTimeout(timer);
   }, [latestPaymentAlert]);
+
+  // Auto-dismiss floating payment initiated alert banner after 10 seconds
+  useEffect(() => {
+    if (!latestPaymentInitiatedAlert) return;
+    const timer = setTimeout(() => {
+      setLatestPaymentInitiatedAlert(null);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [latestPaymentInitiatedAlert]);
 
   // Auto-dismiss floating table additions alert banner after 10 seconds
   useEffect(() => {
@@ -304,6 +314,14 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
         if (order.paymentInitiated && order.paymentStatus !== "paid_online" && order.status !== "settled" && !knownPaymentInitiatedRef.current.has(payInitKey)) {
           knownPaymentInitiatedRef.current.add(payInitKey);
           triggerPaymentInitiatedNotification(order);
+          setLatestPaymentInitiatedAlert({
+            id: order.id,
+            orderNumber: order.orderNumber,
+            tableNumber: order.tableNumber,
+            total: order.total,
+            app: order.paymentInitiatedApp || "UPI ID Copied",
+            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          });
         }
       }
 
@@ -602,11 +620,74 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
         </div>
       )}
 
+      {/* Floating Payment Initiated Alert Banner (UPI ID Copied) */}
+      {latestPaymentInitiatedAlert && (
+        <div style={{
+          position: "fixed",
+          top: (latestPaymentAlert ? 96 : 0) + 18,
+          right: 18,
+          zIndex: 9999,
+          maxWidth: 400,
+          backgroundColor: "#064e3b",
+          color: "#ecfdf5",
+          padding: "14px 18px",
+          borderRadius: 12,
+          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.2)",
+          border: "1.5px solid #10b981",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 12,
+          animation: "fadeIn 0.25s ease-out"
+        }}>
+          <div style={{
+            backgroundColor: "#10b981",
+            color: "#022c22",
+            borderRadius: "50%",
+            width: 28,
+            height: 28,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            fontWeight: 900,
+            fontSize: 15
+          }}>
+            💳
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: 14, fontWeight: 700, letterSpacing: 0.3, marginBottom: 2 }}>
+              💳 Table #{latestPaymentInitiatedAlert.tableNumber || "QR"}: Paying via UPI!
+            </div>
+            <div style={{ fontSize: 12.5, opacity: 0.95, lineHeight: 1.4 }}>
+              Customer copied UPI ID to pay <strong>₹{latestPaymentInitiatedAlert.total}</strong>
+            </div>
+            <div style={{ fontSize: 11.5, color: "#a7f3d0", marginTop: 4, fontWeight: 600 }}>
+              ⚡ Payment Initiated (UPI ID Copied) • Check merchant app
+            </div>
+          </div>
+          <button
+            onClick={() => setLatestPaymentInitiatedAlert(null)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#a7f3d0",
+              cursor: "pointer",
+              fontSize: 16,
+              padding: "0 4px",
+              lineHeight: 1
+            }}
+            title="Dismiss notification"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Floating Order Addition Alert Banner */}
       {latestAdditionAlert && (
         <div style={{
           position: "fixed",
-          top: latestPaymentAlert ? 104 : 18,
+          top: (latestPaymentAlert ? 96 : 0) + (latestPaymentInitiatedAlert ? 96 : 0) + 18,
           right: 18,
           zIndex: 9999,
           maxWidth: 400,
@@ -669,7 +750,7 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
       {latestBillAlert && (
         <div style={{
           position: "fixed",
-          top: (latestPaymentAlert ? 86 : 0) + (latestAdditionAlert ? 86 : 0) + 18,
+          top: (latestPaymentAlert ? 96 : 0) + (latestPaymentInitiatedAlert ? 96 : 0) + (latestAdditionAlert ? 96 : 0) + 18,
           right: 18,
           zIndex: 9999,
           maxWidth: 400,

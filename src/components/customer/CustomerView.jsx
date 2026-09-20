@@ -205,10 +205,6 @@ export default function CustomerView({
   };
 
   const handleChooseOnlinePay = () => {
-    const targetOrder = paymentChoiceOrder || customerActiveOrders[0];
-    if (targetOrder && targetOrder.id) {
-      markPaymentInitiated(targetOrder.id, "UPI / QR").catch(() => {});
-    }
     setIsPaymentChoiceOpen(false);
     setIsPaymentModalOpen(true);
   };

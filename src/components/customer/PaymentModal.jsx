@@ -55,12 +55,6 @@ export default function PaymentModal({
   const paytmUri = `paytmmp://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
   const gpayUri = `tez://upi/pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
 
-  // Notify admin when online payment view opens
-  useEffect(() => {
-    if (isOpen && order?.id && paymentType === "online" && order.status !== "settled" && order.paymentStatus !== "paid_online") {
-      markPaymentInitiated(order.id, "Online Payment").catch(() => {});
-    }
-  }, [isOpen, order?.id, paymentType]);
 
   // 2. Official Standee QR (Exact decoded from physical Paytm standee: upi://pay?pa=paytm.s1wxbcr@pty&pn=Paytm)
   const officialStandeeUri = `upi://pay?pa=paytm.s1wxbcr@pty&pn=Paytm`;
@@ -88,6 +82,9 @@ export default function PaymentModal({
     navigator.clipboard.writeText(upiId);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
+    if (order?.id && order.status !== "settled" && order.paymentStatus !== "paid_online") {
+      markPaymentInitiated(order.id, "UPI ID Copied").catch(() => {});
+    }
   };
 
   // 1. RAZORPAY STANDARD CHECKOUT: Automatic Bank-Verified Settlement
@@ -690,131 +687,124 @@ export default function PaymentModal({
                   </button>
                 </div>
 
-                {/* TAB 1: PAY ONLINE (Dine-in Tables) */}
+                {/* TAB 1: PAY ONLINE (Dine-in Tables via UPI ID) */}
                 {paymentType === "online" ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {/* PAY VIA ANY UPI APP (PHONEPE, GPAY, SLICE, CRED, BHIM, PAYTM) */}
                     <div style={{
-                      backgroundColor: "#FFFFFF",
+                      backgroundColor: "#fff",
                       borderRadius: 8,
                       border: "1.2px solid var(--color-border-frame)",
-                      padding: "18px 18px",
+                      padding: "16px 18px",
                       display: "flex",
                       flexDirection: "column",
-                      gap: 14,
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.04)"
+                      alignItems: "center",
+                      gap: 12,
+                      textAlign: "center"
                     }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <ShieldCheck size={18} color="#15803d" />
-                          <span style={{ fontFamily: "var(--font-serif)", fontSize: 14, fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                            Instant Online Payment
-                          </span>
-                        </div>
-                        <span style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          color: "#16a34a",
-                          backgroundColor: "rgba(22, 163, 74, 0.1)",
-                          padding: "3px 8px",
-                          borderRadius: "var(--radius-pill)",
-                          letterSpacing: 0.5
-                        }}>
-                          AUTO-SETTLES BILL
-                        </span>
+                      <div style={{ fontSize: 13, fontFamily: "var(--font-serif)", fontWeight: 700, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                        Pay via UPI ID
                       </div>
 
                       <p style={{ fontSize: 12.5, color: "var(--color-bronze)", margin: 0, lineHeight: 1.45 }}>
-                        Pay securely using any <strong>UPI app</strong> (PhonePe, Google Pay, Paytm, Slice, CRED, BHIM), <strong>Debit/Credit Cards</strong>, or <strong>NetBanking</strong>. Your table bill will be verified and settled automatically.
+                        Copy the UPI ID below, open any UPI app (<strong>PhonePe, Google Pay, Paytm, Slice, CRED, BHIM</strong>), and pay <strong>Rs.{amount}</strong>:
                       </p>
 
-                      <div style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 6
-                      }}>
-                        {["UPI (GPay, PhonePe, Paytm)", "Credit & Debit Cards", "NetBanking", "Wallets"].map((item) => (
-                          <span
-                            key={item}
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 600,
-                              backgroundColor: "#FAF7F2",
-                              color: "var(--color-ink)",
-                              border: "1px solid var(--color-border-frame)",
-                              padding: "3px 7px",
-                              borderRadius: 4
-                            }}
-                          >
-                            ✓ {item}
-                          </span>
-                        ))}
-                      </div>
-
-                      {razorpayError && (
-                        <div style={{
-                          padding: "10px 12px",
-                          borderRadius: 6,
-                          backgroundColor: "#fef2f2",
-                          border: "1px solid #fecaca",
-                          color: "#b91c1c",
-                          fontSize: 12,
-                          lineHeight: 1.4
-                        }}>
-                          {razorpayError}
-                        </div>
-                      )}
-
-                      {/* Main Pay Online Button - says 'Pay Rs.{amount} Online' */}
+                      {/* 1-Tap Copy UPI ID Pill */}
                       <button
                         type="button"
-                        onClick={handlePayWithRazorpay}
-                        disabled={isRazorpayLoading}
+                        onClick={handleCopyUpi}
                         style={{
-                          width: "100%",
-                          padding: "13px 18px",
-                          borderRadius: "var(--radius-pill)",
-                          backgroundColor: "#15803d",
-                          color: "#FFFFFF",
-                          border: "none",
-                          fontFamily: "var(--font-serif)",
-                          fontSize: 14,
-                          fontWeight: 700,
-                          letterSpacing: 0.5,
-                          textTransform: "uppercase",
-                          cursor: isRazorpayLoading ? "not-allowed" : "pointer",
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "center",
                           gap: 8,
-                          boxShadow: "0 4px 12px rgba(21, 128, 61, 0.25)",
-                          transition: "all 0.15s"
+                          padding: "10px 18px",
+                          borderRadius: "var(--radius-pill)",
+                          backgroundColor: isCopied ? "#F0FDF4" : "#FAF7F2",
+                          border: isCopied ? "1.5px solid #22c55e" : "1.2px solid var(--color-border-frame)",
+                          cursor: "pointer",
+                          fontFamily: "monospace",
+                          fontSize: 14,
+                          fontWeight: 700,
+                          color: isCopied ? "#15803d" : "var(--color-ink)",
+                          transition: "all 0.15s",
+                          boxShadow: "0 1px 4px rgba(0,0,0,0.04)"
                         }}
                       >
-                        {isRazorpayLoading ? (
-                          <>
-                            <Loader2 size={16} className="animate-spin" />
-                            <span>Connecting Gateway...</span>
-                          </>
-                        ) : (
-                          <>
-                            <CreditCard size={16} />
-                            <span>Pay Rs.{amount} Online</span>
-                          </>
-                        )}
+                        {isCopied ? <Check size={16} color="#15803d" /> : <Copy size={16} color="var(--color-bronze)" />}
+                        <span>{isCopied ? "Copied to Clipboard!" : upiId}</span>
                       </button>
+                      <span style={{ fontSize: 11, color: "var(--color-bronze)", fontStyle: "italic" }}>
+                        Tap above to copy UPI ID (alerts staff you are paying)
+                      </span>
+                    </div>
 
-                      <div style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: 6,
-                        fontSize: 11,
-                        color: "var(--color-bronze)",
-                        textAlign: "center"
-                      }}>
-                        <ShieldCheck size={13} color="#15803d" />
-                        <span>256-Bit Bank Encrypted • Instant Table Settlement</span>
-                      </div>
+                    {/* Manual UTR Verification Input */}
+                    <div style={{
+                      backgroundColor: "#fff",
+                      border: "1px solid var(--color-border-frame)",
+                      borderRadius: 6,
+                      padding: 12
+                    }}>
+                      {!showUtrInput ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowUtrInput(true)}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: "var(--color-bronze)",
+                            fontSize: 12,
+                            fontFamily: "var(--font-serif)",
+                            textDecoration: "underline",
+                            cursor: "pointer",
+                            width: "100%",
+                            textAlign: "center"
+                          }}
+                        >
+                          Paid via UPI? Enter 12-digit UPI Ref / UTR
+                        </button>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          <label style={{ fontSize: 11, fontFamily: "var(--font-serif)", fontWeight: 700, color: "var(--color-ink)" }}>
+                            Enter 12-digit UTR from your UPI receipt:
+                          </label>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <input
+                              type="text"
+                              value={utrNumber}
+                              onChange={(e) => setUtrNumber(e.target.value)}
+                              placeholder="e.g. 423589123456"
+                              maxLength={22}
+                              style={{
+                                flex: 1,
+                                padding: "8px 10px",
+                                border: "1px solid var(--color-border-frame)",
+                                borderRadius: 4,
+                                fontSize: 13,
+                                fontFamily: "monospace"
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleConfirmOnlinePayment()}
+                              disabled={isSubmitting || !utrNumber.trim()}
+                              style={{
+                                padding: "8px 14px",
+                                borderRadius: 4,
+                                backgroundColor: "var(--color-ink)",
+                                color: "#FAF7F2",
+                                border: "none",
+                                fontSize: 12,
+                                fontWeight: 700,
+                                cursor: isSubmitting || !utrNumber.trim() ? "not-allowed" : "pointer"
+                              }}
+                            >
+                              Verify
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (

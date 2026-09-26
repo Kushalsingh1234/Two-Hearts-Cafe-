@@ -9,10 +9,12 @@ import {
   Building2,
   X,
   PlusCircle,
-  Sparkles
+  Sparkles,
+  Printer
 } from "lucide-react";
 import DigitalInvoiceModal from "../customer/DigitalInvoiceModal";
 import { acceptOrderAddition, rejectOrderAddition } from "../../firebase/services";
+import { printerService } from "../../utils/printerService";
 
 function formatTimeAgo(dateString) {
   if (!dateString) return "Just now";
@@ -74,14 +76,74 @@ export default function OrderCard({
 
   const hasPendingAddition = pendingAdditions.length > 0;
   const [isProcessingAddition, setIsProcessingAddition] = useState(false);
+  const [isPrintingKOT, setIsPrintingKOT] = useState(false);
+  const [printToast, setPrintToast] = useState(null);
+
+  const handleManualPrintKOT = async (e) => {
+    if (e) e.stopPropagation();
+    setIsPrintingKOT(true);
+    setPrintToast(null);
+    try {
+      await printerService.printKOT(order);
+      setPrintToast("✓ KOT printed to kitchen");
+    } catch (err) {
+      console.warn("Manual print KOT failed:", err);
+      const isMissing = err.message?.includes("No printer") || err.message?.includes("select");
+      setPrintToast(isMissing ? "⚠ Select printer in settings" : "⚠ Print failed (check printer)");
+    } finally {
+      setIsPrintingKOT(false);
+      setTimeout(() => setPrintToast(null), 3500);
+    }
+  };
+
+  const handleAcceptOrder = async () => {
+    try {
+      await onUpdateStatus(order.id, "preparing");
+      if (printerService.isAutoPrintEnabled()) {
+        setIsPrintingKOT(true);
+        try {
+          await printerService.printKOT(order);
+          setPrintToast("✓ KOT sent to kitchen printer");
+        } catch (printErr) {
+          console.warn("Auto-print KOT error:", printErr);
+          const isMissing = printErr.message?.includes("No printer") || printErr.message?.includes("select");
+          setPrintToast(isMissing ? "⚠ Order accepted (Printer not set)" : "⚠ Order accepted (Printer offline)");
+        } finally {
+          setIsPrintingKOT(false);
+          setTimeout(() => setPrintToast(null), 3500);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to accept order:", err);
+    }
+  };
 
   const handleAcceptAddition = async (additionId) => {
     setIsProcessingAddition(true);
+    const targetAddition = pendingAdditions.find((a) => a && a.id === additionId);
     try {
       if (onAcceptAddition) {
         await onAcceptAddition(order.id, additionId);
       } else {
         await acceptOrderAddition(order.id, additionId);
+      }
+
+      if (printerService.isAutoPrintEnabled()) {
+        setIsPrintingKOT(true);
+        try {
+          await printerService.printKOT(order, {
+            isAddition: true,
+            additionItems: targetAddition?.items,
+            kotSequence: (order.additions?.length || 1)
+          });
+          setPrintToast("✓ Add-on KOT sent to printer");
+        } catch (printErr) {
+          console.warn("Auto-print addition KOT failed:", printErr);
+          setPrintToast("⚠ Addition accepted (Printer offline)");
+        } finally {
+          setIsPrintingKOT(false);
+          setTimeout(() => setPrintToast(null), 3500);
+        }
       }
     } catch (err) {
       console.error("Failed to accept addition:", err);
@@ -257,8 +319,53 @@ export default function OrderCard({
           }}>
             {hasPendingAddition ? `● ${pendingAdditions.length} New Addition${pendingAdditions.length > 1 ? "s" : ""}` : isPlaced ? "● New Order" : order.status}
           </span>
+
+          {/* Quick Print KOT Button */}
+          <button
+            type="button"
+            onClick={handleManualPrintKOT}
+            disabled={isPrintingKOT}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "2px 8px",
+              borderRadius: "var(--radius-pill)",
+              backgroundColor: "#FFFFFF",
+              border: "1.2px solid var(--color-border-frame)",
+              color: "var(--color-ink)",
+              fontSize: 11,
+              fontFamily: "var(--font-serif)",
+              fontWeight: 700,
+              cursor: "pointer",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
+            }}
+            title="Print Kitchen Order Ticket (KOT) to Everycom EC58B"
+          >
+            <Printer size={11} color="var(--color-bronze)" />
+            <span>{isPrintingKOT ? "..." : "KOT"}</span>
+          </button>
         </div>
       </div>
+
+      {/* Print Notification Toast Banner */}
+      {printToast && (
+        <div style={{
+          backgroundColor: printToast.startsWith("✓") ? "#ECFDF5" : "#FEF2F2",
+          color: printToast.startsWith("✓") ? "#047857" : "#B91C1C",
+          fontSize: 11.5,
+          fontWeight: 700,
+          fontFamily: "var(--font-serif)",
+          padding: "5px 16px",
+          borderBottom: `1px solid ${printToast.startsWith("✓") ? "#A7F3D0" : "#FECACA"}`,
+          display: "flex",
+          alignItems: "center",
+          gap: 6
+        }}>
+          <Printer size={12} />
+          <span>{printToast}</span>
+        </div>
+      )}
 
       {/* Dedicated Section: SEPARATE Accept & Reject Option for EVERY new addition from this table */}
       {hasPendingAddition && (
@@ -547,7 +654,7 @@ export default function OrderCard({
           {isPlaced && !hasPendingAddition && (
             <div style={{ display: "flex", gap: 8, width: "100%" }}>
               <button
-                onClick={() => onUpdateStatus(order.id, "preparing")}
+                onClick={handleAcceptOrder}
                 style={{
                   flex: 2,
                   backgroundColor: "var(--color-bronze)",

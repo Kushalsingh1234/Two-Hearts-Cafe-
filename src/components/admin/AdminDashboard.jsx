@@ -16,16 +16,19 @@ import {
   CheckCircle2,
   AlertCircle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Printer
 } from "lucide-react";
 import OrderCard from "./OrderCard";
 import MenuManager from "./MenuManager";
 import TableQRGenerator from "./TableQRGenerator";
 import ReviewsManager from "./ReviewsManager";
 import ChangePinModal from "./ChangePinModal";
+import KitchenPrinterModal from "./KitchenPrinterModal";
 import OnlineOrdersManager from "./OnlineOrdersManager";
 import { updateOrderStatus, clearAllOrders, subscribeReviews, acceptOrderAddition, rejectOrderAddition } from "../../firebase/services";
 import { soundNotifier } from "../../utils/audio";
+import { printerService } from "../../utils/printerService";
 import {
   triggerOrderNotification,
   triggerPaymentNotification,
@@ -44,6 +47,9 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
     const params = new URLSearchParams(window.location.search);
     return params.get("tab") || "orders";
   });
+
+  const [isPrinterModalOpen, setIsPrinterModalOpen] = useState(false);
+  const [currentPrinter, setCurrentPrinter] = useState(() => printerService.getSelectedPrinter());
 
   // Clock ticker to auto-reset daily stats at 12:00 AM midnight
   const [currentDayKey, setCurrentDayKey] = useState(() => {
@@ -1138,6 +1144,35 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
             <span>{soundState.isMuted ? "Sound: Muted" : "Sound: ON"}</span>
           </button>
 
+          {/* Kitchen KOT Printer Config Button */}
+          <button
+            onClick={() => setIsPrinterModalOpen(true)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "5px 12px",
+              borderRadius: "var(--radius-pill)",
+              backgroundColor: currentPrinter ? "#F0FDF4" : "#FAF7F2",
+              border: `1px solid ${currentPrinter ? "#86EFAC" : "var(--color-border-frame)"}`,
+              fontFamily: "var(--font-serif)",
+              fontSize: 12,
+              fontWeight: 700,
+              color: currentPrinter ? "#166534" : "var(--color-ink)",
+              cursor: "pointer"
+            }}
+            title="Configure Everycom EC58B Kitchen KOT Printer"
+          >
+            <Printer size={13} color={currentPrinter ? "#16A34A" : "var(--color-bronze)"} />
+            <span>{currentPrinter ? (currentPrinter.name.length > 14 ? currentPrinter.name.slice(0, 12) + "..." : currentPrinter.name) : "Kitchen Printer"}</span>
+            <span style={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              backgroundColor: currentPrinter ? "#16A34A" : "#F59E0B"
+            }} />
+          </button>
+
           {/* PWA Install Button (only on web browser, hidden in native app) */}
           {!isAlreadyInstalled && !isNativeApp() && (
             <button
@@ -1549,6 +1584,37 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
                 </span>
               )}
             </button>
+
+            {/* 6. Kitchen Printer Settings Tab */}
+            <button
+              onClick={() => setIsPrinterModalOpen(true)}
+              className="admin-nav-tab-btn"
+              style={{
+                borderBottom: "3px solid transparent",
+                color: "var(--color-bronze)",
+                fontWeight: 600,
+                marginBottom: -2,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6
+              }}
+              title="Configure Everycom EC58B KOT Thermal Printer"
+            >
+              <Printer size={16} />
+              <span>Kitchen Printer</span>
+              {currentPrinter && (
+                <span style={{
+                  backgroundColor: "#15803D",
+                  color: "#fff",
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: "1px 6px",
+                  borderRadius: "var(--radius-pill)"
+                }}>
+                  READY
+                </span>
+              )}
+            </button>
           </div>
 
           {/* Scroll Right Button for small screens */}
@@ -1721,7 +1787,14 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
         onClose={() => setIsChangePinOpen(false)}
       />
 
-
+      {/* Kitchen KOT Thermal Printer Configuration Modal */}
+      <KitchenPrinterModal
+        isOpen={isPrinterModalOpen}
+        onClose={() => {
+          setIsPrinterModalOpen(false);
+          setCurrentPrinter(printerService.getSelectedPrinter());
+        }}
+      />
     </div>
   );
 }

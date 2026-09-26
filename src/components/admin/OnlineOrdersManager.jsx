@@ -24,10 +24,12 @@ import {
   AlertCircle,
   TrendingUp,
   CreditCard,
-  Ban
+  Ban,
+  Printer
 } from "lucide-react";
 import OnlineOrderDetailModal from "./OnlineOrderDetailModal";
 import { updateOnlineOrder } from "../../firebase/services";
+import { printerService } from "../../utils/printerService";
 
 // Helper: Format relative time
 function formatTimeAgo(dateString) {
@@ -205,6 +207,13 @@ export default function OnlineOrdersManager({ orders = [], onRefresh }) {
     setActionLoadingId(ord.id);
     try {
       await updateOnlineOrder(ord.id, { status: nextInfo.key });
+      if ((nextInfo.key === "confirmed" || nextInfo.key === "preparing") && printerService.isAutoPrintEnabled()) {
+        try {
+          await printerService.printOnlineKOT(ord);
+        } catch (printErr) {
+          console.warn("[OnlineOrdersManager] Auto-print KOT error:", printErr);
+        }
+      }
     } catch (err) {
       console.error("Failed to advance status:", err);
     } finally {

@@ -1,27 +1,76 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://twoheartscafe.in/</loc>
-    <lastmod>2026-09-11</lastmod>
+    <lastmod>2026-10-05</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://twoheartscafe.in/images/two_hearts_hero_logo.jpg</image:loc>
+      <image:title>Two Hearts Cafe - Best Cafe in Muradnagar</image:title>
+      <image:caption>Warm romantic dining and coffee atmosphere at Two Hearts Cafe Muradnagar</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://twoheartscafe.in/images/pwa/icon-512.png</image:loc>
+      <image:title>Two Hearts Cafe Logo</image:title>
+      <image:caption>Official Two Hearts Cafe branding</image:caption>
+    </image:image>
   </url>
   <url>
     <loc>https://twoheartscafe.in/menu</loc>
-    <lastmod>2026-09-11</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
+    <lastmod>2026-10-05</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
+    <image:image>
+      <image:loc>https://twoheartscafe.in/images/dishes/penne_arabiata.jpg</image:loc>
+      <image:title>Artisanal Pasta at Two Hearts Cafe</image:title>
+      <image:caption>Freshly made Penne Arabiata and Italian pastas</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://twoheartscafe.in/images/dishes/double_cheese_veg_burger.jpg</image:loc>
+      <image:title>Double Cheese Burger at Two Hearts Cafe</image:title>
+      <image:caption>Gourmet vegetarian burger with loaded melted cheese</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://twoheartscafe.in/images/dishes/margherita.jpeg</image:loc>
+      <image:title>Margherita Pizza at Two Hearts Cafe</image:title>
+      <image:caption>Stone-baked thin-crust cheese pizza</image:caption>
+    </image:image>
   </url>
   <url>
     <loc>https://twoheartscafe.in/about</loc>
-    <lastmod>2026-09-11</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <lastmod>2026-10-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://twoheartscafe.in/images/two_hearts_hero_logo.jpg</image:loc>
+      <image:title>About Two Hearts Cafe</image:title>
+      <image:caption>Our story, vision, and romantic cafe interior in Muradnagar</image:caption>
+    </image:image>
   </url>
   <url>
     <loc>https://twoheartscafe.in/contact</loc>
-    <lastmod>2026-09-11</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <lastmod>2026-10-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://twoheartscafe.in/order</loc>
+    <lastmod>2026-10-05</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.90</priority>
+  </url>
+  <url>
+    <loc>https://twoheartscafe.in/llms.txt</loc>
+    <lastmod>2026-10-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.70</priority>
+  </url>
+  <url>
+    <loc>https://twoheartscafe.in/llms-full.txt</loc>
+    <lastmod>2026-10-05</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.60</priority>
   </url>
 </urlset>

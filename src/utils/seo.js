@@ -6,27 +6,27 @@
 
 export const PAGE_SEO_METADATA = {
   home: {
-    title: "Two Hearts Cafe",
+    title: "Two Hearts Cafe | Best Pure Veg Cafe & Italian Bistro in Muradnagar",
     description:
-      "Welcome to Two Hearts Cafe. Savor artisanal coffees, handcrafted pizzas, gourmet pastas, sizzling snacks, and delicious desserts in a warm, romantic ambience. Order online or visit us for an unforgettable dining experience.",
+      "Two Hearts Cafe is Muradnagar's premier 100% pure vegetarian cafe & Italian bistro at Pillar No. 852, Delhi-Meerut Road. Savor stone-baked pizzas, creamy Alfredo & Arabiata pastas, artisan burgers, crispy momos, waffles, and thick shakes in a romantic ambience. Dine-in, takeaway & fast online delivery.",
     canonical: "https://twoheartscafe.in/",
   },
   menu: {
-    title: "Menu - Handcrafted Pizzas, Pastas & Coffee | Two Hearts Cafe",
+    title: "Menu & Prices - Pizzas, Pastas, Burgers & Shakes | Two Hearts Cafe",
     description:
-      "Explore the delicious menu at Two Hearts Cafe. Featuring freshly brewed espresso, stone-baked pizzas, creamy pastas, burgers, momos, sizzling platters, and decadent shakes.",
+      "Explore the 100% pure-veg menu at Two Hearts Cafe Muradnagar. Stone-baked pizzas, creamy pastas, handcrafted burgers, crispy momos, waffles, and thick milkshakes with instant delivery & dine-in ordering.",
     canonical: "https://twoheartscafe.in/menu",
   },
   about: {
-    title: "About Us & Our Story | Two Hearts Cafe",
+    title: "About Our Story & Ambience | Two Hearts Cafe Muradnagar",
     description:
-      "Discover the passion, craftsmanship, and cozy community atmosphere behind Two Hearts Cafe. Where ethically sourced beans and warm moments bring people together.",
+      "Discover the passion, craftsmanship, and cozy romantic atmosphere behind Two Hearts Cafe. 100% pure vegetarian cuisine, ethically sourced ingredients, and student-friendly pricing in Muradnagar.",
     canonical: "https://twoheartscafe.in/about",
   },
   contact: {
-    title: "Contact, Location & Opening Hours | Two Hearts Cafe",
+    title: "Contact, Location (Pillar 852) & Timings | Two Hearts Cafe",
     description:
-      "Visit Two Hearts Cafe. Find our location address, interactive Google Maps directions, opening hours, and contact details for reservations, queries, and catering.",
+      "Visit Two Hearts Cafe at Shivam Vihar Colony, Pillar No. 852, Delhi-Meerut Road, Muradnagar. Open daily 12 PM - 12 AM. Phone: +91 9027012158. Directions, map, and party reservations.",
     canonical: "https://twoheartscafe.in/contact",
   },
   cart: {
@@ -77,7 +77,7 @@ export function updatePageSEO({ pageKey, view, tableNumber }) {
     const tableStr = tableNumber ? `Table ${tableNumber}` : "Dine-In";
     seo = {
       title: `${tableStr} - Dine-In Menu & Instant Order | Two Hearts Cafe`,
-      description: `Instant digital dine-in ordering for ${tableStr} at Two Hearts Cafe. Browse our food and beverages and order directly to the kitchen.`,
+      description: `Instant digital dine-in ordering for ${tableStr} at Two Hearts Cafe Muradnagar. Browse live menu and order directly to the kitchen.`,
       canonical: `https://twoheartscafe.in/?table=${tableNumber || "5"}`,
     };
   } else if (view === "admin") {

@@ -1,7 +1,50 @@
-# Robots.txt for Two Hearts Cafe
+# Robots.txt for Two Hearts Cafe (https://twoheartscafe.in)
+# LLM Knowledge Base: https://twoheartscafe.in/llms.txt
+# Full LLM Reference: https://twoheartscafe.in/llms-full.txt
+
 User-agent: *
 Allow: /
+Allow: /menu
+Allow: /about
+Allow: /contact
+Allow: /order
+Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /.well-known/llms.txt
 Disallow: /?admin=true
 Disallow: /admin
+Disallow: /api/
 
+# Explicitly permit AI Search and Generative LLM Crawlers
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+User-agent: meta-externalagent
+Allow: /
+
+# Sitemaps
 Sitemap: https://twoheartscafe.in/sitemap.xml

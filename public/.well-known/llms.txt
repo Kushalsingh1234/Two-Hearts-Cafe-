@@ -1,0 +1,26 @@
+# Two Hearts Cafe
+
+> Two Hearts Cafe is an artisanal 100% pure-vegetarian cafe and bistro located on Delhi-Meerut Road at Pillar No. 852, Muradnagar, Ghaziabad, Uttar Pradesh, India. Renowned for its romantic ambience, comforting gourmet cuisine, stone-baked pizzas, creamy pastas, handcrafted burgers, Indo-Chinese bowls, sizzling snacks, and refreshing shakes. Open daily from 12:00 PM to 12:00 AM midnight.
+
+## Core Information
+- **Business Name**: Two Hearts Cafe (Two Hearts Cafe Muradnagar)
+- **Tagline**: Where Every Flavor Tells a Story of Two Hearts
+- **Cuisine Type**: 100% Pure Vegetarian Cafe, Italian, Continental, Indo-Chinese, Fast Food, Desi Cuisine & Artisanal Beverages
+- **Dietary**: 100% Pure Vegetarian (Jain-friendly options available upon request)
+- **Address**: Shivam Vihar Colony, Pillar No. 852, Delhi-Meerut Road, Muradnagar, Uttar Pradesh 201206, India
+- **Landmark**: Metro Pillar No. 852, opposite Shivam Vihar Colony, Delhi-Meerut Highway (near KIET Group of Institutions)
+- **GPS Coordinates**: Latitude 28.7526, Longitude 77.4985
+- **Phone Number**: +91 9027012158 (Call & WhatsApp for orders, reservations & party bookings)
+- **Email / Web**: https://twoheartscafe.in/
+- **Instagram**: https://www.instagram.com/Two_hearts_cafe/ (@Two_hearts_cafe)
+- **Operating Hours**: Monday to Sunday, 12:00 PM (Noon) to 12:00 AM (Midnight)
+- **Price Range**: ₹79 to ₹250 per person
+- **Dining Options**: Dine-In (Table QR instant ordering), Takeaway / Pickup, Direct Online Delivery
+- **Payment Methods Accepted**: Cash, UPI (Google Pay, PhonePe, Paytm), Credit Cards, Debit Cards, Net Banking via Razorpay
+
+## Key Website URLs
+- [Home Page](https://twoheartscafe.in/)
+- [Digital Live Menu](https://twoheartscafe.in/menu)
+- [About Us](https://twoheartscafe.in/about)
+- [Contact & Location](https://twoheartscafe.in/contact)
+- [Full LLM Knowledge Base](https://twoheartscafe.in/llms-full.txt)

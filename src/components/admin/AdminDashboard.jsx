@@ -17,7 +17,8 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
-  Printer
+  Printer,
+  Store
 } from "lucide-react";
 import OrderCard from "./OrderCard";
 import MenuManager from "./MenuManager";
@@ -26,7 +27,16 @@ import ReviewsManager from "./ReviewsManager";
 import ChangePinModal from "./ChangePinModal";
 import KitchenPrinterModal from "./KitchenPrinterModal";
 import OnlineOrdersManager from "./OnlineOrdersManager";
-import { updateOrderStatus, clearAllOrders, subscribeReviews, acceptOrderAddition, rejectOrderAddition } from "../../firebase/services";
+import {
+  updateOrderStatus,
+  clearAllOrders,
+  subscribeReviews,
+  acceptOrderAddition,
+  rejectOrderAddition,
+  subscribeStoreStatus,
+  updateStoreStatus,
+  getStoreStatus
+} from "../../firebase/services";
 import { soundNotifier } from "../../utils/audio";
 import { printerService } from "../../utils/printerService";
 import {
@@ -50,6 +60,41 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
 
   const [isPrinterModalOpen, setIsPrinterModalOpen] = useState(false);
   const [currentPrinter, setCurrentPrinter] = useState(() => printerService.getSelectedPrinter());
+
+  // Real-time store operational status (online ordering open / closed)
+  const [storeStatus, setStoreStatus] = useState(getStoreStatus);
+  const [statusFeedbackMsg, setStatusFeedbackMsg] = useState(null);
+
+  useEffect(() => {
+    const unsub = subscribeStoreStatus((status) => {
+      setStoreStatus(status);
+    });
+    return () => {
+      if (unsub) unsub();
+    };
+  }, []);
+
+  const isStoreOpen = storeStatus?.isOnlineOrderingOpen !== false;
+
+  const handleToggleStoreStatus = async () => {
+    const nextState = !isStoreOpen;
+    const res = await updateStoreStatus({ isOnlineOrderingOpen: nextState });
+    if (res.success) {
+      setStatusFeedbackMsg(
+        nextState
+          ? "Online Ordering is now OPEN. Customers can place online delivery & pickup orders."
+          : "Online Ordering is now CLOSED. Website items show 'Cafe Closed'!"
+      );
+    }
+  };
+
+  useEffect(() => {
+    if (!statusFeedbackMsg) return;
+    const timer = setTimeout(() => {
+      setStatusFeedbackMsg(null);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [statusFeedbackMsg]);
 
   // Clock ticker to auto-reset daily stats at 12:00 AM midnight
   const [currentDayKey, setCurrentDayKey] = useState(() => {
@@ -562,6 +607,39 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
 
   return (
     <div className="admin-dashboard-container" style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 16px 80px 16px" }}>
+      {/* Floating Store Status Notification Banner */}
+      {statusFeedbackMsg && (
+        <div style={{
+          position: "fixed",
+          top: 18,
+          right: 18,
+          zIndex: 10000,
+          maxWidth: 420,
+          backgroundColor: isStoreOpen ? "#064e3b" : "#7f1d1d",
+          color: "#ffffff",
+          padding: "14px 18px",
+          borderRadius: 12,
+          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.35)",
+          border: isStoreOpen ? "1.5px solid #10b981" : "1.5px solid #ef4444",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          animation: "fadeIn 0.25s ease-out"
+        }}>
+          <span style={{ fontSize: 20 }}>{isStoreOpen ? "🟢" : "🔴"}</span>
+          <div style={{ flex: 1, fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>
+            {statusFeedbackMsg}
+          </div>
+          <button
+            onClick={() => setStatusFeedbackMsg(null)}
+            style={{ background: "transparent", border: "none", color: "#ffffff", cursor: "pointer", fontSize: 16 }}
+            title="Dismiss notification"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Floating Online Payment Received & Auto-Settlement Alert Banner */}
       {latestPaymentAlert && (
         <div style={{
@@ -844,8 +922,46 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
           </h1>
         </div>
 
-        {/* Audio and help buttons */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {/* Audio, store status, and help buttons */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {/* Online Ordering Store Open / Closed Button */}
+          <button
+            onClick={handleToggleStoreStatus}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              padding: "7px 15px",
+              borderRadius: "var(--radius-pill)",
+              backgroundColor: isStoreOpen ? "#F0FDF4" : "#FEF2F2",
+              border: isStoreOpen ? "1.5px solid #86EFAC" : "1.5px solid #FCA5A5",
+              fontFamily: "var(--font-serif)",
+              fontSize: 12,
+              fontWeight: 800,
+              color: isStoreOpen ? "#15803D" : "#DC2626",
+              cursor: "pointer",
+              boxShadow: "var(--shadow-sm)",
+              transition: "all 0.2s ease"
+            }}
+            title={
+              isStoreOpen
+                ? "Online store is currently OPEN on website. Click to Close Cafe for online orders."
+                : "Online store is currently CLOSED on website. Click to Open Cafe for online orders."
+            }
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: isStoreOpen ? "#22C55E" : "#EF4444",
+                boxShadow: isStoreOpen ? "0 0 6px #22C55E" : "0 0 6px #EF4444",
+                display: "inline-block"
+              }}
+            />
+            <span>{isStoreOpen ? "Online Store: OPEN" : "Online Store: CLOSED"}</span>
+          </button>
+
           <button
             onClick={handleTestChime}
             style={{
@@ -1644,7 +1760,11 @@ export default function AdminDashboard({ orders, menuItems, currentUser, onLogou
 
       {/* Tab Content */}
       {activeTab === "online-orders" && (
-        <OnlineOrdersManager orders={orders} />
+        <OnlineOrdersManager
+          orders={orders}
+          isOnlineOrderingOpen={isStoreOpen}
+          onToggleStoreStatus={handleToggleStoreStatus}
+        />
       )}
 
       {activeTab === "orders" && (

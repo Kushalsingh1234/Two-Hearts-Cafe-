@@ -34,10 +34,12 @@ export default function CartPage({ onNavigate }) {
     deliveryType,
     setDeliveryType,
     customerInfo,
-    setCustomerInfo
+    setCustomerInfo,
+    isOnlineOrderingOpen
   } = useOnlineOrder();
 
   const handleProceedToCheckout = () => {
+    if (!isOnlineOrderingOpen) return;
     if (isLoggedIn) {
       onNavigate("checkout");
     } else {
@@ -729,8 +731,56 @@ export default function CartPage({ onNavigate }) {
                 ⚡ Handcrafted fresh to order. Estimated delivery: <strong>30–40 mins</strong>.
               </div>
 
+              {/* Cafe Closed Warning */}
+              {!isOnlineOrderingOpen && (
+                <div style={{
+                  marginTop: 18,
+                  padding: "12px 14px",
+                  backgroundColor: "#FEF2F2",
+                  border: "1.5px solid #FCA5A5",
+                  borderRadius: "var(--radius-sm)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  fontSize: 12,
+                  color: "#991B1B",
+                  fontWeight: 600,
+                  lineHeight: 1.4
+                }}>
+                  <AlertCircle size={16} style={{ color: "#DC2626", flexShrink: 0 }} />
+                  <span>Cafe is currently closed for online orders. Ordering is temporarily paused.</span>
+                </div>
+              )}
+
               {/* Proceed to Checkout Button */}
-              {deliveryType === "delivery" && !meetsDeliveryMin ? (
+              {!isOnlineOrderingOpen ? (
+                <button
+                  type="button"
+                  disabled
+                  className="touch-target-44"
+                  style={{
+                    width: "100%",
+                    padding: "14px 24px",
+                    fontSize: 13,
+                    marginTop: 18,
+                    minHeight: 48,
+                    backgroundColor: "#e4e4e7",
+                    color: "#71717a",
+                    border: "1px solid #d4d4d8",
+                    borderRadius: "var(--radius-pill)",
+                    cursor: "not-allowed",
+                    fontWeight: 700,
+                    fontFamily: "var(--font-serif)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8
+                  }}
+                >
+                  <AlertCircle size={16} />
+                  <span>Cafe is Currently Closed</span>
+                </button>
+              ) : deliveryType === "delivery" && !meetsDeliveryMin ? (
                 <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 8 }}>
                   <button
                     type="button"

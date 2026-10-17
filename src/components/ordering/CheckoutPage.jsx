@@ -45,7 +45,8 @@ export default function CheckoutPage({ onNavigate }) {
     submitOnlineOrder,
     DELIVERY_CONFIG,
     calculateDistanceKm,
-    checkDeliveryEligibility
+    checkDeliveryEligibility,
+    isOnlineOrderingOpen
   } = useOnlineOrder();
 
   // Track currently selected saved address
@@ -244,6 +245,10 @@ export default function CheckoutPage({ onNavigate }) {
   };
 
   const handlePayAndPlaceOrder = async () => {
+    if (!isOnlineOrderingOpen) {
+      alert("Cafe is currently closed for online orders. Ordering is temporarily paused.");
+      return;
+    }
     if (!isLoggedIn) {
       openAuthModal();
       return;
@@ -852,6 +857,49 @@ export default function CheckoutPage({ onNavigate }) {
                   >
                     <Store size={14} />
                     <span>Switch to Pickup to Place Order</span>
+                  </button>
+                </div>
+              ) : !isOnlineOrderingOpen ? (
+                <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{
+                    padding: "10px 14px",
+                    backgroundColor: "#FEF2F2",
+                    border: "1px solid #FCA5A5",
+                    borderRadius: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 12,
+                    color: "#991B1B",
+                    fontWeight: 600
+                  }}>
+                    <AlertCircle size={15} style={{ color: "#DC2626", flexShrink: 0 }} />
+                    <span>Cafe is currently closed for online orders. Online checkout is paused.</span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled
+                    className="touch-target-44"
+                    style={{
+                      width: "100%",
+                      padding: "14px 20px",
+                      fontSize: 13,
+                      minHeight: 48,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      backgroundColor: "#e4e4e7",
+                      color: "#71717a",
+                      border: "1px solid #d4d4d8",
+                      borderRadius: "var(--radius-pill)",
+                      cursor: "not-allowed",
+                      fontWeight: 700,
+                      fontFamily: "var(--font-serif)"
+                    }}
+                  >
+                    <Lock size={15} />
+                    <span>Cafe Closed for Online Orders</span>
                   </button>
                 </div>
               ) : (

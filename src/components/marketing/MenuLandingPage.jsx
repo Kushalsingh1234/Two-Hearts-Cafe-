@@ -12,7 +12,9 @@ import {
   Bike,
   Sparkles,
   Info,
-  Check
+  Check,
+  Clock,
+  Lock
 } from "lucide-react";
 import CafeLogoIcon from "../common/CafeLogoIcon";
 import { DISH_PHOTOS, getDishPhoto, CATEGORY_CARDS } from "./MarketingData";
@@ -35,7 +37,9 @@ export default function MenuLandingPage({
     deliveryType,
     setDeliveryType,
     isCartDrawerOpen,
-    setIsCartDrawerOpen
+    setIsCartDrawerOpen,
+    isOnlineOrderingOpen,
+    storeStatus
   } = useOnlineOrder();
 
   // Search & Filter State
@@ -106,6 +110,7 @@ export default function MenuLandingPage({
 
   // Handle Add Item with bounce trigger
   const handleAddItem = (dish) => {
+    if (!isOnlineOrderingOpen) return;
     if (dish.isAvailable === false) return;
     addToCart(dish);
     setBouncedItemId(dish.id);
@@ -492,6 +497,77 @@ export default function MenuLandingPage({
             )}
           </div>
 
+          {/* Cafe Closed For Online Orders Banner */}
+          {!isOnlineOrderingOpen && (
+            <div style={{
+              backgroundColor: "#FEF2F2",
+              border: "1.5px solid #F87171",
+              borderRadius: 12,
+              padding: "16px 20px",
+              marginBottom: 24,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 14,
+              boxShadow: "0 4px 14px rgba(220, 38, 38, 0.08)"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: "50%",
+                  backgroundColor: "#FEE2E2",
+                  border: "1.5px solid #FCA5A5",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#DC2626",
+                  flexShrink: 0
+                }}>
+                  <Clock size={20} />
+                </div>
+                <div>
+                  <h3 style={{
+                    fontFamily: "var(--font-serif)",
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: "#991B1B",
+                    margin: 0
+                  }}>
+                    Cafe is Currently Closed for Online Orders
+                  </h3>
+                  <p style={{
+                    fontSize: 13,
+                    color: "#B91C1C",
+                    margin: "3px 0 0 0",
+                    lineHeight: 1.4
+                  }}>
+                    {storeStatus?.closedMessage || "Online ordering is currently paused. You are welcome to browse our handcrafted menu!"}
+                  </p>
+                </div>
+              </div>
+              <div style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "6px 14px",
+                borderRadius: "var(--radius-pill)",
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #FCA5A5",
+                color: "#991B1B",
+                fontSize: 12,
+                fontFamily: "var(--font-serif)",
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: 0.5
+              }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#DC2626" }} />
+                <span>Orders Paused</span>
+              </div>
+            </div>
+          )}
+
           {/* Empty State if 0 matching items */}
           {filteredDishes.length === 0 ? (
             <div className="bistro-card" style={{
@@ -642,6 +718,26 @@ export default function MenuLandingPage({
                           Out of Stock
                         </div>
                       )}
+
+                      {!isOnlineOrderingOpen && item.isAvailable !== false && (
+                        <div style={{
+                          position: "absolute",
+                          top: 10,
+                          right: 10,
+                          backgroundColor: "#991B1B",
+                          color: "#ffffff",
+                          fontSize: 10,
+                          fontFamily: "var(--font-serif)",
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          borderRadius: "var(--radius-pill)",
+                          letterSpacing: 0.5,
+                          textTransform: "uppercase",
+                          boxShadow: "0 2px 6px rgba(0,0,0,0.25)"
+                        }}>
+                          Cafe Closed
+                        </div>
+                      )}
                     </div>
 
                     {/* Card Content & Action Area */}
@@ -778,6 +874,23 @@ export default function MenuLandingPage({
 
                                   {item.isAvailable === false ? (
                                     <span style={{ fontSize: 11, color: "#71717a", fontWeight: 600 }}>Out of Stock</span>
+                                  ) : !isOnlineOrderingOpen ? (
+                                    <span style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      padding: "3px 10px",
+                                      borderRadius: "var(--radius-pill)",
+                                      fontSize: 10.5,
+                                      fontFamily: "var(--font-serif)",
+                                      fontWeight: 700,
+                                      letterSpacing: 0.5,
+                                      textTransform: "uppercase",
+                                      color: "#991B1B",
+                                      backgroundColor: "#FEE2E2",
+                                      border: "1px solid #FCA5A5"
+                                    }}>
+                                      Cafe Closed
+                                    </span>
                                   ) : portionQty === 0 ? (
                                     <button
                                       type="button"
@@ -879,7 +992,7 @@ export default function MenuLandingPage({
                             </span>
                           </div>
 
-                          {/* If Out of stock: disabled unselectable button; If 0: Pill "+ ADD" Button, If >= 1: Stepper */}
+                          {/* If Out of stock: disabled unselectable button; If Cafe Closed: disabled button; If 0: Pill "+ ADD" Button, If >= 1: Stepper */}
                           {item.isAvailable === false ? (
                             <button
                               type="button"
@@ -907,6 +1020,34 @@ export default function MenuLandingPage({
                             >
                               <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#71717a" }} />
                               <span>Out of Stock</span>
+                            </button>
+                          ) : !isOnlineOrderingOpen ? (
+                            <button
+                              type="button"
+                              disabled
+                              aria-disabled="true"
+                              title="Cafe is currently closed for online orders"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 5,
+                                padding: "8px 16px",
+                                minHeight: 44,
+                                fontSize: 11.5,
+                                fontFamily: "var(--font-serif)",
+                                fontWeight: 700,
+                                letterSpacing: 0.5,
+                                textTransform: "uppercase",
+                                color: "#991B1B",
+                                backgroundColor: "#FEE2E2",
+                                border: "1px solid #FCA5A5",
+                                borderRadius: "var(--radius-pill)",
+                                cursor: "not-allowed",
+                                userSelect: "none"
+                              }}
+                            >
+                              <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#DC2626" }} />
+                              <span>Cafe Closed</span>
                             </button>
                           ) : qty === 0 ? (
                             <button

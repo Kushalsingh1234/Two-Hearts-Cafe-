@@ -28,7 +28,7 @@ import {
   Printer
 } from "lucide-react";
 import OnlineOrderDetailModal from "./OnlineOrderDetailModal";
-import { updateOnlineOrder } from "../../firebase/services";
+import { updateOnlineOrder, subscribeStoreStatus, updateStoreStatus, getStoreStatus } from "../../firebase/services";
 import { printerService } from "../../utils/printerService";
 
 // Helper: Format relative time
@@ -55,7 +55,35 @@ const STATUS_CONFIG = {
   cancelled: { label: "Cancelled", bg: "#FEF2F2", text: "#DC2626", border: "#FCA5A5", icon: AlertCircle }
 };
 
-export default function OnlineOrdersManager({ orders = [], onRefresh }) {
+export default function OnlineOrdersManager({
+  orders = [],
+  onRefresh,
+  isOnlineOrderingOpen: propIsOpen,
+  onToggleStoreStatus
+}) {
+  const [internalStoreStatus, setInternalStoreStatus] = useState(getStoreStatus);
+
+  useEffect(() => {
+    const unsub = subscribeStoreStatus((status) => {
+      setInternalStoreStatus(status);
+    });
+    return () => {
+      if (unsub) unsub();
+    };
+  }, []);
+
+  const effectiveIsOpen =
+    propIsOpen !== undefined
+      ? propIsOpen
+      : internalStoreStatus?.isOnlineOrderingOpen !== false;
+
+  const handleToggleStatus = async () => {
+    if (onToggleStoreStatus) {
+      onToggleStoreStatus();
+    } else {
+      await updateStoreStatus({ isOnlineOrderingOpen: !effectiveIsOpen });
+    }
+  };
   const [selectedOrder, setSelectedOrder] = useState(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -223,6 +251,104 @@ export default function OnlineOrdersManager({ orders = [], onRefresh }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* 0. ONLINE STORE OPERATIONAL STATUS BANNER & QUICK TOGGLE */}
+      <div
+        style={{
+          backgroundColor: effectiveIsOpen ? "#F0FDF4" : "#FEF2F2",
+          border: effectiveIsOpen ? "1.5px solid #86EFAC" : "1.5px solid #FCA5A5",
+          borderRadius: 12,
+          padding: "16px 20px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 14,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.02)"
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: "50%",
+              backgroundColor: effectiveIsOpen ? "#DCFCE7" : "#FEE2E2",
+              border: effectiveIsOpen ? "1px solid #86EFAC" : "1px solid #FCA5A5",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: effectiveIsOpen ? "#15803D" : "#DC2626",
+              flexShrink: 0
+            }}
+          >
+            <Store size={20} />
+          </div>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 15,
+                  fontWeight: 800,
+                  color: effectiveIsOpen ? "#14532D" : "#7F1D1D"
+                }}
+              >
+                Online Ordering: {effectiveIsOpen ? "OPEN (Accepting Orders)" : "CLOSED (Orders Paused)"}
+              </span>
+              <span
+                style={{
+                  fontSize: 11,
+                  padding: "2px 8px",
+                  borderRadius: "var(--radius-pill)",
+                  backgroundColor: effectiveIsOpen ? "#22C55E" : "#EF4444",
+                  color: "#FFFFFF",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5
+                }}
+              >
+                {effectiveIsOpen ? "Live on website" : "Paused on website"}
+              </span>
+            </div>
+            <p
+              style={{
+                fontSize: 12.5,
+                color: effectiveIsOpen ? "#15803D" : "#991B1B",
+                margin: "3px 0 0 0",
+                lineHeight: 1.4
+              }}
+            >
+              {effectiveIsOpen
+                ? "Customers can browse menu items and place online delivery & pickup orders."
+                : "Website items currently show 'Cafe Closed'. Online checkout and adding items to cart are disabled."}
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleToggleStatus}
+          style={{
+            padding: "9px 20px",
+            borderRadius: "var(--radius-pill)",
+            backgroundColor: effectiveIsOpen ? "#DC2626" : "#16A34A",
+            color: "#FFFFFF",
+            border: "none",
+            fontFamily: "var(--font-serif)",
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: "pointer",
+            boxShadow: effectiveIsOpen ? "0 2px 8px rgba(220, 38, 38, 0.3)" : "0 2px 8px rgba(22, 163, 74, 0.3)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+            transition: "all 0.2s ease"
+          }}
+        >
+          <span>{effectiveIsOpen ? "Pause Online Ordering (Set Closed)" : "Resume Online Ordering (Set Open)"}</span>
+        </button>
+      </div>
+
       {/* 1. TOP KPI SUMMARY STATS */}
       <div
         style={{

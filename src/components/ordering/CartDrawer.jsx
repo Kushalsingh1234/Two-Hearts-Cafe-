@@ -29,7 +29,8 @@ export default function CartDrawer({ isOpen, onClose, onNavigate }) {
     deliveryType,
     setDeliveryType,
     FREE_DELIVERY_THRESHOLD,
-    DELIVERY_CONFIG
+    DELIVERY_CONFIG,
+    isOnlineOrderingOpen
   } = useOnlineOrder();
 
   if (!isOpen) return null;
@@ -454,6 +455,25 @@ export default function CartDrawer({ isOpen, onClose, onNavigate }) {
               <span style={{ color: "var(--color-bronze-dark)" }}>₹{total}</span>
             </div>
 
+            {!isOnlineOrderingOpen && (
+              <div style={{
+                backgroundColor: "#FEF2F2",
+                border: "1px solid #FCA5A5",
+                borderRadius: 8,
+                padding: "8px 12px",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 12,
+                fontSize: 12,
+                color: "#991B1B",
+                fontWeight: 600
+              }}>
+                <AlertCircle size={14} style={{ flexShrink: 0, color: "#DC2626" }} />
+                <span>Cafe is currently closed for online orders.</span>
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 10 }}>
               <button
                 type="button"
@@ -463,7 +483,26 @@ export default function CartDrawer({ isOpen, onClose, onNavigate }) {
               >
                 View Full Cart
               </button>
-              {deliveryType === "delivery" && !meetsMinSubtotal ? (
+              {!isOnlineOrderingOpen ? (
+                <button
+                  type="button"
+                  disabled
+                  style={{
+                    flex: 1.5,
+                    padding: "10px 14px",
+                    fontSize: 12,
+                    backgroundColor: "#e4e4e7",
+                    color: "#71717a",
+                    border: "1px solid #d4d4d8",
+                    borderRadius: "var(--radius-pill)",
+                    cursor: "not-allowed",
+                    fontWeight: 700,
+                    fontFamily: "var(--font-serif)"
+                  }}
+                >
+                  Cafe Closed
+                </button>
+              ) : deliveryType === "delivery" && !meetsMinSubtotal ? (
                 <button
                   type="button"
                   onClick={() => {

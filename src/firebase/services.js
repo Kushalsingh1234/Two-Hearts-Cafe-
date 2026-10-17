@@ -18,9 +18,19 @@ import { INITIAL_MENU_ITEMS } from "../data/seedMenu";
 const MENU_COLLECTION = "menu_items";
 const ORDERS_COLLECTION = "orders";
 const REVIEWS_COLLECTION = "table_reviews";
+const SETTINGS_COLLECTION = "cafe_settings";
+const STORE_STATUS_DOC = "store_status";
 const LOCAL_STORAGE_MENU_KEY = "twohearts_menu_cache_v7";
 const LOCAL_STORAGE_ORDERS_KEY = "twohearts_orders_cache";
 const LOCAL_STORAGE_REVIEWS_KEY = "twohearts_reviews_cache";
+const LOCAL_STORAGE_STORE_STATUS_KEY = "twohearts_store_status_cache_v1";
+
+export const DEFAULT_STORE_STATUS = {
+  isOnlineOrderingOpen: true,
+  closedMessage: "We are currently closed for online delivery & pickup orders. You can still browse our menu!",
+  updatedAt: null,
+  updatedBy: null
+};
 
 // Helper for local storage backup
 const getLocalData = (key, fallback) => {
@@ -1503,3 +1513,91 @@ export const subscribeReviews = (onSuccess, onError) => {
     return () => {};
   }
 };
+
+/**
+ * Realtime subscription to cafe store operational status (e.g. online ordering open/closed)
+ */
+export const subscribeStoreStatus = (onSuccess) => {
+  const cached = getLocalData(LOCAL_STORAGE_STORE_STATUS_KEY, DEFAULT_STORE_STATUS);
+  onSuccess(cached);
+
+  const handleLocalUpdate = (e) => {
+    const updated = e?.detail || getLocalData(LOCAL_STORAGE_STORE_STATUS_KEY, DEFAULT_STORE_STATUS);
+    onSuccess(updated);
+  };
+
+  window.addEventListener("twohearts_store_status_updated", handleLocalUpdate);
+  const handleStorage = (e) => {
+    if (e.key === LOCAL_STORAGE_STORE_STATUS_KEY) {
+      handleLocalUpdate();
+    }
+  };
+  window.addEventListener("storage", handleStorage);
+
+  try {
+    const docRef = doc(db, SETTINGS_COLLECTION, STORE_STATUS_DOC);
+    const unsubscribe = onSnapshot(
+      docRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data = { ...DEFAULT_STORE_STATUS, ...snapshot.data() };
+          setLocalData(LOCAL_STORAGE_STORE_STATUS_KEY, data);
+          onSuccess(data);
+        } else {
+          setLocalData(LOCAL_STORAGE_STORE_STATUS_KEY, DEFAULT_STORE_STATUS);
+          onSuccess(DEFAULT_STORE_STATUS);
+        }
+      },
+      (err) => {
+        console.warn("Firestore store status subscription fallback to local cache:", err.message);
+        const fallback = getLocalData(LOCAL_STORAGE_STORE_STATUS_KEY, DEFAULT_STORE_STATUS);
+        onSuccess(fallback);
+      }
+    );
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+      window.removeEventListener("twohearts_store_status_updated", handleLocalUpdate);
+      window.removeEventListener("storage", handleStorage);
+    };
+  } catch (err) {
+    console.warn("Store status subscription error:", err);
+    return () => {
+      window.removeEventListener("twohearts_store_status_updated", handleLocalUpdate);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }
+};
+
+/**
+ * Update cafe store operational status (e.g. toggle online ordering open/closed)
+ */
+export const updateStoreStatus = async (statusUpdate) => {
+  const current = getLocalData(LOCAL_STORAGE_STORE_STATUS_KEY, DEFAULT_STORE_STATUS);
+  const merged = {
+    ...current,
+    ...statusUpdate,
+    updatedAt: new Date().toISOString()
+  };
+
+  // Immediate optimistic local dispatch
+  setLocalData(LOCAL_STORAGE_STORE_STATUS_KEY, merged);
+  window.dispatchEvent(new CustomEvent("twohearts_store_status_updated", { detail: merged }));
+
+  try {
+    const docRef = doc(db, SETTINGS_COLLECTION, STORE_STATUS_DOC);
+    await setDoc(docRef, merged, { merge: true });
+    return { success: true, data: merged };
+  } catch (err) {
+    console.warn("Failed to persist store status to Firestore, saved locally:", err);
+    return { success: true, data: merged, error: err.message };
+  }
+};
+
+/**
+ * Synchronous getter for current store status from cache
+ */
+export const getStoreStatus = () => {
+  return getLocalData(LOCAL_STORAGE_STORE_STATUS_KEY, DEFAULT_STORE_STATUS);
+};
+

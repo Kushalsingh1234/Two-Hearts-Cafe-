@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
-import { placeOnlineDeliveryOrder } from "../firebase/services";
+import { placeOnlineDeliveryOrder, subscribeStoreStatus, updateStoreStatus, getStoreStatus } from "../firebase/services";
 import {
   DELIVERY_CONFIG,
   calculateDistanceKm,
@@ -13,6 +13,20 @@ const CUSTOMER_STORAGE_KEY = "twohearts_customer_info_v1";
 const ACTIVE_ORDER_STORAGE_KEY = "twohearts_active_online_order_v1";
 
 export function OnlineOrderProvider({ children }) {
+  // Store Operational Status (e.g. online ordering open/closed)
+  const [storeStatus, setStoreStatus] = useState(getStoreStatus);
+
+  useEffect(() => {
+    const unsubscribe = subscribeStoreStatus((status) => {
+      setStoreStatus(status);
+    });
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  const isOnlineOrderingOpen = storeStatus?.isOnlineOrderingOpen !== false;
+
   // 1. Cart state (persisted)
   const [cart, setCart] = useState(() => {
     try {
@@ -157,6 +171,7 @@ export function OnlineOrderProvider({ children }) {
 
   // Cart operations
   const addToCart = (item) => {
+    if (!isOnlineOrderingOpen) return;
     if (!item || item.isAvailable === false) return;
     setCart((prev) => {
       const existingIdx = prev.findIndex((i) => i.id === item.id);
@@ -334,7 +349,10 @@ export function OnlineOrderProvider({ children }) {
     isCartDrawerOpen,
     setIsCartDrawerOpen,
     clearCart,
-    submitOnlineOrder
+    submitOnlineOrder,
+    isOnlineOrderingOpen,
+    storeStatus,
+    updateStoreStatus
   };
 
   return (

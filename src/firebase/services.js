@@ -18,8 +18,8 @@ import { INITIAL_MENU_ITEMS } from "../data/seedMenu";
 const MENU_COLLECTION = "menu_items";
 const ORDERS_COLLECTION = "orders";
 const REVIEWS_COLLECTION = "table_reviews";
-const SETTINGS_COLLECTION = "cafe_settings";
-const STORE_STATUS_DOC = "store_status";
+const STORE_STATUS_COLLECTION = "orders";
+const STORE_STATUS_DOC = "_cafe_store_status";
 const LOCAL_STORAGE_MENU_KEY = "twohearts_menu_cache_v7";
 const LOCAL_STORAGE_ORDERS_KEY = "twohearts_orders_cache";
 const LOCAL_STORAGE_REVIEWS_KEY = "twohearts_reviews_cache";
@@ -885,10 +885,12 @@ export const pollLatestOrders = async (onSuccess) => {
     const q = collection(db, ORDERS_COLLECTION);
     const snapshot = await getDocs(q);
     firestorePermissionErrorDetected = false;
-    const orders = snapshot.docs.map((docSnap) => ({
-      id: docSnap.id,
-      ...docSnap.data()
-    }));
+    const orders = snapshot.docs
+      .filter((docSnap) => !docSnap.id.startsWith("_"))
+      .map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
     orders.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     setLocalData(LOCAL_STORAGE_ORDERS_KEY, orders);
     if (onSuccess) {
@@ -923,10 +925,12 @@ export const subscribeLiveOrders = (onSuccess, onError) => {
       q,
       (snapshot) => {
         firestorePermissionErrorDetected = false;
-        const orders = snapshot.docs.map((docSnap) => ({
-          id: docSnap.id,
-          ...docSnap.data()
-        }));
+        const orders = snapshot.docs
+          .filter((docSnap) => !docSnap.id.startsWith("_"))
+          .map((docSnap) => ({
+            id: docSnap.id,
+            ...docSnap.data()
+          }));
 
         // Sort descending by timestamp/createdAt
         orders.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
@@ -1168,7 +1172,9 @@ export const clearAllOrders = async () => {
   try {
     const snapshot = await getDocs(collection(db, ORDERS_COLLECTION));
     for (const d of snapshot.docs) {
-      await deleteDoc(d.ref);
+      if (!d.id.startsWith("_")) {
+        await deleteDoc(d.ref);
+      }
     }
   } catch (err) {
     console.warn("Clear orders fallback:", err);
@@ -1535,7 +1541,7 @@ export const subscribeStoreStatus = (onSuccess) => {
   window.addEventListener("storage", handleStorage);
 
   try {
-    const docRef = doc(db, SETTINGS_COLLECTION, STORE_STATUS_DOC);
+    const docRef = doc(db, STORE_STATUS_COLLECTION, STORE_STATUS_DOC);
     const unsubscribe = onSnapshot(
       docRef,
       (snapshot) => {
@@ -1585,7 +1591,7 @@ export const updateStoreStatus = async (statusUpdate) => {
   window.dispatchEvent(new CustomEvent("twohearts_store_status_updated", { detail: merged }));
 
   try {
-    const docRef = doc(db, SETTINGS_COLLECTION, STORE_STATUS_DOC);
+    const docRef = doc(db, STORE_STATUS_COLLECTION, STORE_STATUS_DOC);
     await setDoc(docRef, merged, { merge: true });
     return { success: true, data: merged };
   } catch (err) {

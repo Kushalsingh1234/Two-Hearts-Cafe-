@@ -202,9 +202,9 @@ export const triggerOrderNotification = async (order) => {
     console.warn("SW showNotification fallback:", e);
   }
 
-  // Also post to service worker controller if available for background delivery
+  // Also post to service worker controller if available and permission is granted
   try {
-    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+    if (navigator.serviceWorker && navigator.serviceWorker.controller && typeof Notification !== "undefined" && Notification.permission === "granted") {
       navigator.serviceWorker.controller.postMessage({
         type: "SHOW_ORDER_NOTIFICATION",
         title,
@@ -409,9 +409,9 @@ export const triggerTableAdditionNotification = async (order, newItems = []) => 
     console.warn("SW addition notification fallback:", e);
   }
 
-  // Post message to service worker controller
+  // Post message to service worker controller if permission granted
   try {
-    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+    if (navigator.serviceWorker && navigator.serviceWorker.controller && typeof Notification !== "undefined" && Notification.permission === "granted") {
       navigator.serviceWorker.controller.postMessage({
         type: "SHOW_ORDER_NOTIFICATION",
         title,
@@ -485,9 +485,9 @@ export const triggerCounterBillRequestedNotification = async (order) => {
     console.warn("SW bill request notification fallback:", e);
   }
 
-  // Post message to service worker controller
+  // Post message to service worker controller if permission granted
   try {
-    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+    if (navigator.serviceWorker && navigator.serviceWorker.controller && typeof Notification !== "undefined" && Notification.permission === "granted") {
       navigator.serviceWorker.controller.postMessage({
         type: "SHOW_ORDER_NOTIFICATION",
         title,

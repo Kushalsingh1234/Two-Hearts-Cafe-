@@ -34,7 +34,9 @@ messaging.onBackgroundMessage((payload) => {
     ]
   };
 
-  self.registration.showNotification(title, options);
+  self.registration.showNotification(title, options).catch((err) => {
+    console.warn("[firebase-messaging-sw.js] showNotification skipped/failed:", err?.message || err);
+  });
 });
 
 self.addEventListener('notificationclick', (event) => {

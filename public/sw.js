@@ -77,6 +77,10 @@ self.addEventListener('push', (event) => {
 
 // Helper to trigger rich notification with sound and vibration
 function showOrderNotification(title, body, data = {}) {
+  if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+    return Promise.resolve();
+  }
+
   const options = {
     body: body || 'New order ready for kitchen prep.',
     icon: '/images/pwa/icon-192.png',
@@ -98,7 +102,9 @@ function showOrderNotification(title, body, data = {}) {
     ]
   };
 
-  return self.registration.showNotification(title, options);
+  return self.registration.showNotification(title, options).catch((err) => {
+    console.warn("Service worker notification skipped or failed:", err?.message || err);
+  });
 }
 
 // Notification Click: Focus existing Admin window or open new tab

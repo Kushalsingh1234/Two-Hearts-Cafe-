@@ -693,7 +693,25 @@ export const INITIAL_MENU_ITEMS = [
     isSpecial: true
   },
 
-  // --- SHAKES ---
+  // --- SHAKES & DRINKS ---
+  {
+    id: "th_special_chai",
+    name: "Chai",
+    category: "shakes",
+    price: 39,
+    description: "Authentic slow-brewed Indian milk tea infused with aromatic cardamom and fresh ginger.",
+    isVeg: true,
+    isAvailable: true
+  },
+  {
+    id: "th_hot_coffee",
+    name: "Hot Coffee",
+    category: "shakes",
+    price: 69,
+    description: "Rich, aromatic freshly brewed hot cafe coffee with frothy milk and velvety crema.",
+    isVeg: true,
+    isAvailable: true
+  },
   {
     id: "th_cold_coffee",
     name: "Cold Coffee",

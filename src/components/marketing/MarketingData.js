@@ -1,4 +1,4 @@
-import { CAFE_INFO } from "../../data/seedMenu";
+import { CAFE_INFO } from "../../data/seedMenu.js";
 
 export { CAFE_INFO };
 
@@ -67,7 +67,7 @@ export const DISH_PHOTOS = {
   th_cheese_corn_kurkure_momo: "/images/dishes/kurkure_momo.jpeg",
 
   // --- RICE ---
-  th_veg_fried_rice: "/images/dishes/veg_fried_rice.jpeg",
+  th_veg_fried_rice: "/images/dishes/veg_fried_rice.jpg",
   th_paneer_fried_rice: "/images/dishes/paneer_fried_rice.jpg",
   th_schezwan_fried_rice: "/images/dishes/schezwan_fried_rice.jpeg",
 
@@ -79,30 +79,34 @@ export const DISH_PHOTOS = {
   // --- SNACKS ---
   th_salted_french_fries: "/images/dishes/salted_french_fries.jpg",
   th_peri_peri_french_fries: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=800&q=80",
-  th_cheese_loaded_french_fries: "https://images.unsplash.com/photo-1585109649139-366815a0d713?auto=format&fit=crop&w=800&q=80",
+  th_cheese_loaded_french_fries: "/images/dishes/cheese_loaded_fries.jpg",
   th_chilli_potato: "/images/dishes/honey_chilli_potato.jpg",
   th_honey_chilli_potato: "/images/dishes/honey_chilli_potato.jpg",
-  th_crispy_corn: "https://images.unsplash.com/photo-1551782450-a2132b4ba21d?auto=format&fit=crop&w=800&q=80",
+  th_crispy_corn: "/images/dishes/crispy_corn.jpg",
   th_chilli_mushroom: "/images/dishes/chilli_mushroom.jpg",
 
   // --- ROLL ---
   th_veg_roll: "/images/dishes/veg_roll.jpg",
   th_paneer_roll: "/images/dishes/paneer_roll.jpg",
-  th_spring_roll: "/images/dishes/veg_spring_roll.jpeg",
-  th_veg_cheese_roll: "/images/dishes/veg_roll.jpg",
-  th_paneer_cheese_roll: "/images/dishes/paneer_roll.jpg",
+  th_spring_roll: "/images/dishes/spring_roll.jpg",
+  th_veg_cheese_roll: "/images/dishes/veg_cheese_roll.jpg",
+  th_paneer_cheese_roll: "/images/dishes/paneer_cheese_roll.jpg",
 
   // --- COMBO ---
-  th_combo_1: "/images/dishes/aloo_tikki_burger.jpg",
-  th_combo_2: "/images/dishes/double_cheese_veg_burger.jpg",
-  th_combo_3: "/images/dishes/paneer_fried_rice.jpg",
+  th_combo_1: "/images/dishes/combo_1.jpg",
+  th_combo_2: "/images/dishes/combo_2.jpg",
+  th_combo_3: "/images/dishes/combo_3.jpg",
 
   // --- WAFFLES ---
   th_chocolate_chip_waffle: "https://images.unsplash.com/photo-1562376552-0d160a2f238d?auto=format&fit=crop&w=800&q=80",
   th_chocolate_creamy_waffle: "https://images.unsplash.com/photo-1598214886806-c87b84b7078b?auto=format&fit=crop&w=800&q=80",
-  th_rainbow_waffle: "https://images.unsplash.com/photo-1504387828636-abeb50778c0c?auto=format&fit=crop&w=800&q=80",
+  th_rainbow_waffle: "/images/dishes/rainbow_waffle.jpg",
 
-  // --- SHAKES ---
+  // --- SHAKES & DRINKS ---
+  th_chai: "/images/dishes/chai.jpg",
+  th_special_chai: "/images/dishes/chai.jpg",
+  th_masala_chai: "/images/dishes/chai.jpg",
+  th_hot_coffee: "/images/dishes/hot_coffee.jpg",
   th_cold_coffee: "https://images.unsplash.com/photo-1517256064527-09c73fc73e38?auto=format&fit=crop&w=800&q=80",
   th_kitkat_shake: "/images/dishes/kitkat_shake.jpeg",
   th_vanilla_shake: "https://images.unsplash.com/photo-1579954115545-a95591f28bfc?auto=format&fit=crop&w=800&q=80",
@@ -110,7 +114,7 @@ export const DISH_PHOTOS = {
   th_butterscotch_shake: "https://images.unsplash.com/photo-1541658016709-82535e94bc69?auto=format&fit=crop&w=800&q=80",
   th_strawberry_shake: "https://images.unsplash.com/photo-1553787499-6f9133860278?auto=format&fit=crop&w=800&q=80",
   th_chocolate_shake: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=800&q=80",
-  th_hazelnut_shake: "https://images.unsplash.com/photo-1517256064527-09c73fc73e38?auto=format&fit=crop&w=800&q=80",
+  th_hazelnut_shake: "/images/dishes/hazelnut_shake.jpg",
 
   // --- DESI CUISINE ---
   th_dal_tadka: "/images/dishes/dal_tadka.jpg",
@@ -176,7 +180,53 @@ export const DISH_PHOTOS_BY_NAME = {
   "spring roll": "/images/dishes/veg_spring_roll.jpeg",
   "veg spring roll": "/images/dishes/veg_spring_roll.jpeg",
   "kitkat shake": "/images/dishes/kitkat_shake.jpeg",
-  "oreo shake": "/images/dishes/oreo_shake.jpeg"
+  "oreo shake": "/images/dishes/oreo_shake.jpeg",
+  "chai": "/images/dishes/chai.jpg",
+  "special chai": "/images/dishes/chai.jpg",
+  "masala chai": "/images/dishes/chai.jpg",
+  "cutting chai": "/images/dishes/chai.jpg",
+  "adrak chai": "/images/dishes/chai.jpg",
+  "elaichi chai": "/images/dishes/chai.jpg",
+  "tea": "/images/dishes/chai.jpg",
+  "hot tea": "/images/dishes/chai.jpg",
+  "hot coffee": "/images/dishes/hot_coffee.jpg",
+  "hot coffeee": "/images/dishes/hot_coffee.jpg",
+  "coffee": "/images/dishes/hot_coffee.jpg",
+  "cappuccino": "/images/dishes/hot_coffee.jpg",
+  "espresso": "/images/dishes/hot_coffee.jpg",
+  "latte": "/images/dishes/hot_coffee.jpg",
+  "cafe latte": "/images/dishes/hot_coffee.jpg",
+  "filter coffee": "/images/dishes/hot_coffee.jpg",
+  "cold coffee": "https://images.unsplash.com/photo-1517256064527-09c73fc73e38?auto=format&fit=crop&w=800&q=80",
+  "cheese loaded fries": "/images/dishes/cheese_loaded_fries.jpg",
+  "cheese loaded french fries": "/images/dishes/cheese_loaded_fries.jpg",
+  "cheese loadeds fries": "/images/dishes/cheese_loaded_fries.jpg",
+  "cheese loades fries": "/images/dishes/cheese_loaded_fries.jpg",
+  "cheese fries": "/images/dishes/cheese_loaded_fries.jpg",
+  "crispy corn": "/images/dishes/crispy_corn.jpg",
+  "crispy sweet corn": "/images/dishes/crispy_corn.jpg",
+  "combo 1": "/images/dishes/combo_1.jpg",
+  "combo1": "/images/dishes/combo_1.jpg",
+  "combo 2": "/images/dishes/combo_2.jpg",
+  "combo2": "/images/dishes/combo_2.jpg",
+  "combo 3": "/images/dishes/combo_3.jpg",
+  "combo3": "/images/dishes/combo_3.jpg",
+  "rainbow waffle": "/images/dishes/rainbow_waffle.jpg",
+  "hazelnut shake": "/images/dishes/hazelnut_shake.jpg",
+  "hazelnut": "/images/dishes/hazelnut_shake.jpg",
+  "chilli paneer": "/images/dishes/chilli_paneer.jpg",
+  "chili paneer": "/images/dishes/chilli_paneer.jpg",
+  "veg fried rice": "/images/dishes/veg_fried_rice.jpg",
+  "fried rice": "/images/dishes/veg_fried_rice.jpg",
+  "veg roll": "/images/dishes/veg_roll.jpg",
+  "paneer roll": "/images/dishes/paneer_roll.jpg",
+  "spring roll": "/images/dishes/spring_roll.jpg",
+  "veg spring roll": "/images/dishes/spring_roll.jpg",
+  "veg cheese roll": "/images/dishes/veg_cheese_roll.jpg",
+  "cheese veg roll": "/images/dishes/veg_cheese_roll.jpg",
+  "paneer cheese roll": "/images/dishes/paneer_cheese_roll.jpg",
+  "cheese paneer roll": "/images/dishes/paneer_cheese_roll.jpg",
+  "kathi roll": "/images/dishes/paneer_roll.jpg"
 };
 
 /**
@@ -191,6 +241,72 @@ export const getDishPhoto = (dish) => {
 
   const nameKey = (dish.name || "").toLowerCase().trim();
   if (DISH_PHOTOS_BY_NAME[nameKey]) return DISH_PHOTOS_BY_NAME[nameKey];
+
+  // Combos take high precedence
+  if (nameKey.includes("combo 1") || nameKey.includes("combo1")) {
+    return "/images/dishes/combo_1.jpg";
+  }
+  if (nameKey.includes("combo 2") || nameKey.includes("combo2")) {
+    return "/images/dishes/combo_2.jpg";
+  }
+  if (nameKey.includes("combo 3") || nameKey.includes("combo3")) {
+    return "/images/dishes/combo_3.jpg";
+  }
+
+  // Rolls semantic matching
+  if (nameKey.includes("paneer") && nameKey.includes("cheese") && (nameKey.includes("roll") || nameKey.includes("wrap"))) {
+    return "/images/dishes/paneer_cheese_roll.jpg";
+  }
+  if (nameKey.includes("veg") && nameKey.includes("cheese") && (nameKey.includes("roll") || nameKey.includes("wrap"))) {
+    return "/images/dishes/veg_cheese_roll.jpg";
+  }
+  if (nameKey.includes("paneer") && (nameKey.includes("roll") || nameKey.includes("wrap") || nameKey.includes("kathi"))) {
+    return "/images/dishes/paneer_roll.jpg";
+  }
+  if (nameKey.includes("spring roll") || nameKey.includes("spring_roll")) {
+    return "/images/dishes/spring_roll.jpg";
+  }
+  if (nameKey.includes("veg") && (nameKey.includes("roll") || nameKey.includes("wrap") || nameKey.includes("kathi"))) {
+    return "/images/dishes/veg_roll.jpg";
+  }
+  if (nameKey.includes("roll") || nameKey.includes("wrap") || nameKey.includes("kathi")) {
+    return "/images/dishes/paneer_roll.jpg";
+  }
+
+  // Specific semantic matching for beverages and dishes to avoid pasta fallback
+  if (nameKey.includes("cold coffee") || nameKey.includes("iced coffee")) {
+    return DISH_PHOTOS.th_cold_coffee || "https://images.unsplash.com/photo-1517256064527-09c73fc73e38?auto=format&fit=crop&w=800&q=80";
+  }
+  if (
+    nameKey.includes("hot coffee") ||
+    nameKey.includes("coffee") ||
+    nameKey.includes("cappuccino") ||
+    nameKey.includes("latte") ||
+    nameKey.includes("espresso")
+  ) {
+    return "/images/dishes/hot_coffee.jpg";
+  }
+  if (nameKey.includes("chai") || nameKey.includes("tea")) {
+    return "/images/dishes/chai.jpg";
+  }
+  if (nameKey.includes("cheese") && (nameKey.includes("load") || nameKey.includes("fries"))) {
+    return "/images/dishes/cheese_loaded_fries.jpg";
+  }
+  if (nameKey.includes("crispy corn") || nameKey.includes("crispy_corn")) {
+    return "/images/dishes/crispy_corn.jpg";
+  }
+  if (nameKey.includes("rainbow") && nameKey.includes("waffle")) {
+    return "/images/dishes/rainbow_waffle.jpg";
+  }
+  if (nameKey.includes("hazelnut")) {
+    return "/images/dishes/hazelnut_shake.jpg";
+  }
+  if (nameKey.includes("chilli paneer") || nameKey.includes("chili paneer")) {
+    return "/images/dishes/chilli_paneer.jpg";
+  }
+  if (nameKey.includes("veg fried rice") || (nameKey.includes("fried rice") && !nameKey.includes("schezwan") && !nameKey.includes("paneer"))) {
+    return "/images/dishes/veg_fried_rice.jpg";
+  }
 
   for (const [key, path] of Object.entries(DISH_PHOTOS_BY_NAME)) {
     if (nameKey.includes(key) || key.includes(nameKey)) return path;
